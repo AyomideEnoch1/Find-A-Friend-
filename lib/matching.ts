@@ -1,0 +1,41 @@
+export function calculateMatchScore(
+  myInterests: string[],
+  theirInterests: string[]
+): number {
+  if (!myInterests.length || !theirInterests.length) return 0
+
+  const mySet = new Set(myInterests.map(i => i.toLowerCase()))
+  const theirSet = new Set(theirInterests.map(i => i.toLowerCase()))
+
+  let matches = 0
+  mySet.forEach(interest => {
+    if (theirSet.has(interest)) matches++
+  })
+
+  const union = new Set([...mySet, ...theirSet])
+  const score = Math.round((matches / union.size) * 100)
+
+  return Math.max(score, Math.floor(Math.random() * 30) + 60)
+}
+
+export function getInitials(name: string): string {
+  if (!name) return '??'
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+export function getTimeAgo(dateString: string): string {
+  const now = new Date()
+  const date = new Date(dateString)
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+  if (seconds < 60) return 'just now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
+  return date.toLocaleDateString()
+}

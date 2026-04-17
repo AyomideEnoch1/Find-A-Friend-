@@ -7,13 +7,11 @@ export default function RootLayout() {
   const { session, setSession } = useAuthStore()
   const segments = useSegments()
   const [mounted, setMounted] = useState(false)
-  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setInitialized(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -26,14 +24,18 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    if (!mounted || !initialized) return
+    if (!mounted) return
+    if (session === undefined) return
 
     const inAuth = segments[0] === '(auth)'
+    const inTabs = segments[0] === '(tabs)'
 
     if (!session && !inAuth) {
       router.replace('/(auth)/welcome')
+    } else if (session && !inTabs) {
+      router.replace('/(tabs)')
     }
-  }, [session, segments, mounted, initialized])
+  }, [session, segments, mounted])
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

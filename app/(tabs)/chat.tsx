@@ -1,95 +1,204 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput } from 'react-native'
+import {
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, TextInput, ActivityIndicator,
+  KeyboardAvoidingView, Platform
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState } from 'react'
-
-const conversations = [
-  {
-    id: 1, initials: 'AO', name: 'Aisha Okafor', bg: '#2a1e40',
-    preview: 'Are you going to the spoken word night?',
-    time: '9:38am', unread: 2, online: true,
-  },
-  {
-    id: 2, initials: 'HS', name: 'Hackathon Squad 🛠', bg: '#1e2a20',
-    preview: 'Chidi: I will handle the backend, you guys...',
-    time: '9:15am', unread: 5, online: false,
-  },
-  {
-    id: 3, initials: 'FN', name: 'Fatima Nwosu', bg: '#1e2030',
-    preview: 'Thanks for the study notes!',
-    time: 'Yesterday', unread: 0, online: true,
-  },
-  {
-    id: 4, initials: 'TI', name: 'Tobi Ibeh', bg: '#2a2010',
-    preview: 'Are you joining the photography club?',
-    time: 'Yesterday', unread: 0, online: false,
-  },
-  {
-    id: 5, initials: 'CB', name: 'Chidi Bello', bg: '#1e2a20',
-    preview: 'The hackathon is going to be insane!',
-    time: 'Mon', unread: 0, online: true,
-  },
-]
-
-const messages = [
-  { id: 1, text: 'Are you going to the spoken word night? 🎤', mine: false },
-  { id: 2, text: 'Yes! Just RSVP\'d on FAF. See you there?', mine: true },
-  { id: 3, text: 'Definitely! Link at 5:30 before it starts', mine: false },
-  { id: 4, text: 'Perfect, see you then 🙌', mine: true },
-]
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
+import { getInitials, getTimeAgo } from '../../lib/matching'
 
 export default function ChatScreen() {
-  const [activeChat, setActiveChat] = useState<number | null>(null)
+  const [conversations, setConversations] = useState<any[]>([])
+  const [activeConv, setActiveConv] = useState<any>(null)
+  const [messages, setMessages] = useState<any[]>([])
   const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [myId, setMyId] = useState<string>('')
+  const scrollRef = useRef<ScrollView>(null)
 
-  const active = conversations.find(c => c.id === activeChat)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setMyId(user.id)
+    })
+    loadConversations()
+  }, [])
 
-  if (activeChat && active) {
+  const loadConversations = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data } = await supabase
+      .from('conversation_participants')
+      .select(`
+        conversation_id,
+        conversations (
+          id, name, is_group, created_at
+        )
+      `)
+      .eq('user_id', user.id)
+
+    setConversations(data ?? [])
+    setLoading(false)
+  }
+
+  const loadMessages = useCallback(async (convId: string) => {
+    const { data } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        profiles (id, full_name, avatar_url)
+      `)
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true })
+
+    setMessages(data ?? [])
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+  }, [])
+
+  useEffect(() => {
+    if (!activeConv) return
+
+    loadMessages(activeConv.conversations.id)
+
+    const channel = supabase
+      .channel(`chat:${activeConv.conversations.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${activeConv.conversations.id}`,
+      }, (payload) => {
+        setMessages(prev => [...prev, payload.new])
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [activeConv, loadMessages])
+
+  const sendMessage = async () => {
+    if (!input.trim() || !activeConv || sending) return
+    const text = input.trim()
+    setInput('')
+    setSending(true)
+
+    await supabase.from('messages').insert({
+      conversation_id: activeConv.conversations.id,
+      sender_id: myId,
+      body: text,
+    })
+
+    setSending(false)
+  }
+
+  const startNewChat = async (name: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: conv } = await supabase
+      .from('conversations')
+      .insert({ name, is_group: false })
+      .select()
+      .single()
+
+    if (!conv) return
+
+    await supabase.from('conversation_participants').insert([
+      { conversation_id: conv.id, user_id: user.id },
+    ])
+
+    await loadConversations()
+  }
+
+  if (activeConv) {
     return (
       <SafeAreaView style={s.container}>
-        <View style={s.chatHeader}>
-          <TouchableOpacity style={s.backBtn} onPress={() => setActiveChat(null)}>
-            <Text style={s.backText}>←</Text>
-          </TouchableOpacity>
-          <View style={[s.chatAvatar, { backgroundColor: active.bg }]}>
-            <Text style={s.chatAvatarText}>{active.initials}</Text>
-          </View>
-          <View style={s.chatHeaderInfo}>
-            <Text style={s.chatHeaderName}>{active.name}</Text>
-            {active.online && (
-              <Text style={s.chatOnline}>Online now</Text>
-            )}
-          </View>
-        </View>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}>
 
-        <ScrollView
-          style={s.messagesArea}
-          contentContainerStyle={{ padding: 16, gap: 10 }}>
-          {messages.map((m) => (
-            <View
-              key={m.id}
-              style={[s.bubbleWrap, m.mine && s.bubbleWrapMine]}>
-              <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubbleThem]}>
-                <Text style={[s.bubbleText, m.mine && s.bubbleTextMine]}>
-                  {m.text}
+          <View style={s.chatHeader}>
+            <TouchableOpacity
+              style={s.backBtn}
+              onPress={() => setActiveConv(null)}>
+              <Text style={s.backText}>←</Text>
+            </TouchableOpacity>
+            <View style={[s.chatAvatar, { backgroundColor: '#2a1e40' }]}>
+              <Text style={s.chatAvatarText}>
+                {getInitials(activeConv.conversations.name ?? 'CH')}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.chatHeaderName}>
+                {activeConv.conversations.name ?? 'Chat'}
+              </Text>
+              <Text style={s.chatOnline}>Active now</Text>
+            </View>
+          </View>
+
+          <ScrollView
+            ref={scrollRef}
+            style={s.messagesArea}
+            contentContainerStyle={{ padding: 16, gap: 8 }}
+            onContentSizeChange={() =>
+              scrollRef.current?.scrollToEnd({ animated: true })
+            }>
+            {messages.length === 0 && (
+              <View style={s.emptyChat}>
+                <Text style={s.emptyChatText}>
+                  No messages yet. Say hello! 👋
                 </Text>
               </View>
-            </View>
-          ))}
-        </ScrollView>
+            )}
+            {messages.map((m: any, i: number) => {
+              const mine = m.sender_id === myId
+              return (
+                <View
+                  key={m.id ?? i}
+                  style={[s.bubbleWrap, mine && s.bubbleWrapMine]}>
+                  {!mine && (
+                    <Text style={s.senderName}>
+                      {m.profiles?.full_name ?? 'User'}
+                    </Text>
+                  )}
+                  <View style={[s.bubble, mine ? s.bubbleMine : s.bubbleThem]}>
+                    <Text style={[s.bubbleText, mine && s.bubbleTextMine]}>
+                      {m.body}
+                    </Text>
+                    <Text style={s.bubbleTime}>
+                      {getTimeAgo(m.created_at)}
+                    </Text>
+                  </View>
+                </View>
+              )
+            })}
+          </ScrollView>
 
-        <View style={s.inputRow}>
-          <TextInput
-            style={s.input}
-            placeholder="Type a message..."
-            placeholderTextColor="rgba(240,240,255,0.3)"
-            value={input}
-            onChangeText={setInput}
-            multiline
-          />
-          <TouchableOpacity style={s.sendBtn}>
-            <Text style={s.sendText}>➤</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={s.inputRow}>
+            <TextInput
+              style={s.input}
+              placeholder="Type a message..."
+              placeholderTextColor="rgba(240,240,255,0.3)"
+              value={input}
+              onChangeText={setInput}
+              multiline
+              maxLength={500}
+              onSubmitEditing={sendMessage}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!input.trim() || sending) && { opacity: 0.4 }]}
+              onPress={sendMessage}
+              disabled={!input.trim() || sending}>
+              {sending
+                ? <ActivityIndicator size="small" color="#a78bfa" />
+                : <Text style={s.sendText}>➤</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     )
   }
@@ -98,7 +207,9 @@ export default function ChatScreen() {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <Text style={s.title}>Messages</Text>
-        <TouchableOpacity style={s.composeBtn}>
+        <TouchableOpacity
+          style={s.composeBtn}
+          onPress={() => startNewChat('New conversation')}>
           <Text style={s.composeText}>✏</Text>
         </TouchableOpacity>
       </View>
@@ -112,33 +223,45 @@ export default function ChatScreen() {
         />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {conversations.map((c) => (
-          <TouchableOpacity
-            key={c.id}
-            style={s.chatItem}
-            onPress={() => setActiveChat(c.id)}>
-            <View style={s.avatarWrap}>
-              <View style={[s.avatar, { backgroundColor: c.bg }]}>
-                <Text style={s.avatarText}>{c.initials}</Text>
-              </View>
-              {c.online && <View style={s.onlineDot} />}
-            </View>
-            <View style={s.chatInfo}>
-              <Text style={s.chatName}>{c.name}</Text>
-              <Text style={s.chatPreview} numberOfLines={1}>{c.preview}</Text>
-            </View>
-            <View style={s.chatMeta}>
-              <Text style={s.chatTime}>{c.time}</Text>
-              {c.unread > 0 && (
-                <View style={s.unreadBadge}>
-                  <Text style={s.unreadText}>{c.unread}</Text>
+      {loading ? (
+        <View style={s.loadingWrap}>
+          <ActivityIndicator color="#a78bfa" />
+        </View>
+      ) : conversations.length === 0 ? (
+        <View style={s.emptyWrap}>
+          <Text style={s.emptyIcon}>💬</Text>
+          <Text style={s.emptyTitle}>No messages yet</Text>
+          <Text style={s.emptyText}>
+            Connect with students and start chatting!
+          </Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {conversations.map((c: any, i: number) => (
+            <TouchableOpacity
+              key={c.conversation_id ?? i}
+              style={s.chatItem}
+              onPress={() => setActiveConv(c)}>
+              <View style={s.avatarWrap}>
+                <View style={[s.avatar, { backgroundColor: '#2a1e40' }]}>
+                  <Text style={s.avatarText}>
+                    {getInitials(c.conversations?.name ?? 'CH')}
+                  </Text>
                 </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              </View>
+              <View style={s.chatInfo}>
+                <Text style={s.chatName}>
+                  {c.conversations?.name ?? 'Chat'}
+                </Text>
+                <Text style={s.chatPreview}>Tap to open conversation</Text>
+              </View>
+              <Text style={s.chatTime}>
+                {getTimeAgo(c.conversations?.created_at)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   )
 }
@@ -146,12 +269,9 @@ export default function ChatScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d14' },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: 16,
+    paddingTop: 8, paddingBottom: 12,
   },
   title: { fontSize: 22, fontWeight: '700', color: '#f0f0ff' },
   composeBtn: {
@@ -162,26 +282,28 @@ const s = StyleSheet.create({
   },
   composeText: { fontSize: 16, color: '#a78bfa' },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: '#1c1c2e',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginBottom: 8,
+    backgroundColor: '#1c1c2e', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 10, gap: 8,
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
   },
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, fontSize: 13, color: '#f0f0ff' },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 10,
+  },
+  emptyIcon: { fontSize: 48 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#f0f0ff' },
+  emptyText: {
+    fontSize: 13, color: 'rgba(240,240,255,0.4)',
+    textAlign: 'center', lineHeight: 20,
+  },
   chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
@@ -191,29 +313,13 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  onlineDot: {
-    width: 12, height: 12, borderRadius: 6,
-    backgroundColor: '#34d399',
-    position: 'absolute', bottom: 0, right: 0,
-    borderWidth: 2, borderColor: '#0d0d14',
-  },
   chatInfo: { flex: 1, minWidth: 0 },
   chatName: { fontSize: 14, fontWeight: '500', color: '#f0f0ff', marginBottom: 3 },
   chatPreview: { fontSize: 12, color: 'rgba(240,240,255,0.35)' },
-  chatMeta: { alignItems: 'flex-end', gap: 6 },
   chatTime: { fontSize: 11, color: 'rgba(240,240,255,0.25)' },
-  unreadBadge: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#a78bfa',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  unreadText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.07)',
   },
@@ -228,17 +334,25 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   chatAvatarText: { fontSize: 12, fontWeight: '600', color: '#fff' },
-  chatHeaderInfo: { flex: 1 },
   chatHeaderName: { fontSize: 14, fontWeight: '600', color: '#f0f0ff' },
   chatOnline: { fontSize: 11, color: '#34d399' },
   messagesArea: { flex: 1 },
-  bubbleWrap: { flexDirection: 'row' },
-  bubbleWrapMine: { justifyContent: 'flex-end' },
+  emptyChat: {
+    flex: 1, alignItems: 'center',
+    justifyContent: 'center', paddingTop: 60,
+  },
+  emptyChatText: {
+    fontSize: 14, color: 'rgba(240,240,255,0.3)', textAlign: 'center',
+  },
+  bubbleWrap: { flexDirection: 'column', marginBottom: 4 },
+  bubbleWrapMine: { alignItems: 'flex-end' },
+  senderName: {
+    fontSize: 10, color: 'rgba(240,240,255,0.4)',
+    marginBottom: 3, marginLeft: 4,
+  },
   bubble: {
-    maxWidth: '75%',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    maxWidth: '75%', borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
   bubbleThem: {
     backgroundColor: '#1c1c2e',
@@ -247,30 +361,27 @@ const s = StyleSheet.create({
   bubbleMine: {
     backgroundColor: 'rgba(167,139,250,0.2)',
     borderBottomRightRadius: 4,
-    borderWidth: 0.5,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.3)',
   },
-  bubbleText: { fontSize: 13, color: 'rgba(240,240,255,0.7)', lineHeight: 20 },
+  bubbleText: {
+    fontSize: 13, color: 'rgba(240,240,255,0.7)', lineHeight: 20,
+  },
   bubbleTextMine: { color: '#f0f0ff' },
+  bubbleTime: {
+    fontSize: 9, color: 'rgba(240,240,255,0.3)',
+    marginTop: 4, textAlign: 'right',
+  },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10, gap: 10,
     borderTopWidth: 0.5,
     borderTopColor: 'rgba(255,255,255,0.07)',
   },
   input: {
-    flex: 1,
-    backgroundColor: '#1c1c2e',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#f0f0ff',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
+    flex: 1, backgroundColor: '#1c1c2e', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 10,
+    fontSize: 13, color: '#f0f0ff',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
     maxHeight: 100,
   },
   sendBtn: {
