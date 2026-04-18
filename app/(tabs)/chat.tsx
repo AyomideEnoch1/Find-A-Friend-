@@ -26,8 +26,13 @@ export default function ChatScreen() {
   }, [])
 
   const loadConversations = async () => {
+  try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
 
     const { data } = await supabase
       .from('conversation_participants')
@@ -39,8 +44,12 @@ export default function ChatScreen() {
       `)
       .eq('user_id', user.id)
 
-    setConversations(data ?? [])
+     setConversations(data ?? [])
+  } catch (error) {
+    console.log('Chat error:', error)
+  } finally {
     setLoading(false)
+  }
   }
 
   const loadMessages = useCallback(async (convId: string) => {
@@ -58,9 +67,17 @@ export default function ChatScreen() {
   }, [])
 
   useEffect(() => {
-    if (!activeConv) return
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (user) setMyId(user.id)
+  })
+  loadConversations()
 
-    loadMessages(activeConv.conversations.id)
+  const timeout = setTimeout(() => {
+    setLoading(false)
+  }, 5000)
+
+  return () => clearTimeout(timeout)
+}, [])
 
     const channel = supabase
       .channel(`chat:${activeConv.conversations.id}`)
