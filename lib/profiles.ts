@@ -1,16 +1,17 @@
-import { supabase } from './supabase'
+﻿import { supabase } from './supabase'
 
 export async function getCurrentProfile() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
-
-  if (error) return null
+  if (error) {
+    console.log('Profile error:', error)
+    return null
+  }
   return data
 }
 
@@ -24,24 +25,20 @@ export async function updateProfile(updates: {
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not logged in' }
-
   const { error } = await supabase
     .from('profiles')
     .update(updates)
     .eq('id', user.id)
-
   return { error }
 }
 
 export async function getAllProfiles() {
   const { data: { user } } = await supabase.auth.getUser()
-
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .neq('id', user?.id ?? '')
     .limit(20)
-
   if (error) return []
   return data
 }
@@ -49,7 +46,6 @@ export async function getAllProfiles() {
 export async function setOnlineStatus(isOnline: boolean) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
-
   await supabase
     .from('profiles')
     .update({ is_online: isOnline })

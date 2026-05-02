@@ -36,37 +36,44 @@ export default function OnboardingScreen() {
     )
   }
 
-  const saveProfile = async () => {
-    if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your full name')
-      return
-    }
-    if (interests.length < 3) {
-      Alert.alert('Error', 'Please select at least 3 interests')
-      return
-    }
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName.trim(),
-        department,
-        level,
-        bio: bio.trim(),
-        interests,
-      })
-      .eq('id', user.id)
-
-    setLoading(false)
-    if (error) {
-      Alert.alert('Error', error.message)
-    } else {
-      router.replace('/(tabs)')
-    }
+ const saveProfile = async () => {
+  if (!fullName.trim()) {
+    Alert.alert('Error', 'Please enter your full name')
+    return
   }
+  if (interests.length < 3) {
+    Alert.alert('Error', 'Please select at least 3 interests')
+    return
+  }
+  setLoading(true)
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    Alert.alert('Error', 'Not logged in')
+    setLoading(false)
+    return
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      id: user.id,
+      email: user.email,
+      full_name: fullName.trim(),
+      department,
+      level,
+      bio: bio.trim(),
+      interests,
+    })
+
+  setLoading(false)
+
+  if (error) {
+    Alert.alert('Error saving profile', error.message)
+  } else {
+    router.replace('/(tabs)')
+  }
+}
 
   return (
     <SafeAreaView style={s.container}>

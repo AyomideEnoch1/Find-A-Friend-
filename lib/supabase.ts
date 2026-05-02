@@ -1,16 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
+﻿import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
-import Constants from 'expo-constants'
 
-const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ??
-  Constants.expoConfig?.extra?.supabaseUrl ??
-  ''
-
-const supabaseAnonKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  Constants.expoConfig?.extra?.supabaseAnonKey ??
-  ''
+const supabaseUrl = 'https://vcbtvhociaioeyhhsczh.supabase.co'
+const supabaseAnonKey = 'sb_publishable_oN3ImQ-mtGa2QgnBXQ-xqA_gP3GfVwe'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
