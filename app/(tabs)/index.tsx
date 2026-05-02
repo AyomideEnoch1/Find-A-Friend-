@@ -91,8 +91,8 @@ export default function HomeScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
+      aspect: [16, 9],
+      quality: 0.7,
     })
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri)
