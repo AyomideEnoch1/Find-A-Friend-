@@ -15,7 +15,7 @@ export function calculateMatchScore(
   const union = new Set([...mySet, ...theirSet])
   const score = Math.round((matches / union.size) * 100)
 
-  return Math.max(score, Math.floor(Math.random() * 30) + 60)
+  return score
 }
 
 export function getInitials(name: string): string {

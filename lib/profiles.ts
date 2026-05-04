@@ -43,6 +43,28 @@ export async function getAllProfiles() {
   return data
 }
 
+export async function getProfileStats(): Promise<{ posts: number; friends: number }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { posts: 0, friends: 0 }
+
+  const [postsResult, connectionsResult] = await Promise.all([
+    supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('author_id', user.id),
+    supabase
+      .from('connections')
+      .select('id', { count: 'exact', head: true })
+      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .eq('status', 'accepted'),
+  ])
+
+  return {
+    posts: postsResult.count ?? 0,
+    friends: connectionsResult.count ?? 0,
+  }
+}
+
 export async function setOnlineStatus(isOnline: boolean) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return

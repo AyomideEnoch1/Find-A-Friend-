@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+// TODO: replace with dynamic week range based on current date
 const dates = [
   { day: 'Mon', num: '14' },
   { day: 'Tue', num: '15' },
@@ -10,6 +11,7 @@ const dates = [
   { day: 'Sat', num: '19' },
 ]
 
+// TODO: replace with Supabase query — select * from events order by starts_at asc
 const events = [
   {
     month: 'APR', day: '16', title: 'Annual Tech Expo 2026',

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Stack, router, useSegments } from 'expo-router'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export default function RootLayout() {
   const { session, setSession } = useAuthStore()
@@ -34,6 +35,8 @@ export default function RootLayout() {
   }, [session, segments, mounted, initialized])
 
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <ErrorBoundary>
+      <Stack screenOptions={{ headerShown: false }} />
+    </ErrorBoundary>
   )
 }

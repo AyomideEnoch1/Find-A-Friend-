@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useEffect } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getCurrentProfile, updateProfile } from '../lib/profiles'
+import { getCurrentProfile, getProfileStats, updateProfile } from '../lib/profiles'
 import { getInitials } from '../lib/matching'
 import { useAuthStore } from '../store/authStore'
 
@@ -16,6 +16,7 @@ const allInterests = [
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState(null)
+  const [stats, setStats] = useState({ posts: 0, friends: 0 })
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -27,8 +28,9 @@ export default function ProfileScreen() {
   useEffect(() => { loadProfile() }, [])
 
   const loadProfile = async () => {
-    const p = await getCurrentProfile()
+    const [p, s] = await Promise.all([getCurrentProfile(), getProfileStats()])
     setProfile(p)
+    setStats(s)
     setFullName(p?.full_name ?? '')
     setBio(p?.bio ?? '')
     setInterests(p?.interests ?? [])
@@ -112,7 +114,12 @@ export default function ProfileScreen() {
         </View>
 
         <View style={s.statsRow}>
-          {[{ label: 'Posts', value: '0' }, { label: 'Friends', value: '0' }, { label: 'Clubs', value: '0' }, { label: 'Events', value: '0' }].map((stat, i) => (
+          {[
+            { label: 'Posts', value: String(stats.posts) },
+            { label: 'Friends', value: String(stats.friends) },
+            { label: 'Clubs', value: '0' },
+            { label: 'Events', value: '0' },
+          ].map((stat, i) => (
             <View key={i} style={s.statCard}>
               <Text style={s.statValue}>{stat.value}</Text>
               <Text style={s.statLabel}>{stat.label}</Text>
