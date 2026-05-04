@@ -1,14 +1,16 @@
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, ActivityIndicator,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, Alert
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { getAllProfiles } from '../../lib/profiles'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 export default function ChatScreen() {
   const [conversations, setConversations] = useState([])
@@ -27,19 +29,48 @@ export default function ChatScreen() {
       if (user) setMyId(user.id)
     })
     loadConversations()
-    const timeout = setTimeout(() => setLoading(false), 5000)
-    return () => clearTimeout(timeout)
   }, [])
 
   const loadConversations = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
+
       const { data } = await supabase
         .from('conversation_participants')
-        .select('conversation_id, conversations(id, name, is_group, created_at)')
+        .select(`
+          conversation_id,
+          conversations(
+            id, name, is_group, created_at,
+            conversation_participants(user_id, profiles(full_name, is_online))
+          )
+        `)
         .eq('user_id', user.id)
-      setConversations(data ?? [])
+
+      if (!data?.length) {
+        setConversations([])
+        setLoading(false)
+        return
+      }
+
+      const convIds = data.map(d => d.conversation_id)
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('conversation_id, body, created_at, sender_id')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: false })
+
+      const lastMsgMap: Record<string, any> = {}
+      msgs?.forEach(m => {
+        if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m
+      })
+
+      const enriched = data.map(d => ({
+        ...d,
+        lastMessage: lastMsgMap[d.conversation_id] ?? null,
+      }))
+
+      setConversations(enriched)
     } catch (error) {
       console.log('Chat error:', error)
     } finally {
@@ -78,6 +109,7 @@ export default function ChatScreen() {
     const text = input.trim()
     setInput('')
     setSending(true)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await supabase.from('messages').insert({
       conversation_id: activeConv.conversations.id,
       sender_id: myId,
@@ -89,6 +121,26 @@ export default function ChatScreen() {
   const startNewChat = async (otherUser) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    const [{ data: myConvs }, { data: theirConvs }] = await Promise.all([
+      supabase.from('conversation_participants').select('conversation_id').eq('user_id', user.id),
+      supabase.from('conversation_participants').select('conversation_id').eq('user_id', otherUser.id),
+    ])
+
+    const myIds = new Set(myConvs?.map(c => c.conversation_id) ?? [])
+    const existing = theirConvs?.find(c => myIds.has(c.conversation_id))
+
+    if (existing) {
+      const existingConv = conversations.find(c => c.conversation_id === existing.conversation_id)
+      setShowNewChat(false)
+      if (existingConv) {
+        setActiveConv(existingConv)
+      } else {
+        await loadConversations()
+      }
+      return
+    }
+
     const { data: conv } = await supabase
       .from('conversations')
       .insert({ name: otherUser.full_name || otherUser.email, is_group: false })
@@ -109,6 +161,10 @@ export default function ChatScreen() {
   }
 
   if (activeConv) {
+    const otherParticipant = activeConv.conversations?.conversation_participants
+      ?.find(p => p.user_id !== myId)
+    const isOtherOnline = otherParticipant?.profiles?.is_online ?? false
+
     return (
       <SafeAreaView style={s.container}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -121,7 +177,12 @@ export default function ChatScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.chatHeaderName}>{activeConv.conversations.name ?? 'Chat'}</Text>
-              <Text style={s.chatOnline}>Active now</Text>
+              <View style={s.onlineRow}>
+                <View style={[s.onlineDot, { backgroundColor: isOtherOnline ? '#34d399' : 'rgba(240,240,255,0.2)' }]} />
+                <Text style={[s.chatOnline, { color: isOtherOnline ? '#34d399' : 'rgba(240,240,255,0.3)' }]}>
+                  {isOtherOnline ? 'Active now' : 'Offline'}
+                </Text>
+              </View>
             </View>
           </View>
           <ScrollView ref={scrollRef} style={s.messagesArea}
@@ -174,7 +235,17 @@ export default function ChatScreen() {
       </View>
 
       {loading ? (
-        <View style={s.loadingWrap}><ActivityIndicator color="#a78bfa" /></View>
+        <View style={{ paddingHorizontal: 16, gap: 2 }}>
+          {[1, 2, 3].map(i => (
+            <View key={i} style={s.skeletonItem}>
+              <Skeleton width={48} height={48} borderRadius={24} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Skeleton width="50%" height={14} />
+                <Skeleton width="80%" height={11} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : showNewChat ? (
         <View style={{ flex: 1 }}>
           <View style={s.newChatHeader}>
@@ -209,18 +280,31 @@ export default function ChatScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          {conversations.map((c, i) => (
-            <TouchableOpacity key={c.conversation_id ?? i} style={s.chatItem} onPress={() => setActiveConv(c)}>
-              <View style={s.avatar}>
-                <Text style={s.avatarText}>{getInitials(c.conversations?.name ?? 'CH')}</Text>
-              </View>
-              <View style={s.chatInfo}>
-                <Text style={s.chatName}>{c.conversations?.name ?? 'Chat'}</Text>
-                <Text style={s.chatPreview}>Tap to open conversation</Text>
-              </View>
-              <Text style={s.chatTime}>{getTimeAgo(c.conversations?.created_at)}</Text>
-            </TouchableOpacity>
-          ))}
+          {conversations.map((c, i) => {
+            const otherParticipant = c.conversations?.conversation_participants
+              ?.find(p => p.user_id !== myId)
+            const isOnline = otherParticipant?.profiles?.is_online ?? false
+            const lastMsg = c.lastMessage
+            return (
+              <TouchableOpacity key={c.conversation_id ?? i} style={s.chatItem} onPress={() => setActiveConv(c)}>
+                <View style={s.avatarWrap}>
+                  <View style={s.avatar}>
+                    <Text style={s.avatarText}>{getInitials(c.conversations?.name ?? 'CH')}</Text>
+                  </View>
+                  {isOnline && <View style={s.onlineBadge} />}
+                </View>
+                <View style={s.chatInfo}>
+                  <Text style={s.chatName}>{c.conversations?.name ?? 'Chat'}</Text>
+                  <Text style={s.chatPreview} numberOfLines={1}>
+                    {lastMsg ? lastMsg.body : 'No messages yet'}
+                  </Text>
+                </View>
+                <Text style={s.chatTime}>
+                  {lastMsg ? getTimeAgo(lastMsg.created_at) : getTimeAgo(c.conversations?.created_at)}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -234,7 +318,6 @@ const s = StyleSheet.create({
   composeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(167,139,250,0.15)', borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.3)', alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: '#1c1c2e', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, gap: 8, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)' },
   searchInput: { flex: 1, fontSize: 13, color: '#f0f0ff' },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 10, marginTop: 60 },
   emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#f0f0ff' },
@@ -244,8 +327,10 @@ const s = StyleSheet.create({
   newChatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   newChatTitle: { fontSize: 16, fontWeight: '600', color: '#f0f0ff' },
   chatItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  avatarWrap: { position: 'relative' },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#2a1e40', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, fontWeight: '600', color: '#c4b5fd' },
+  onlineBadge: { position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: '#34d399', borderWidth: 2, borderColor: '#0d0d14' },
   chatInfo: { flex: 1 },
   chatName: { fontSize: 14, fontWeight: '500', color: '#f0f0ff', marginBottom: 3 },
   chatPreview: { fontSize: 12, color: 'rgba(240,240,255,0.35)' },
@@ -255,7 +340,9 @@ const s = StyleSheet.create({
   chatAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   chatAvatarText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   chatHeaderName: { fontSize: 14, fontWeight: '600', color: '#f0f0ff' },
-  chatOnline: { fontSize: 11, color: '#34d399' },
+  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3 },
+  chatOnline: { fontSize: 11 },
   messagesArea: { flex: 1 },
   emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
   emptyChatText: { fontSize: 14, color: 'rgba(240,240,255,0.3)', textAlign: 'center' },
@@ -271,4 +358,5 @@ const s = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.07)' },
   input: { flex: 1, backgroundColor: '#1c1c2e', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 13, color: '#f0f0ff', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)', maxHeight: 100 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(167,139,250,0.2)', borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.3)', alignItems: 'center', justifyContent: 'center' },
+  skeletonItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)' },
 })

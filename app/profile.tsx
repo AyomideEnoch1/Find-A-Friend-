@@ -159,7 +159,10 @@ export default function ProfileScreen() {
             { icon: 'moon-outline', label: 'Appearance' },
             { icon: 'help-circle-outline', label: 'Help & support' },
           ].map((item, i) => (
-            <TouchableOpacity key={i} style={s.menuItem}>
+            <TouchableOpacity
+              key={i}
+              style={s.menuItem}
+              onPress={() => Alert.alert('Coming soon', `${item.label} will be available in the next update.`)}>
               <Ionicons name={item.icon} size={20} color="rgba(240,240,255,0.6)" />
               <Text style={s.menuLabel}>{item.label}</Text>
               <Ionicons name="chevron-forward" size={16} color="rgba(240,240,255,0.2)" />

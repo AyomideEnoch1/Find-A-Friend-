@@ -1,6 +1,10 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import { useState, useEffect } from 'react'
+import { getCurrentProfile, getProfileStats } from '../../lib/profiles'
+import { getInitials } from '../../lib/matching'
+import { useAuthStore } from '../../store/authStore'
 
 const features = [
   { icon: '🗺️', title: 'Campus map', subtitle: 'Live events & friends nearby', color: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.25)', route: '/map' },
@@ -9,13 +13,6 @@ const features = [
   { icon: '🎭', title: 'Confession board', subtitle: 'Anonymous campus posts & shoutouts', color: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.25)', route: '/confessions' },
   { icon: '🏪', title: 'Campus deals', subtitle: 'Student-only discounts near you', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.25)', route: '/deals' },
   { icon: '👤', title: 'My profile', subtitle: 'Edit your bio, photos & interests', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.25)', route: '/profile' },
-]
-
-const quickStats = [
-  { label: 'Friends', value: '12' },
-  { label: 'Clubs', value: '3' },
-  { label: 'Events', value: '7' },
-  { label: 'Match %', value: '94' },
 ]
 
 const menuItems = [
@@ -27,6 +24,33 @@ const menuItems = [
 ]
 
 export default function MoreScreen() {
+  const [profile, setProfile] = useState(null)
+  const [stats, setStats] = useState({ posts: 0, friends: 0 })
+  const [loading, setLoading] = useState(true)
+  const { signOut } = useAuthStore()
+
+  useEffect(() => {
+    Promise.all([getCurrentProfile(), getProfileStats()]).then(([p, s]) => {
+      setProfile(p)
+      setStats(s)
+      setLoading(false)
+    })
+  }, [])
+
+  const handleSignOut = () => {
+    Alert.alert('Sign out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: async () => {
+        await signOut()
+        router.replace('/(auth)/welcome')
+      }},
+    ])
+  }
+
+  const handleMenuItem = (label: string) => {
+    Alert.alert('Coming soon', `${label} will be available in the next update.`)
+  }
+
   return (
     <SafeAreaView style={s.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -38,24 +62,37 @@ export default function MoreScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={s.profileCard}>
-          <View style={s.profileAvatar}>
-            <Text style={s.profileInitials}>AE</Text>
-          </View>
+        <TouchableOpacity style={s.profileCard} onPress={() => router.push('/profile' as any)}>
+          {loading ? (
+            <View style={[s.profileAvatar, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="small" color="#a78bfa" />
+            </View>
+          ) : (
+            <View style={s.profileAvatar}>
+              <Text style={s.profileInitials}>{getInitials(profile?.full_name ?? profile?.email ?? '??')}</Text>
+            </View>
+          )}
           <View style={s.profileInfo}>
             <View style={s.profileNameRow}>
-              <Text style={s.profileName}>Ayomide Enoch</Text>
+              <Text style={s.profileName}>{profile?.full_name ?? 'Your name'}</Text>
               <View style={s.verifiedBadge}>
                 <Text style={s.verifiedText}>✓ Verified</Text>
               </View>
             </View>
-            <Text style={s.profileDept}>Computer Science · 300L</Text>
-            <Text style={s.profileUni}>University of Lagos</Text>
+            <Text style={s.profileDept}>
+              {profile?.department ?? 'Department'}{profile?.level ? ' · ' + profile.level : ''}
+            </Text>
+            <Text style={s.profileEmail}>{profile?.email ?? ''}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={s.statsRow}>
-          {quickStats.map((stat, i) => (
+          {[
+            { label: 'Posts', value: String(stats.posts) },
+            { label: 'Friends', value: String(stats.friends) },
+            { label: 'Clubs', value: '0' },
+            { label: 'Events', value: '0' },
+          ].map((stat, i) => (
             <View key={i} style={s.statCard}>
               <Text style={s.statValue}>{stat.value}</Text>
               <Text style={s.statLabel}>{stat.label}</Text>
@@ -88,7 +125,7 @@ export default function MoreScreen() {
 
         <View style={s.menuList}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity key={index} style={s.menuItem}>
+            <TouchableOpacity key={index} style={s.menuItem} onPress={() => handleMenuItem(item.label)}>
               <View style={s.menuIconWrap}>
                 <Text style={s.menuIcon}>{item.icon}</Text>
               </View>
@@ -101,7 +138,7 @@ export default function MoreScreen() {
           ))}
         </View>
 
-        <TouchableOpacity style={s.signOutBtn}>
+        <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
           <Text style={s.signOutText}>Sign out</Text>
         </TouchableOpacity>
 
@@ -126,7 +163,7 @@ const s = StyleSheet.create({
   verifiedBadge: { backgroundColor: 'rgba(52,211,153,0.15)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 0.5, borderColor: 'rgba(52,211,153,0.3)' },
   verifiedText: { fontSize: 10, color: '#34d399', fontWeight: '500' },
   profileDept: { fontSize: 12, color: 'rgba(240,240,255,0.5)', marginBottom: 2 },
-  profileUni: { fontSize: 11, color: 'rgba(240,240,255,0.3)' },
+  profileEmail: { fontSize: 11, color: 'rgba(240,240,255,0.3)' },
   statsRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 20, gap: 8 },
   statCard: { flex: 1, backgroundColor: '#1c1c2e', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)' },
   statValue: { fontSize: 18, fontWeight: '700', color: '#a78bfa', marginBottom: 2 },

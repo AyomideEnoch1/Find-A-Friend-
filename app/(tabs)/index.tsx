@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { sendConnectionRequest } from '../../lib/connections'
 import { calculateMatchScore, getInitials, getTimeAgo } from '../../lib/matching'
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const [newPostTags, setNewPostTags] = useState('')
   const [posting, setPosting] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
+  const [requested, setRequested] = useState<Set<string>>(new Set())
 
   const loadData = useCallback(async () => {
     try {
@@ -119,13 +121,15 @@ export default function HomeScreen() {
   }
 
   const handleConnect = async (userId: string, name: string) => {
-  const { error } = await sendConnectionRequest(userId)
-  if (error) {
-    Alert.alert('Already sent?', 'Request already sent or could not connect')
-  } else {
-    Alert.alert('Request sent!', `You sent a connection request to ${name}`)
+    if (requested.has(userId)) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    const { error } = await sendConnectionRequest(userId)
+    if (error && error !== 'already_sent') {
+      Alert.alert('Error', 'Could not send request')
+    } else {
+      setRequested(prev => new Set([...prev, userId]))
+    }
   }
-}
 
 
   const greeting = () => {
@@ -191,28 +195,34 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.peopleScroll}
               contentContainerStyle={{ paddingHorizontal: 16 }}>
-              {people.slice(0, 8).map((person: any, i: number) => (
-                <TouchableOpacity key={person.id ?? i} style={styles.personCard}>
-                  <View style={styles.personAvatar}>
-                    <Text style={styles.personInitials}>
-                      {getInitials(person.full_name ?? person.email)}
+              {people.slice(0, 8).map((person: any, i: number) => {
+                const isRequested = requested.has(person.id)
+                return (
+                  <View key={person.id ?? i} style={styles.personCard}>
+                    <View style={styles.personAvatar}>
+                      <Text style={styles.personInitials}>
+                        {getInitials(person.full_name ?? person.email)}
+                      </Text>
+                    </View>
+                    <Text style={styles.personName} numberOfLines={1}>
+                      {person.full_name
+                        ? person.full_name.split(' ')[0]
+                        : person.email?.split('@')[0]}
                     </Text>
+                    <Text style={styles.personMatch}>
+                      {person.matchScore > 0 ? `${person.matchScore}% match` : 'New'}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.connectBtn, isRequested && styles.connectBtnSent]}
+                      onPress={() => handleConnect(person.id, person.full_name ?? 'this person')}
+                      disabled={isRequested}>
+                      <Text style={[styles.connectText, isRequested && styles.connectTextSent]}>
+                        {isRequested ? '✓' : '+ Add'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {person.full_name
-                      ? person.full_name.split(' ')[0]
-                      : person.email?.split('@')[0]}
-                  </Text>
-                  <Text style={styles.personMatch}>
-                    {person.matchScore}% match
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.connectBtn}
-                    onPress={() => handleConnect(person.id, person.full_name ?? 'this person')}>
-                    <Text style={styles.connectText}>+ Add</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
+                )
+              })}
             </ScrollView>
           </View>
         )}
@@ -368,7 +378,9 @@ const styles = StyleSheet.create({
   personName: { fontSize: 10, fontWeight: '500', color: '#f0f0ff', marginBottom: 2, width: '100%', textAlign: 'center' },
   personMatch: { fontSize: 9, fontWeight: '600', color: '#a78bfa', marginBottom: 6 },
   connectBtn: { width: '100%', backgroundColor: 'rgba(167,139,250,0.15)', borderRadius: 20, paddingVertical: 4, borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.3)', alignItems: 'center' },
+  connectBtnSent: { backgroundColor: 'rgba(52,211,153,0.1)', borderColor: 'rgba(52,211,153,0.3)' },
   connectText: { fontSize: 9, color: '#a78bfa', fontWeight: '500' },
+  connectTextSent: { color: '#34d399' },
   feedCard: { marginHorizontal: 16, marginBottom: 12, backgroundColor: '#1c1c2e', borderRadius: 16, padding: 14, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)' },
   feedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   feedAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#2a1e40', alignItems: 'center', justifyContent: 'center' },
