@@ -58,6 +58,7 @@ export default function OnboardingScreen() {
     .from('profiles')
     .upsert({
       id: user.id,
+      email: user.email,
       full_name: fullName.trim(),
       department,
       level,
