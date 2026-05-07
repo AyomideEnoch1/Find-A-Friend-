@@ -10,6 +10,7 @@ import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useFeedStore } from '../../store/feedStore'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
+import { createStory } from '../../lib/stories'
 import type { FeedPost } from '../../lib/feed'
 
 interface PostCardProps {
@@ -45,8 +46,29 @@ export default function PostCard({ post, onCommentPress }: PostCardProps) {
       { text: 'Repost', onPress: () => {} },
     ])
   }
-  const handleShare = async () => {
-    try { await Share.share({ message: `${post.body}\n\n— via FAF` }) } catch {}
+  const handleAddToStory = async () => {
+    if (post.image_url) {
+      const { error } = await createStory({
+        mediaUrl: post.image_url,
+        mediaType: 'image',
+        caption: post.body?.slice(0, 150),
+        durationSecs: 5,
+      })
+      if (error) Alert.alert('Error', error.message)
+      else Alert.alert('Added!', 'Post shared to your story')
+    } else {
+      router.push('/create-story' as any)
+    }
+  }
+
+  const handleShare = () => {
+    Alert.alert('Share', undefined, [
+      { text: 'Add to Story', onPress: handleAddToStory },
+      { text: 'Share externally', onPress: async () => {
+        try { await Share.share({ message: `${post.body}\n\n— via FAF` }) } catch {}
+      }},
+      { text: 'Cancel', style: 'cancel' },
+    ])
   }
   const handleMore = () => {
     const isOwn = myUserId && post.author_id === myUserId
