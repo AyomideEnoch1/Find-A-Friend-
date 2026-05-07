@@ -75,14 +75,6 @@ export default function AnonymousScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      {/* Disclaimer */}
-      <View style={s.disclaimer}>
-        <Ionicons name="shield-checkmark-outline" size={14} color="#60a5fa" />
-        <Text style={s.disclaimerText}>
-          Posts are anonymous to other users. School admins can view identity for safety.
-        </Text>
-      </View>
-
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={theme.accent} />
@@ -145,17 +137,7 @@ const s = StyleSheet.create({
   },
   title: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
   subtitle: { fontSize: 10, textAlign: 'center' },
-  disclaimer: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    marginHorizontal: 16, marginVertical: 10,
-    backgroundColor: 'rgba(96,165,250,0.08)',
-    borderRadius: 10, padding: 10,
-    borderWidth: 0.5, borderColor: 'rgba(96,165,250,0.2)',
-  },
-  disclaimerText: {
-    flex: 1, fontSize: 11, color: 'rgba(96,165,250,0.8)', lineHeight: 16,
-  },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: '#f0f0ff' },
   emptyText: { fontSize: 13, color: 'rgba(240,240,255,0.4)' },

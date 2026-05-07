@@ -15,7 +15,7 @@ import {
   Platform,
   Image,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getPost, getComments, commentOnPost } from '../../lib/feed'
@@ -25,6 +25,7 @@ import PostCard from '../../components/feed/PostCard'
 import type { FeedPost, PostComment } from '../../lib/feed'
 
 export default function PostDetailScreen() {
+  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [post, setPost] = useState<FeedPost | null>(null)
   const [comments, setComments] = useState<PostComment[]>([])
@@ -106,7 +107,7 @@ export default function PostDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -145,7 +146,7 @@ export default function PostDetailScreen() {
         />
 
         {/* Input */}
-        <View style={s.inputRow}>
+        <View style={[s.inputRow, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             style={s.input}
             placeholder="Add a comment..."
