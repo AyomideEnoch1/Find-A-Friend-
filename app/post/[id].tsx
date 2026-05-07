@@ -28,7 +28,8 @@ import { useTheme } from '../../lib/theme'
 export default function PostDetailScreen() {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const params = useLocalSearchParams<{ id: string }>()
+  const id = Array.isArray(params.id) ? params.id[0] : params.id
   const [post, setPost] = useState<FeedPost | null>(null)
   const [comments, setComments] = useState<PostComment[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +54,7 @@ export default function PostDetailScreen() {
 
   const handleSend = async () => {
     const trimmed = commentText.trim()
-    if (!trimmed || sending) return
+    if (!trimmed || sending || !id) return
     setSending(true)
     const { data, error } = await commentOnPost(id, trimmed)
     if (!error && data) {
@@ -117,7 +118,7 @@ export default function PostDetailScreen() {
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.backIcon}>
-            <Ionicons name="arrow-back" size={22} color="#f0f0ff" />
+            <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Post</Text>
           <View style={{ width: 36 }} />

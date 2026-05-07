@@ -40,9 +40,14 @@ function MiniPostCard({ post, onPress }: { post: MiniPost; onPress: () => void }
   const [likeCount, setLikeCount] = useState(post.likes_count)
 
   const handleLike = async () => {
-    setLiked(l => !l)
-    setLikeCount(c => liked ? Math.max(0, c - 1) : c + 1)
-    await likePost(post.id)
+    const wasLiked = liked
+    setLiked(!wasLiked)
+    setLikeCount(c => wasLiked ? Math.max(0, c - 1) : c + 1)
+    const { error } = await likePost(post.id)
+    if (error) {
+      setLiked(wasLiked)
+      setLikeCount(c => wasLiked ? c + 1 : Math.max(0, c - 1))
+    }
   }
 
   return (
@@ -296,16 +301,18 @@ export default function ProfileScreen() {
           />
           <Text style={[s.tabText, activeTab === 'posts' && s.tabTextActive]}>Posts</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.tab, activeTab === 'liked' && s.tabActive]}
-          onPress={() => setActiveTab('liked')}>
-          <Ionicons
-            name="heart-outline"
-            size={16}
-            color={activeTab === 'liked' ? '#a78bfa' : 'rgba(240,240,255,0.4)'}
-          />
-          <Text style={[s.tabText, activeTab === 'liked' && s.tabTextActive]}>Liked</Text>
-        </TouchableOpacity>
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={[s.tab, activeTab === 'liked' && s.tabActive]}
+            onPress={() => setActiveTab('liked')}>
+            <Ionicons
+              name="heart-outline"
+              size={16}
+              color={activeTab === 'liked' ? '#a78bfa' : 'rgba(240,240,255,0.4)'}
+            />
+            <Text style={[s.tabText, activeTab === 'liked' && s.tabTextActive]}>Liked</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {tabLoading && (

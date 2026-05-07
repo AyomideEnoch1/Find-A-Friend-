@@ -17,7 +17,7 @@ export default function WelcomeScreen() {
           <Text style={s.sub}>Your campus social universe</Text>
         </View>
 
-        <View style={s.features}>
+        <View style={[s.features, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {[
             { icon: '🎓', text: 'Verified students only' },
             { icon: '🧠', text: 'Smart interest matching' },
@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
           ].map((f, i) => (
             <View key={i} style={s.featureRow}>
               <Text style={s.featureIcon}>{f.icon}</Text>
-              <Text style={s.featureText}>{f.text}</Text>
+              <Text style={[s.featureText, { color: theme.textMuted }]}>{f.text}</Text>
             </View>
           ))}
         </View>
@@ -64,16 +64,14 @@ const s = StyleSheet.create({
   tagline: { fontSize: 28, fontWeight: '700', color: '#f0f0ff', marginBottom: 6 },
   sub: { fontSize: 15, color: 'rgba(240,240,255,0.45)' },
   features: {
-    backgroundColor: '#1c1c2e',
     borderRadius: 20,
     padding: 20,
     gap: 14,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   featureIcon: { fontSize: 20, width: 28 },
-  featureText: { fontSize: 14, color: 'rgba(240,240,255,0.7)', fontWeight: '500' },
+  featureText: { fontSize: 14, fontWeight: '500' },
   actions: { gap: 12 },
   btnPrimary: {
     backgroundColor: '#a78bfa',

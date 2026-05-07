@@ -26,7 +26,7 @@ export default function DirectMessageScreen() {
 
   const initConversation = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !otherUserId) return
+    if (!user || !otherUserId) { setLoading(false); return }
     setMyId(user.id)
 
     // Load other user's profile

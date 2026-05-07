@@ -148,6 +148,7 @@ export default function EditProfileScreen() {
               value={fullName}
               onChangeText={setFullName}
               placeholder="Your full name"
+              textColor={theme.text}
             />
             <Field
               label="Bio"
@@ -156,6 +157,7 @@ export default function EditProfileScreen() {
               placeholder="Tell campus about yourself..."
               multiline
               maxLength={160}
+              textColor={theme.text}
             />
 
             {/* Department */}
@@ -193,15 +195,15 @@ export default function EditProfileScreen() {
   )
 }
 
-function Field({ label, value, onChangeText, placeholder, multiline, maxLength }: {
+function Field({ label, value, onChangeText, placeholder, multiline, maxLength, textColor }: {
   label: string; value: string; onChangeText: (t: string) => void
-  placeholder?: string; multiline?: boolean; maxLength?: number
+  placeholder?: string; multiline?: boolean; maxLength?: number; textColor?: string
 }) {
   return (
     <View style={s.fieldWrap}>
       <Text style={s.fieldLabel}>{label}</Text>
       <TextInput
-        style={[s.input, multiline && { minHeight: 80, textAlignVertical: 'top' }]}
+        style={[s.input, multiline && { minHeight: 80, textAlignVertical: 'top' }, textColor ? { color: textColor } : undefined]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

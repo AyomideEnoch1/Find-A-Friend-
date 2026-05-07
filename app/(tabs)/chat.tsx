@@ -92,7 +92,7 @@ export default function ChatScreen() {
   }, [])
 
   useEffect(() => {
-    if (!activeConv) return
+    if (!activeConv || !activeConv.conversations?.id) return
     loadMessages(activeConv.conversations.id)
     const channel = supabase
       .channel('chat:' + activeConv.conversations.id)
@@ -123,7 +123,7 @@ export default function ChatScreen() {
   }, [activeConv, loadMessages])
 
   const sendMessage = async () => {
-    if (!input.trim() || !activeConv || sending) return
+    if (!input.trim() || !activeConv || !activeConv.conversations?.id || sending) return
     const text = input.trim()
     setInput('')
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

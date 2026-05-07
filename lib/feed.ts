@@ -352,7 +352,10 @@ export async function getHashtagPosts(
       .eq('tag', tag.toLowerCase())
       .single()
 
-    if (hError) throw hError
+    if (hError) {
+      if (hError.code === 'PGRST116') return { data: [], error: null }
+      throw hError
+    }
     if (!hashtagRow) return { data: [], error: null }
 
     // Get post IDs for this hashtag
