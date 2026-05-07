@@ -11,6 +11,7 @@ import { getInitials } from '../../lib/matching'
 import { useAuthStore } from '../../store/authStore'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
+import * as Updates from 'expo-updates'
 
 const features: Array<{
   icon: string; title: string; subtitle: string
@@ -197,6 +198,13 @@ export default function MoreScreen() {
           <Text style={s.signOutText}>Sign out</Text>
         </TouchableOpacity>
 
+        <View style={s.versionWrap}>
+          <Text style={[s.versionText, { color: theme.textFaint }]}>FAF v1.0.0</Text>
+          <Text style={[s.versionText, { color: theme.textFaint }]}>
+            Update: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'base build'}
+          </Text>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -291,4 +299,6 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: 'rgba(239,68,68,0.2)',
   },
   signOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
+  versionWrap: { alignItems: 'center', gap: 2, marginTop: 20 },
+  versionText: { fontSize: 11 },
 })
