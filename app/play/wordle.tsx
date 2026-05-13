@@ -7,7 +7,9 @@ import Animated, {
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/authStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 
@@ -84,31 +86,80 @@ export default function WordleScreen() {
   const { width: screenWidth } = useWindowDimensions()
   // Each grid column gets half the screen minus padding (16) minus divider (2) minus gap (8)
   const CELL = Math.max(26, Math.floor((screenWidth - 26) / 2 / 5) - 4)
-  const { opponentName } = useLocalSearchParams<{ opponentName?: string }>()
+  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
   const botName = opponentName ?? BOT_NAME
+  const user = useAuthStore(s => s.user)
 
-  const [word] = useState(() => WORDS[Math.floor(Math.random() * WORDS.length)])
+  const [word, setWord] = useState('')
   const [guesses, setGuesses] = useState<string[]>([])
   const [current, setCurrent] = useState('')
   const [keyStates, setKeyStates] = useState<Record<string, LetterState>>({})
-  const [botGuesses, setBotGuesses] = useState<string[]>([])
+  const [botGuesses, setBotGuesses] = useState<string[]>([]) // Still named botGuesses for compatibility
   const [gameOver, setGameOver] = useState(false)
   const [winner, setWinner] = useState<'me' | 'bot' | 'none' | null>(null)
+  const [loading, setLoading] = useState(!!sessionId)
+
+  const channelRef = useRef<any>(null)
 
   const shakeValue = useSharedValue(0)
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeValue.value }] }))
 
-  // Bot guesses on a timer
+  // Initial load
   useEffect(() => {
-    if (gameOver || botGuesses.length >= MAX_GUESSES) return
+    if (sessionId) {
+      loadSession()
+      subscribe()
+    } else {
+      setWord(WORDS[Math.floor(Math.random() * WORDS.length)])
+      setLoading(false)
+    }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
+  }, [sessionId])
+
+  const loadSession = async () => {
+    const { data: sess } = await supabase
+      .from('live_game_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+    
+    if (sess?.state?.word) {
+      setWord(sess.state.word)
+    } else {
+      setWord(WORDS[Math.floor(Math.random() * WORDS.length)])
+    }
+    setLoading(false)
+  }
+
+  const subscribe = () => {
+    channelRef.current = supabase.channel(`game_room:${sessionId}`)
+      .on('broadcast', { event: 'move' }, ({ payload }) => {
+        if (payload.type === 'GUESS') {
+          setBotGuesses(prev => {
+            const next = [...prev, payload.word]
+            if (payload.word === word) {
+              setGameOver(true)
+              setWinner('bot')
+            } else if (next.length >= MAX_GUESSES) {
+              // Both must fail to be none
+            }
+            return next
+          })
+        }
+      })
+      .subscribe()
+  }
+
+  // Bot guesses on a timer (only if no session)
+  useEffect(() => {
+    if (sessionId || gameOver || botGuesses.length >= MAX_GUESSES) return
     if (botGuesses.some(g => g === word)) return
-    const delay = 3000 + Math.random() * 4000
+    const delay = 4000 + Math.random() * 5000
     const t = setTimeout(() => {
       const guess = botNextGuess(word, botGuesses.length)
       setBotGuesses(prev => {
         const next = [...prev, guess]
         if (guess === word) {
-          // Bot solved it
           if (!guesses.some(g => g === word)) {
             setGameOver(true)
             setWinner('bot')
@@ -118,7 +169,7 @@ export default function WordleScreen() {
       })
     }, delay)
     return () => clearTimeout(t)
-  }, [botGuesses, gameOver])
+  }, [botGuesses, gameOver, sessionId, word])
 
   const submitGuess = () => {
     if (current.length < 5 || gameOver) return
@@ -128,6 +179,15 @@ export default function WordleScreen() {
 
     const newGuesses = [...guesses, current]
     setGuesses(newGuesses)
+
+    // Broadcast if multiplayer
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'move',
+        payload: { type: 'GUESS', word: current }
+      })
+    }
 
     // Update key states
     const states = getLetterStates(current, word)
@@ -146,8 +206,11 @@ export default function WordleScreen() {
       setGameOver(true)
       setWinner('me')
     } else if (newGuesses.length >= MAX_GUESSES) {
-      setGameOver(true)
-      setWinner('none')
+      // If opponent still has guesses, don't end game yet
+      if (!sessionId || botGuesses.length >= MAX_GUESSES) {
+        setGameOver(true)
+        setWinner('none')
+      }
     }
 
     setCurrent('')

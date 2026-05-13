@@ -303,6 +303,25 @@ function shuffleOptions(q: TriviaQuestion): TriviaQuestion {
   return { ...q, options: shuffled, answer: shuffled.indexOf(correctAnswer) }
 }
 
+// Pick N random question indices
+export function pickQuestionIndices(n: number): number[] {
+  const indices = Array.from({ length: TRIVIA_QUESTIONS.length }, (_, i) => i)
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indices[i], indices[j]] = [indices[j], indices[i]]
+  }
+  return indices.slice(0, n)
+}
+
+// Get questions by indices
+export function getQuestionsByIndices(indices: number[]): TriviaQuestion[] {
+  return indices.map(idx => {
+    const q = TRIVIA_QUESTIONS[idx]
+    if (!q) return TRIVIA_QUESTIONS[0] // Fallback
+    return shuffleOptions(q)
+  })
+}
+
 // Pick N random questions, optionally from specific subjects
 export function pickQuestions(n: number, subjects?: string[]): TriviaQuestion[] {
   const pool = subjects

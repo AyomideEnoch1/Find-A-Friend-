@@ -38,7 +38,7 @@ export async function searchPosts(query: string, limit = 20): Promise<{
   try {
     const { data, error } = await supabase
       .from('posts')
-      .select('*, profiles(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
       .ilike('body', `%${query}%`)
       .eq('is_anonymous', false)
       .order('created_at', { ascending: false })

@@ -113,7 +113,7 @@ export async function getProfileStats(): Promise<ProfileStats> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { posts: 0, friends: 0, followers: 0, following: 0, clubs: 0 }
 
-  const [postsResult, connectionsResult, profileResult, clubsResult] =
+  const [postsResult, connectionsResult, followerRes, followingRes, clubsResult] =
     await Promise.all([
       supabase
         .from('posts')
@@ -125,10 +125,13 @@ export async function getProfileStats(): Promise<ProfileStats> {
         .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .eq('status', 'accepted'),
       supabase
-        .from('profiles')
-        .select('follower_count, following_count')
-        .eq('id', user.id)
-        .single(),
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', user.id),
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id),
       supabase
         .from('club_members')
         .select('club_id', { count: 'exact', head: true })
@@ -138,8 +141,8 @@ export async function getProfileStats(): Promise<ProfileStats> {
   return {
     posts: postsResult.count ?? 0,
     friends: connectionsResult.count ?? 0,
-    followers: profileResult.data?.follower_count ?? 0,
-    following: profileResult.data?.following_count ?? 0,
+    followers: followerRes.count ?? 0,
+    following: followingRes.count ?? 0,
     clubs: clubsResult.count ?? 0,
   }
 }

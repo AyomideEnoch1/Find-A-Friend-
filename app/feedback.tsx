@@ -23,6 +23,7 @@ import { supabase } from '../lib/supabase'
 import { getTimeAgo, getInitials } from '../lib/matching'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
+import { useAuthStore } from '../store/authStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,14 +102,23 @@ function CommentsSection({
   useEffect(() => {
     let active = true
     ;(async () => {
-      const { data } = await supabase
+      const { data: cData } = await supabase
         .from('feedback_comments')
-        .select('*, profiles(full_name)')
+        .select('*')
         .eq('feedback_id', feedbackId)
         .order('created_at', { ascending: true })
         .limit(5)
-      if (active) {
-        setComments((data as FeedbackComment[]) ?? [])
+      
+      if (cData && cData.length > 0) {
+        const uids = [...new Set(cData.map(c => c.author_id))]
+        const { data: pData } = await supabase.from('profiles').select('id, full_name').in('id', uids)
+        const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+        if (active) {
+          setComments(cData.map(c => ({ ...c, profiles: pMap.get(c.author_id) ?? null })))
+          setLoading(false)
+        }
+      } else if (active) {
+        setComments([])
         setLoading(false)
       }
     })()
@@ -131,13 +141,19 @@ function CommentsSection({
     }
     setNewComment('')
     // Reload comments
-    const { data } = await supabase
+    const { data: cData } = await supabase
       .from('feedback_comments')
-      .select('*, profiles(full_name)')
+      .select('*')
       .eq('feedback_id', feedbackId)
       .order('created_at', { ascending: true })
       .limit(5)
-    setComments((data as FeedbackComment[]) ?? [])
+    
+    if (cData) {
+      const uids = [...new Set(cData.map(c => c.author_id))]
+      const { data: pData } = await supabase.from('profiles').select('id, full_name').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      setComments(cData.map(c => ({ ...c, profiles: pMap.get(c.author_id) ?? null })))
+    }
   }
 
   return (
@@ -148,15 +164,22 @@ function CommentsSection({
         <Text style={[cs.empty, { color: theme.textFaint }]}>No comments yet</Text>
       ) : (
         comments.map(c => (
-          <View key={c.id} style={cs.row}>
-            <Avatar name={c.profiles?.full_name} size={24} />
-            <View style={cs.bubble}>
-              <Text style={[cs.author, { color: PURPLE }]}>
-                {c.author_id === myId ? 'You' : (c.profiles?.full_name ?? 'Anonymous')}
-              </Text>
-              <Text style={[cs.body, { color: theme.textMuted }]}>{c.body}</Text>
+            <View style={[cs.row, c.author_id === myId && cs.rowMe]}>
+              {c.author_id !== myId && <Avatar name={c.profiles?.full_name} size={28} />}
+              <View style={[
+                cs.bubble, 
+                { backgroundColor: theme.card2 },
+                c.author_id === myId ? cs.bubbleMe : cs.bubbleOther
+              ]}>
+                <View style={cs.bubbleHeader}>
+                  <Text style={[cs.author, { color: PURPLE }]} numberOfLines={1}>
+                    {c.author_id === myId ? 'You' : (c.profiles?.full_name ?? 'Anonymous')}
+                  </Text>
+                  <Text style={[cs.time, { color: theme.textFaint }]}>{getTimeAgo(c.created_at)}</Text>
+                </View>
+                <Text style={[cs.body, { color: theme.textMuted }]}>{c.body}</Text>
+              </View>
             </View>
-          </View>
         ))
       )}
 
@@ -187,10 +210,38 @@ function CommentsSection({
 const cs = StyleSheet.create({
   wrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, gap: 8 },
   empty: { fontSize: 11, fontFamily: typography.fontRegular, textAlign: 'center', paddingVertical: 4 },
-  row: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  bubble: { flex: 1 },
-  author: { fontSize: 11, fontFamily: typography.fontSemiBold, marginBottom: 1 },
-  body: { fontSize: 12, fontFamily: typography.fontRegular, lineHeight: 17 },
+  row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 10 },
+  rowMe: { flexDirection: 'row-reverse' },
+  bubble: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.15)',
+    shadowColor: PURPLE,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  bubbleOther: {
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 18,
+    borderBottomRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    backgroundColor: 'rgba(167,139,250,0.05)',
+  },
+  bubbleMe: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    backgroundColor: 'rgba(167,139,250,0.12)',
+    borderColor: 'rgba(167,139,250,0.3)',
+  },
+  bubbleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 },
+  author: { fontSize: 11, fontFamily: typography.fontBold },
+  time: { fontSize: 9, fontFamily: typography.fontRegular },
+  body: { fontSize: 13, fontFamily: typography.fontRegular, lineHeight: 19 },
   inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
   input: {
     flex: 1,
@@ -247,7 +298,9 @@ function FeedbackCard({
       </View>
 
       {/* Body */}
-      <Text style={[fc.body, { color: theme.textMuted }]}>{item.body}</Text>
+      <View style={fc.bodyWrap}>
+        <Text style={[fc.body, { color: theme.textMuted }]}>{item.body}</Text>
+      </View>
 
       {/* Actions row */}
       <View style={fc.actionsRow}>
@@ -326,10 +379,13 @@ const fc = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   authorName: { fontSize: 13, fontFamily: typography.fontSemiBold },
   time: { fontSize: 10, fontFamily: typography.fontRegular, marginTop: 1 },
+  bodyWrap: { flexShrink: 1, paddingHorizontal: 2 },
   body: {
     fontSize: 14,
     fontFamily: typography.fontRegular,
-    lineHeight: 21,
+    lineHeight: 22,
+    marginVertical: 4,
+    flexWrap: 'wrap',
   },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   voteBtn: {
@@ -406,7 +462,11 @@ function ComposeBox({
 
   const handleSend = async () => {
     const text = body.trim()
-    if (!text || !myId) return
+    if (!text) return
+    if (!myId) {
+      Toast.show({ type: 'error', text1: 'Not identified', text2: 'Please wait for your session to load or log in again.' })
+      return
+    }
     if (text.length > MAX_BODY) {
       Toast.show({ type: 'error', text1: 'Too long', text2: `Max ${MAX_BODY} characters` })
       return
@@ -578,17 +638,15 @@ const em = StyleSheet.create({
 export default function FeedbackScreen() {
   const theme   = useTheme()
   const insets  = useSafeAreaInsets()
+  const user    = useAuthStore(s => s.user)
+  const myId    = user?.id ?? ''
 
-  const [myId, setMyId]         = useState('')
   const [items, setItems]       = useState<FeedbackItem[]>([])
   const [loading, setLoading]   = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [tableError, setTableError] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setMyId(user.id)
-    })
     load()
   }, [])
 
@@ -598,37 +656,40 @@ export default function FeedbackScreen() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { data, error } = await supabase
+    const { data: fData, error } = await supabase
       .from('feedbacks')
-      .select('*, profiles(full_name, avatar_url)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(60)
 
     if (error) {
-      if (error.code === '42P01') {
-        // Table does not exist yet — migration not yet applied
-        setTableError(true)
-      } else {
-        Toast.show({ type: 'error', text1: 'Load failed', text2: error.message })
-      }
-      setLoading(false)
-      setRefreshing(false)
+      if (error.code === '42P01') setTableError(true)
+      else Toast.show({ type: 'error', text1: 'Load failed', text2: error.message })
+      setLoading(false); setRefreshing(false)
       return
+    }
+
+    let hydrated = fData ?? []
+    if (hydrated.length > 0) {
+      const uids = [...new Set(hydrated.map(f => f.author_id))]
+      const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      hydrated = hydrated.map(f => ({ ...f, profiles: pMap.get(f.author_id) ?? null }))
     }
 
     // Fetch this user's votes in one query
     let myVotes: Record<string, 1 | -1> = {}
-    if (user && data && data.length > 0) {
+    if (user && hydrated.length > 0) {
       const { data: votes } = await supabase
         .from('feedback_votes')
         .select('feedback_id, vote')
         .eq('user_id', user.id)
-        .in('feedback_id', data.map((f: any) => f.id))
+        .in('feedback_id', hydrated.map((f: any) => f.id))
       for (const v of (votes ?? [])) myVotes[v.feedback_id] = v.vote
     }
 
     setItems(
-      (data ?? []).map((f: any): FeedbackItem => ({ ...f, myVote: myVotes[f.id] ?? null }))
+      hydrated.map((f: any): FeedbackItem => ({ ...f, myVote: myVotes[f.id] ?? null }))
     )
     setLoading(false)
     setRefreshing(false)

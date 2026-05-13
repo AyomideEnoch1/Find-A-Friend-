@@ -75,7 +75,7 @@ export interface CreatePostPayload {
 // ---------------------------------------------------------------------------
 
 const POST_SELECT =
-  '*, profiles(id, full_name, department, level, avatar_url), post_likes(count), post_comments(count), reposts(count)'
+  '*, profiles!author_id(id, full_name, department, level, avatar_url), post_likes(count), post_comments(count), reposts(count)'
 
 function toFeedPost(raw: any): FeedPost {
   const { post_likes, post_comments, reposts, ...rest } = raw
@@ -249,7 +249,7 @@ export async function commentOnPost(
         body: body.trim(),
         is_anonymous: isAnonymous,
       })
-      .select('*, profiles(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
       .single()
 
     if (error) throw error
@@ -266,7 +266,7 @@ export async function getComments(postId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('post_comments')
-      .select('*, profiles(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
 

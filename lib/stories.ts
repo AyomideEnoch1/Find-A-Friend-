@@ -294,7 +294,7 @@ export async function getStoryViewers(storyId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('story_views')
-      .select('viewer_id, viewed_at, profiles(full_name, avatar_url)')
+      .select('viewer_id, viewed_at, profiles!viewer_id(full_name, avatar_url)')
       .eq('story_id', storyId)
       .order('viewed_at', { ascending: false })
 

@@ -101,8 +101,7 @@ export async function getEvents(
       .from('events')
       .select(`
         *,
-        profiles(id, full_name, avatar_url),
-        clubs(id, name, color)
+        profiles!organizer_id(id, full_name, avatar_url)
       `)
       .eq('is_public', true)
       .order('starts_at', { ascending: true })
@@ -153,8 +152,7 @@ export async function getEventDetail(eventId: string): Promise<{
       .from('events')
       .select(`
         *,
-        profiles(id, full_name, avatar_url),
-        clubs(id, name, color)
+        profiles!organizer_id(id, full_name, avatar_url)
       `)
       .eq('id', eventId)
       .single()
@@ -198,8 +196,7 @@ export async function createEvent(payload: CreateEventPayload): Promise<{
       })
       .select(`
         *,
-        profiles(id, full_name, avatar_url),
-        clubs(id, name, color)
+        profiles!organizer_id(id, full_name, avatar_url)
       `)
       .single()
 
@@ -291,7 +288,7 @@ export async function getEventAttendees(
   try {
     let query = supabase
       .from('event_rsvps')
-      .select('*, profiles(id, full_name, avatar_url, department, level)')
+      .select('*, profiles!user_id(id, full_name, avatar_url, department, level)')
       .eq('event_id', eventId)
 
     if (status) {
@@ -321,7 +318,7 @@ export async function getMyRsvps(): Promise<{
       .from('event_rsvps')
       .select(`
         *,
-        events(*, profiles(id, full_name, avatar_url), clubs(id, name, color))
+        events(*, profiles!organizer_id(id, full_name, avatar_url))
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })

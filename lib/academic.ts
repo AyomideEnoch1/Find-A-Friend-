@@ -215,16 +215,36 @@ export async function getStudyGroups(courseId?: string): Promise<{
   try {
     let query = supabase
       .from('study_groups')
-      .select('*, courses(id, code, name), profiles(id, full_name, avatar_url)')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (courseId) {
       query = query.eq('course_id', courseId)
     }
 
-    const { data, error } = await query
+    const { data: sgData, error } = await query
     if (error) throw error
-    return { data: data as StudyGroup[], error: null }
+
+    let hydrated = (sgData as StudyGroup[]) ?? []
+    if (hydrated.length > 0) {
+      const uids = [...new Set(hydrated.map(sg => sg.created_by))]
+      const cids = [...new Set(hydrated.map(sg => sg.course_id).filter(Boolean))] as string[]
+      
+      const [pRes, cRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids),
+        cids.length > 0 ? supabase.from('courses').select('id, code, name').in('id', cids) : { data: [] }
+      ])
+      
+      const pMap = new Map(pRes.data?.map(p => [p.id, p]) ?? [])
+      const cMap = new Map(cRes.data?.map(c => [c.id, c]) ?? [])
+      
+      hydrated = hydrated.map(sg => ({
+        ...sg,
+        profiles: pMap.get(sg.created_by) ?? null,
+        courses: sg.course_id ? cMap.get(sg.course_id) ?? null : null
+      }))
+    }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -250,7 +270,7 @@ export async function createStudyGroup(payload: CreateStudyGroupPayload): Promis
         is_recurring: payload.isRecurring ?? false,
         max_members: payload.maxMembers ?? null,
       })
-      .select('*, courses(id, code, name), profiles(id, full_name, avatar_url)')
+      .select('*, courses(id, code, name), profiles!created_by(id, full_name, avatar_url)')
       .single()
 
     if (error) throw error
@@ -329,7 +349,7 @@ export async function getResources(filters?: {
   try {
     let query = supabase
       .from('academic_resources')
-      .select('*, courses(id, code, name), profiles(id, full_name, avatar_url)')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (filters?.courseId) {
@@ -342,9 +362,29 @@ export async function getResources(filters?: {
       query = query.ilike('title', `%${filters.search}%`)
     }
 
-    const { data, error } = await query
+    const { data: rData, error } = await query
     if (error) throw error
-    return { data: data as AcademicResource[], error: null }
+
+    let hydrated = (rData as AcademicResource[]) ?? []
+    if (hydrated.length > 0) {
+      const uids = [...new Set(hydrated.map(r => r.uploader_id))]
+      const cids = [...new Set(hydrated.map(r => r.course_id).filter(Boolean))] as string[]
+      
+      const [pRes, cRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids),
+        cids.length > 0 ? supabase.from('courses').select('id, code, name').in('id', cids) : { data: [] }
+      ])
+      
+      const pMap = new Map(pRes.data?.map(p => [p.id, p]) ?? [])
+      const cMap = new Map(cRes.data?.map(c => [c.id, c]) ?? [])
+      
+      hydrated = hydrated.map(r => ({
+        ...r,
+        profiles: pMap.get(r.uploader_id) ?? null,
+        courses: r.course_id ? cMap.get(r.course_id) ?? null : null
+      }))
+    }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -397,7 +437,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
         file_size_kb: payload.fileSizeKb ?? null,
         resource_type: payload.resourceType ?? 'note',
       })
-      .select('*, courses(id, code, name), profiles(id, full_name, avatar_url)')
+      .select('*')
       .single()
 
     if (insertError) throw insertError
@@ -442,15 +482,23 @@ export async function getCourseDiscussions(courseId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { data, error } = await supabase
+    const { data: dData, error } = await supabase
       .from('course_discussions')
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*')
       .eq('course_id', courseId)
       .is('parent_id', null)       // top-level only
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return { data: data as CourseDiscussion[], error: null }
+    
+    let hydrated = (dData as CourseDiscussion[]) ?? []
+    if (hydrated.length > 0) {
+      const uids = [...new Set(hydrated.map(d => d.author_id))]
+      const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      hydrated = hydrated.map(d => ({ ...d, profiles: pMap.get(d.author_id) ?? null }))
+    }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -461,14 +509,22 @@ export async function getDiscussionReplies(parentId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { data, error } = await supabase
+    const { data: dData, error } = await supabase
       .from('course_discussions')
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*')
       .eq('parent_id', parentId)
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    return { data: data as CourseDiscussion[], error: null }
+    
+    let hydrated = (dData as CourseDiscussion[]) ?? []
+    if (hydrated.length > 0) {
+      const uids = [...new Set(hydrated.map(d => d.author_id))]
+      const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      hydrated = hydrated.map(d => ({ ...d, profiles: pMap.get(d.author_id) ?? null }))
+    }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -491,11 +547,16 @@ export async function createAcademicPost(
         body,
         parent_id: parentId ?? null,
       })
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*')
       .single()
 
     if (error) throw error
-    return { data: data as CourseDiscussion, error: null }
+    
+    // Fetch profile for the new post
+    const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('id', data.author_id).single()
+    const hydrated = { ...data, profiles: pData ?? null }
+    
+    return { data: hydrated as CourseDiscussion, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

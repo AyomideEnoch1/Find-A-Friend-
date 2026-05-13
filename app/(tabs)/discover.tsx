@@ -20,6 +20,8 @@ import { typography } from '../../lib/typography'
 import { showTabBar } from '../../lib/tabBarAnim'
 import type { FollowProfile } from '../../lib/follows'
 import type { TrendingHashtag } from '../../lib/feed'
+import NeuralBackground from '../../components/NeuralBackground'
+import ScreenLoader from '../../components/ScreenLoader'
 
 // ─── Demo fallback profiles ───────────────────────────────────────────────────
 const DEMO_PROFILES: FollowProfile[] = [
@@ -155,6 +157,7 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top']}>
+      <NeuralBackground intensity="light" />
 
       {/* Header */}
       <View style={s.header}>
@@ -216,10 +219,7 @@ export default function DiscoverScreen() {
 
       {/* Card area */}
       {loading ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[s.centerText, { color: theme.textMuted }]}>Finding students...</Text>
-        </View>
+        <ScreenLoader message="Scanning student profiles..." />
       ) : deck.length === 0 ? (
         <View style={s.center}>
           <Text style={s.doneEmoji}>🎉</Text>

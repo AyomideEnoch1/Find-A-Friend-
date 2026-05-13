@@ -90,7 +90,7 @@ export default function StudyGroupDetailScreen() {
     } else if (tab === 'members') {
       const { data, error } = await supabase
         .from('study_group_members')
-        .select('user_id, joined_at, profiles(id, full_name, avatar_url, department)')
+        .select('user_id, joined_at, profiles!user_id(id, full_name, avatar_url, department)')
         .eq('group_id', id)
         .order('joined_at', { ascending: true })
       if (!error) setMembers((data ?? []) as GroupMember[])

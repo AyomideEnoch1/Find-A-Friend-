@@ -162,7 +162,7 @@ export default function ProfileScreen() {
     const own = user?.id === id
     setIsOwnProfile(own)
     if (own) {
-      router.replace('/(tabs)/profile' as any)
+      router.replace('/profile' as any)
       return
     }
     setLoading(false)
@@ -353,18 +353,16 @@ export default function ProfileScreen() {
           />
           <Text style={[s.tabText, activeTab === 'posts' && s.tabTextActive]}>Posts</Text>
         </TouchableOpacity>
-        {isOwnProfile && (
-          <TouchableOpacity
-            style={[s.tab, activeTab === 'liked' && s.tabActive]}
-            onPress={() => setActiveTab('liked')}>
-            <Ionicons
-              name="heart-outline"
-              size={16}
-              color={activeTab === 'liked' ? '#a78bfa' : 'rgba(240,240,255,0.4)'}
-            />
-            <Text style={[s.tabText, activeTab === 'liked' && s.tabTextActive]}>Liked</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'liked' && s.tabActive]}
+          onPress={() => setActiveTab('liked')}>
+          <Ionicons
+            name="heart-outline"
+            size={16}
+            color={activeTab === 'liked' ? '#a78bfa' : 'rgba(240,240,255,0.4)'}
+          />
+          <Text style={[s.tabText, activeTab === 'liked' && s.tabTextActive]}>Liked</Text>
+        </TouchableOpacity>
       </View>
 
       {tabLoading && (

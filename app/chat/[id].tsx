@@ -35,6 +35,14 @@ function parseChallenge(body: string): { _type: 'game_challenge'; gameType: stri
   } catch { return null }
 }
 
+function parseAcceptance(body: string): { _type: 'challenge_accepted'; gameType: string; emoji: string; label: string; sessionId?: string } | null {
+  try {
+    const obj = JSON.parse(body)
+    if (obj?._type === 'challenge_accepted') return obj
+    return null
+  } catch { return null }
+}
+
 /**
  * Format a message timestamp in WhatsApp style:
  *   - Today   → "14:32"
@@ -85,25 +93,42 @@ function isSameDay(a: string, b: string): boolean {
 
 // ─── Challenge bubble ─────────────────────────────────────────────────────────
 
-function ChallengeBubble({ challenge, mine, convId, myId }: {
+function ChallengeBubble({ challenge, mine, convId, myId, otherUserId, otherName }: {
   challenge: { gameType: string; emoji: string; label: string }
   mine: boolean
   convId: string
   myId: string
+  otherUserId: string
+  otherName: string
 }) {
   const theme = useTheme()
   const meta  = GAME_META[challenge.gameType as GameType]
 
   const handleAccept = async () => {
+    const gameType = challenge.gameType as GameType
+    
+    // Navigate to waiting room first
+    router.push({
+      pathname: '/play/waiting',
+      params: {
+        gameType,
+        opponentId: otherUserId,
+        opponentName: otherName,
+      }
+    } as any)
+
+    // Send acceptance message
     await supabase.from('messages').insert({
       conversation_id: convId,
       sender_id: myId,
-      body: `✅ Challenge accepted! Let's play ${challenge.emoji} ${challenge.label}!`,
+      body: JSON.stringify({
+        _type: 'challenge_accepted',
+        gameType: challenge.gameType,
+        emoji: challenge.emoji,
+        label: challenge.label,
+        sessionId: '', // Will be matched by opponentId in waiting room
+      }),
     })
-    const gameType = challenge.gameType as GameType
-    if (gameType === 'trivia') router.push('/play/trivia' as any)
-    else if (gameType === 'wordle') router.push('/play/wordle' as any)
-    else router.push('/play/pool' as any)
   }
 
   const handleDecline = async () => {
@@ -157,6 +182,52 @@ const cb = StyleSheet.create({
   declineText: { fontSize: 13, fontFamily: typography.fontSemiBold, color: '#f87171' },
   acceptBtn:   { borderRadius: 20, paddingHorizontal: 20, paddingVertical: 9 },
   acceptText:  { fontSize: 13, fontFamily: typography.fontSemiBold, color: '#fff' },
+})
+
+// ─── Acceptance bubble ────────────────────────────────────────────────────────
+
+function AcceptanceBubble({ acceptance, otherUserId, otherName }: {
+  acceptance: { gameType: string; emoji: string; label: string }
+  otherUserId: string
+  otherName: string
+}) {
+  const theme = useTheme()
+
+  const handleJoin = () => {
+    router.push({
+      pathname: '/play/waiting',
+      params: {
+        gameType: acceptance.gameType,
+        opponentId: otherUserId,
+        opponentName: otherName,
+      }
+    } as any)
+  }
+
+  return (
+    <View style={[ab.card, { backgroundColor: 'rgba(74,222,128,0.08)', borderColor: 'rgba(74,222,128,0.25)' }]}>
+      <View style={ab.top}>
+        <Text style={ab.emoji}>{acceptance.emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[ab.title, { color: theme.text }]}>Challenge Accepted!</Text>
+          <Text style={[ab.sub, { color: theme.textFaint }]}>Let's play {acceptance.label}</Text>
+        </View>
+      </View>
+      <TouchableOpacity style={[ab.btn, { backgroundColor: '#10b981' }]} onPress={handleJoin}>
+        <Text style={ab.btnText}>Join Game ⚡</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+const ab = StyleSheet.create({
+  card: { borderRadius: 16, padding: 14, borderWidth: 1, gap: 12, minWidth: 210 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emoji: { fontSize: 34 },
+  title: { fontSize: 14, fontFamily: typography.fontBold },
+  sub: { fontSize: 11, fontFamily: typography.fontRegular },
+  btn: { borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  btnText: { fontSize: 13, fontFamily: typography.fontBold, color: '#fff' },
 })
 
 // ─── Message actions modal ────────────────────────────────────────────────────
@@ -320,21 +391,21 @@ function AttachmentBubble({ attachment }: { attachment: Attachment; mine: boolea
 
   return (
     <TouchableOpacity
-      style={[ab.videoWrap, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
+      style={[attb.videoWrap, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
       onPress={handleOpen}
       activeOpacity={0.85}>
-      <View style={ab.playBtn}>
+      <View style={attb.playBtn}>
         <Ionicons name="play" size={24} color="#fff" />
       </View>
-      <View style={ab.videoInfo}>
+      <View style={attb.videoInfo}>
         <Ionicons name="videocam" size={14} color="rgba(255,255,255,0.8)" />
-        <Text style={ab.videoLabel}>{attachment.name ?? 'Video'}</Text>
+        <Text style={attb.videoLabel}>{attachment.name ?? 'Video'}</Text>
       </View>
     </TouchableOpacity>
   )
 }
 
-const ab = StyleSheet.create({
+const attb = StyleSheet.create({
   videoWrap: { width: 220, borderRadius: 14, padding: 12, gap: 10 },
   playBtn: {
     width: 52, height: 52, borderRadius: 26,
@@ -586,7 +657,7 @@ export default function DirectMessageScreen() {
       setConvId(cid)
 
       const { data: msgs } = await supabase
-        .from('messages').select('*, profiles(id, full_name, avatar_url)')
+        .from('messages').select('*, profiles!sender_id(id, full_name, avatar_url)')
         .eq('conversation_id', cid).order('created_at', { ascending: true })
       setMessages(msgs ?? [])
       setLoading(false)
@@ -661,7 +732,7 @@ export default function DirectMessageScreen() {
     if (error) {
       Toast.show({ type: 'error', text1: 'Could not delete message' })
       const { data: msgs } = await supabase
-        .from('messages').select('*, profiles(id, full_name, avatar_url)')
+        .from('messages').select('*, profiles!sender_id(id, full_name, avatar_url)')
         .eq('conversation_id', convId).order('created_at', { ascending: true })
       setMessages(msgs ?? [])
     }
@@ -866,7 +937,8 @@ export default function DirectMessageScreen() {
               {messages.map((m, i) => {
                 const mine      = m.sender_id === myId
                 const parsed    = parseAttachment(m.body)
-                const challenge = parseChallenge(m.body)
+                const challenge  = parseChallenge(m.body)
+                const acceptance = parseAcceptance(m.body)
 
                 // Day separator — inserted before a message if the day differs from the previous
                 const prevMsg   = messages[i - 1]
@@ -884,6 +956,24 @@ export default function DirectMessageScreen() {
                           mine={mine}
                           convId={convId!}
                           myId={myId}
+                          otherUserId={otherUserId}
+                          otherName={otherName}
+                        />
+                      </View>
+                    </View>
+                  )
+                }
+
+                // ── Acceptance bubble ───────────────────────────────────────
+                if (acceptance) {
+                  return (
+                    <View key={m.id ?? i}>
+                      {showSep && <DaySeparator label={dayLabel} />}
+                      <View style={[s.msgRow, mine && s.msgRowMine]}>
+                        <AcceptanceBubble
+                          acceptance={acceptance}
+                          otherUserId={otherUserId}
+                          otherName={otherName}
                         />
                       </View>
                     </View>

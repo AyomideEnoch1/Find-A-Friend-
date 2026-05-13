@@ -75,7 +75,7 @@ export default function ClubRoomScreen() {
     // Load recent messages
     const { data: msgs, error } = await supabase
       .from('club_messages')
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*, profiles!sender_id(id, full_name, avatar_url)')
       .eq('club_id', clubId)
       .order('created_at', { ascending: true })
       .limit(100)

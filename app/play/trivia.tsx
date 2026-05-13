@@ -12,7 +12,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
-import { pickQuestions, type TriviaQuestion } from '../../lib/triviaQuestions'
+import { pickQuestions, getQuestionsByIndices, type TriviaQuestion } from '../../lib/triviaQuestions'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/authStore'
 
 const TIMER_SECS = 10
 const TOTAL_QUESTIONS = 10
@@ -22,22 +24,25 @@ type Phase = 'countdown' | 'playing' | 'result' | 'done'
 
 export default function TriviaScreen() {
   const theme = useTheme()
-  const { opponentName } = useLocalSearchParams<{ opponentName?: string }>()
+  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
   const botName = opponentName ?? BOT_NAME
+  const user = useAuthStore(s => s.user)
+  const myId = user?.id ?? ''
 
-  const [questions] = useState<TriviaQuestion[]>(() => pickQuestions(TOTAL_QUESTIONS))
+  const [questions, setQuestions] = useState<TriviaQuestion[]>([])
   const [qIndex, setQIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>('countdown')
   const [countdown, setCountdown] = useState(3)
   const [timer, setTimer] = useState(TIMER_SECS)
   const [myScore, setMyScore] = useState(0)
-  const [botScore, setBotScore] = useState(0)
+  const [oppScore, setOppScore] = useState(0) // renamed from botScore
   const [myAnswer, setMyAnswer] = useState<number | null>(null)
-  const [botAnswer, setBotAnswer] = useState<number | null>(null)
-  const [myTotal, setMyTotal] = useState(0)
-  const [botTotal, setBotTotal] = useState(0)
+  const [oppAnswer, setOppAnswer] = useState<number | null>(null) // renamed from botAnswer
+  const [loading, setLoading] = useState(!!sessionId)
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const botRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const channelRef = useRef<any>(null)
 
   // Animations
   const timerScale = useSharedValue(1)
@@ -54,23 +59,63 @@ export default function TriviaScreen() {
     transform: [{ scale: timerScale.value }],
   }))
 
+  // Initial load
+  useEffect(() => {
+    if (sessionId) {
+      loadSession()
+      subscribe()
+    } else {
+      setQuestions(pickQuestions(TOTAL_QUESTIONS))
+      setLoading(false)
+    }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
+  }, [sessionId])
+
+  const loadSession = async () => {
+    const { data: sess } = await supabase
+      .from('live_game_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+    
+    if (sess?.state?.q_indices) {
+      setQuestions(getQuestionsByIndices(sess.state.q_indices))
+    } else {
+      setQuestions(pickQuestions(TOTAL_QUESTIONS))
+    }
+    setLoading(false)
+  }
+
+  const subscribe = () => {
+    channelRef.current = supabase.channel(`game_room:${sessionId}`)
+      .on('broadcast', { event: 'move' }, ({ payload }) => {
+        if (payload.type === 'ANSWER' && payload.qIndex === qIndex) {
+          setOppAnswer(payload.answerIndex)
+          // Score is calculated on result phase, but we can sync it
+          setOppScore(payload.totalScore)
+        }
+      })
+      .subscribe()
+  }
+
   // Countdown before game
   useEffect(() => {
-    if (phase !== 'countdown') return
+    if (phase !== 'countdown' || loading) return
     if (countdown <= 0) { startQuestion(); return }
     const t = setTimeout(() => setCountdown(c => c - 1), 1000)
     return () => clearTimeout(t)
-  }, [countdown, phase])
+  }, [countdown, phase, loading])
 
   const startQuestion = () => {
     setPhase('playing')
     setMyAnswer(null)
-    setBotAnswer(null)
+    setOppAnswer(null)
     setTimer(TIMER_SECS)
     // Animate card in
     cardOpacity.value = withTiming(1, { duration: 300 })
     cardTranslateY.value = withSpring(0, { damping: 15 })
-    scheduleBotAnswer()
+    
+    if (!sessionId) scheduleBotAnswer()
   }
 
   const scheduleBotAnswer = () => {
@@ -80,7 +125,7 @@ export default function TriviaScreen() {
       const q = questions[qIndex]
       const correct = Math.random() < 0.65
       const ans = correct ? q.answer : (q.answer + 1 + Math.floor(Math.random() * 3)) % 4
-      setBotAnswer(ans)
+      setOppAnswer(ans)
     }, delay)
   }
 
@@ -100,30 +145,45 @@ export default function TriviaScreen() {
     if (myAnswer !== null || phase !== 'playing') return
     setMyAnswer(idx)
     if (timerRef.current) clearInterval(timerRef.current)
+
+    // Calculate gain
+    const q = questions[qIndex]
+    let myGain = 0
+    if (idx === q.answer) {
+      myGain = 1 + Math.round((timer / TIMER_SECS) * 3)
+    }
+    const newScore = myScore + myGain
+
+    // Broadcast if multiplayer
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'move',
+        payload: { type: 'ANSWER', qIndex, answerIndex: idx, totalScore: newScore }
+      })
+    }
+
     // Small delay to show bot answer if not yet chosen
-    setTimeout(() => resolveRound(idx), 1200)
+    setTimeout(() => resolveRound(idx, myGain), 1200)
   }
 
-  const resolveRound = (chosen: number | null) => {
+  const resolveRound = (chosen: number | null, myGain: number) => {
     if (timerRef.current) clearInterval(timerRef.current)
     if (botRef.current) clearTimeout(botRef.current)
     setPhase('result')
 
     const q = questions[qIndex]
-    let myGain = 0, botGain = 0
-
-    // Score: correct answer = 1 point + up to 3 bonus for speed
-    if (chosen === q.answer) {
-      myGain = 1 + Math.round((timer / TIMER_SECS) * 3)
-    }
-
-    // Bot answer was set before resolveRound; read via callback
-    setBotAnswer(prev => {
-      const botAns = prev
-      if (botAns === q.answer) botGain = 1 + Math.round(Math.random() * 2)
-      setBotScore(s => s + botGain)
-      return botAns
+    
+    // If bot/opponent answered, calculate their gain
+    setOppAnswer(prev => {
+      const oppAns = prev
+      if (!sessionId && oppAns === q.answer) {
+        const botGain = 1 + Math.round(Math.random() * 2)
+        setOppScore(s => s + botGain)
+      }
+      return oppAns
     })
+
     setMyScore(s => s + myGain)
 
     // Next question after 1.5s
@@ -156,14 +216,14 @@ export default function TriviaScreen() {
   }
 
   if (phase === 'done') {
-    const won = myScore > botScore
-    const tied = myScore === botScore
+    const won = myScore > oppScore
+    const tied = myScore === oppScore
     return (
       <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
         <View style={s.doneWrap}>
           <Text style={s.doneEmoji}>{won ? '🏆' : tied ? '🤝' : '😤'}</Text>
           <Text style={[s.doneTitle, { color: theme.text }]}>
-            {won ? 'You Won!' : tied ? 'It\'s a Tie!' : 'Bot Wins!'}
+            {won ? 'You Won!' : tied ? 'It\'s a Tie!' : `${botName} Wins!`}
           </Text>
           <View style={s.finalScoreRow}>
             <View style={s.finalScoreCard}>
@@ -173,7 +233,7 @@ export default function TriviaScreen() {
             <Text style={[s.finalVs, { color: theme.textFaint }]}>vs</Text>
             <View style={s.finalScoreCard}>
               <Text style={[s.finalScoreName, { color: theme.textMuted }]}>{botName}</Text>
-              <Text style={[s.finalScoreNum, { color: '#f87171' }]}>{botScore}</Text>
+              <Text style={[s.finalScoreNum, { color: '#f87171' }]}>{oppScore}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -211,7 +271,7 @@ export default function TriviaScreen() {
         </View>
         <View style={s.scoreItem}>
           <Text style={[s.scoreName, { color: theme.textMuted }]}>{botName}</Text>
-          <Text style={[s.scoreNum, { color: '#f87171' }]}>{botScore}</Text>
+          <Text style={[s.scoreNum, { color: '#f87171' }]}>{oppScore}</Text>
         </View>
       </View>
 
@@ -226,9 +286,9 @@ export default function TriviaScreen() {
       <Animated.View style={[s.qCard, { backgroundColor: theme.card, borderColor: theme.border }, cardStyle]}>
         <Text style={[s.qText, { color: theme.text }]}>{currentQ.q}</Text>
 
-        {/* Bot status */}
+        {/* Opponent status */}
         <Text style={[s.botStatus, { color: theme.textFaint }]}>
-          {botAnswer !== null ? `${botName} answered ✓` : `${botName} is thinking…`}
+          {oppAnswer !== null ? `${botName} answered ✓` : `${botName} is thinking…`}
         </Text>
       </Animated.View>
 

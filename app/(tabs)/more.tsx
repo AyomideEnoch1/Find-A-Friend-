@@ -171,10 +171,16 @@ export default function MoreScreen() {
         {/* Stats */}
         <View style={s.statsRow}>
           {statItems.map((stat, i) => (
-            <View key={i} style={[s.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <TouchableOpacity
+              key={i}
+              style={[s.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                if (stat.label === 'Followers') router.push(`/followers/${profile?.id || user?.id}` as any)
+                else if (stat.label === 'Following') router.push(`/following/${profile?.id || user?.id}` as any)
+              }}>
               <Text style={s.statValue}>{stat.value}</Text>
               <Text style={[s.statLabel, { color: theme.textMuted }]}>{stat.label}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 

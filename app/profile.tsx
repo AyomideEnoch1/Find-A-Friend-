@@ -89,10 +89,16 @@ export default function ProfileScreen() {
           table: 'profiles',
           filter: `id=eq.${user.id}`,
         }, (payload: any) => {
+          // Update both for safety, though stats is the primary source now
           setProfile(prev => prev
             ? { ...prev, follower_count: payload.new.follower_count, following_count: payload.new.following_count }
             : prev
           )
+          setStats(prev => ({
+            ...prev,
+            followers: payload.new.follower_count,
+            following: payload.new.following_count
+          }))
         })
         .subscribe()
     })
@@ -222,17 +228,20 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Stats row */}
       <View style={s.statsRow}>
         {[
-          { label: 'Posts',      value: stats.posts },
-          { label: 'Followers',  value: profile?.follower_count  ?? 0 },
-          { label: 'Following',  value: profile?.following_count ?? 0 },
+          { label: 'Posts',      value: stats.posts, route: null },
+          { label: 'Followers',  value: stats.followers, route: `/followers/${profile?.id}` },
+          { label: 'Following',  value: stats.following, route: `/following/${profile?.id}` },
         ].map(stat => (
-          <View key={stat.label} style={[s.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TouchableOpacity 
+            key={stat.label} 
+            disabled={!stat.route}
+            onPress={() => stat.route && router.push(stat.route as any)}
+            style={[s.statCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[s.statValue, { color: theme.accent }]}>{stat.value}</Text>
             <Text style={[s.statLabel, { color: theme.textFaint }]}>{stat.label}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
 

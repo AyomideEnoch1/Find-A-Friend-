@@ -283,7 +283,7 @@ export async function getClubPosts(
   try {
     let query = supabase
       .from('posts')
-      .select('*, profiles(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
       .eq('club_id', clubId)
       .order('created_at', { ascending: false })
       .limit(limit)
@@ -324,7 +324,7 @@ export async function createClubPost(
         post_type: 'club',
         is_anonymous: false,
       })
-      .select('*, profiles(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
       .single()
 
     if (error) throw error
@@ -345,7 +345,7 @@ export async function getClubAnnouncements(clubId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('club_announcements')
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, avatar_url)')
       .eq('club_id', clubId)
       .order('created_at', { ascending: false })
 
@@ -370,7 +370,7 @@ export async function createClubAnnouncement(
     const { data, error } = await supabase
       .from('club_announcements')
       .insert({ club_id: clubId, author_id: user.id, body })
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, avatar_url)')
       .single()
 
     if (error) throw error
@@ -391,7 +391,7 @@ export async function getClubMembers(
   try {
     const { data, error } = await supabase
       .from('club_members')
-      .select('*, profiles(id, full_name, avatar_url, department, level)')
+      .select('*, profiles!user_id(id, full_name, avatar_url, department, level)')
       .eq('club_id', clubId)
       .order('joined_at', { ascending: false })
       .limit(limit)
@@ -414,7 +414,7 @@ export async function getClubEvents(clubId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*, profiles(id, full_name, avatar_url)')
+      .select('*, profiles!organizer_id(id, full_name, avatar_url)')
       .eq('club_id', clubId)
       .eq('is_public', true)
       .gte('starts_at', new Date().toISOString())

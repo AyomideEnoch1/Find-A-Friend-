@@ -30,6 +30,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/authStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 
@@ -171,8 +173,10 @@ const BOT_LABEL_DEFAULT = 'FAF Bot'
 
 export default function PoolScreen() {
   const theme = useTheme()
-  const { opponentName } = useLocalSearchParams<{ opponentName?: string }>()
+  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
   const botLabel = (opponentName as string | undefined) ?? BOT_LABEL_DEFAULT
+  const user = useAuthStore(s => s.user)
+  const myId = user?.id ?? ''
 
   // ── Game state ──────────────────────────────────────────────────────────────
   const [phase,      setPhase]      = useState<Phase>('coin')
@@ -186,7 +190,10 @@ export default function PoolScreen() {
   const [log,        setLog]        = useState<string[]>([])
   const [power,      setPower]      = useState(60)
   const [aimTarget,  setAimTarget]  = useState<{ x: number; y: number } | null>(null)
-  const [botAimLine, setBotAimLine] = useState<{ fx: number; fy: number; tx: number; ty: number } | null>(null)
+  const [oppAimLine, setOppAimLine] = useState<{ fx: number; fy: number; tx: number; ty: number } | null>(null)
+  const [loading,    setLoading]    = useState(!!sessionId)
+
+  const channelRef = useRef<any>(null)
 
   // ── Refs to avoid stale closures in bot logic ───────────────────────────────
   const ballsRef      = useRef(balls)
@@ -198,6 +205,53 @@ export default function PoolScreen() {
   // doBotShotRef allows scheduleBotTurn (defined early) to always call the
   // latest version of doBotShot without a stale closure.
   const doBotShotRef  = useRef<() => void>(() => {})
+
+  // Initial load & Realtime setup
+  useEffect(() => {
+    if (sessionId) {
+      loadSession()
+      subscribe()
+    }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
+  }, [sessionId])
+
+  const loadSession = async () => {
+    const { data: sess } = await supabase
+      .from('live_game_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+    
+    if (sess) {
+      // Deterministic turn: host goes first
+      const isHost = sess.host_id === myId
+      setMyTurn(isHost)
+      setPhase('playing')
+      setTurnStage(isHost ? 'aiming' : 'bot_thinking')
+      addLog(isHost ? 'You won the break!' : `${botLabel} is breaking!`)
+    }
+    setLoading(false)
+  }
+
+  const subscribe = () => {
+    channelRef.current = supabase.channel(`game_room:${sessionId}`)
+      .on('broadcast', { event: 'move' }, ({ payload }) => {
+        if (payload.type === 'AIM') {
+          setOppAimLine({ fx: cueBallRef.current.x, fy: cueBallRef.current.y, tx: payload.x, ty: payload.y })
+        } else if (payload.type === 'SHOT') {
+          setOppAimLine(null)
+          setTurnStage('bot_shooting')
+          shakeTable(payload.power)
+          fireShot(cueBallRef.current.x, cueBallRef.current.y, payload.tx, payload.ty, payload.power, (pocketedIds, cueFinal) => {
+            pocketAnimation(pocketedIds, () => {
+              shootingRef.current = false
+              resolveShot(pocketedIds, cueFinal, true)
+            })
+          })
+        }
+      })
+      .subscribe()
+  }
 
   // Keep refs in sync
   useEffect(() => { ballsRef.current = balls },        [balls])
@@ -492,6 +546,7 @@ export default function PoolScreen() {
   // ── Bot shot ─────────────────────────────────────────────────────────────────
 
   const scheduleBotTurn = (delay: number) => {
+    if (sessionId) return // No bot in multiplayer
     clearTimer()
     timerRef.current = setTimeout(() => doBotShotRef.current(), delay)
   }
@@ -539,10 +594,10 @@ export default function PoolScreen() {
     const botPwr  = 55 + Math.floor(Math.random() * 25)  // 55-80%
 
     // Show bot aim line for ~850 ms
-    setBotAimLine({ fx: cue.x, fy: cue.y, tx: aimX, ty: aimY })
+    setOppAimLine({ fx: cue.x, fy: cue.y, tx: aimX, ty: aimY })
 
     timerRef.current = setTimeout(() => {
-      setBotAimLine(null)
+      setOppAimLine(null)
       shakeTable(botPwr)
 
       fireShot(cue.x, cue.y, aimX, aimY, botPwr, (pocketedIds, cueFinal) => {
@@ -563,6 +618,15 @@ export default function PoolScreen() {
     if (!myTurn || turnStage !== 'aiming') return
     const { locationX, locationY } = evt.nativeEvent
     setAimTarget({ x: locationX, y: locationY })
+
+    // Broadcast aim
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'move',
+        payload: { type: 'AIM', x: locationX, y: locationY }
+      })
+    }
   }, [myTurn, turnStage])
 
   // ── Derived values ────────────────────────────────────────────────────────────
@@ -582,13 +646,13 @@ export default function PoolScreen() {
     aimAngle = Math.atan2(dy, dx) * (180 / Math.PI)
   }
 
-  // Bot aim line geometry
-  let botLen = 0, botAngle = 0
-  if (botAimLine) {
-    const dx = botAimLine.tx - botAimLine.fx
-    const dy = botAimLine.ty - botAimLine.fy
-    botLen   = Math.sqrt(dx * dx + dy * dy)
-    botAngle = Math.atan2(dy, dx) * (180 / Math.PI)
+  // Opponent aim line geometry
+  let oppLen = 0, oppAngle = 0
+  if (oppAimLine) {
+    const dx = oppAimLine.tx - oppAimLine.fx
+    const dy = oppAimLine.ty - oppAimLine.fy
+    oppLen   = Math.sqrt(dx * dx + dy * dy)
+    oppAngle = Math.atan2(dy, dx) * (180 / Math.PI)
   }
 
   // ── Status text ───────────────────────────────────────────────────────────────
@@ -831,13 +895,13 @@ export default function PoolScreen() {
             />
           )}
 
-          {/* ── Bot aim line ── */}
-          {botAimLine && botLen > 0 && (
+          {/* ── Opponent aim line ── */}
+          {oppAimLine && oppLen > 0 && (
             <AimLine
-              fromX={botAimLine.fx}
-              fromY={botAimLine.fy}
-              len={botLen}
-              angle={botAngle}
+              fromX={oppAimLine.fx}
+              fromY={oppAimLine.fy}
+              len={oppLen}
+              angle={oppAngle}
               color="rgba(248,113,113,0.55)"
               dotColor="rgba(248,113,113,0.8)"
             />

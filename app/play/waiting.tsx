@@ -20,6 +20,7 @@ import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { GAME_META, type GameType } from '../../lib/games'
 import { getInitials } from '../../lib/matching'
+import NeuralBackground from '../../components/NeuralBackground'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,11 +164,23 @@ export default function WaitingScreen() {
     setMyName(prof?.full_name ?? 'You')
 
     if (params.sessionId) {
-      // Rejoining existing session
+      // Rejoining specific session
       await joinSession(params.sessionId, user.id)
     } else if (params.opponentId && params.opponentId !== 'faf-bot') {
-      // Challenger — create session
-      await createSession(user.id, params.opponentId)
+      // Check if a waiting session already exists between these two users
+      const { data: existing } = await supabase
+        .from('live_game_sessions')
+        .select('id, host_id, guest_id')
+        .eq('game_type', gt)
+        .eq('status', 'waiting')
+        .or(`and(host_id.eq.${user.id},guest_id.eq.${params.opponentId}),and(host_id.eq.${params.opponentId},guest_id.eq.${user.id})`)
+        .maybeSingle()
+
+      if (existing) {
+        await joinSession(existing.id, user.id)
+      } else {
+        await createSession(user.id, params.opponentId)
+      }
     } else {
       // Bot game — go straight in
       launchGame(null)
@@ -175,9 +188,27 @@ export default function WaitingScreen() {
   }
 
   const createSession = async (hostId: string, guestId: string) => {
+    // For Trivia or Wordle, generate the secret/set immediately
+    let initialState: any = {}
+    if (gt === 'trivia') {
+      const { pickQuestionIndices } = require('../../lib/triviaQuestions')
+      initialState = { q_indices: pickQuestionIndices(10) }
+    } else if (gt === 'wordle') {
+      // Pick a random word from the constant list in wordle.tsx (copied here or exported)
+      // Since WORDS is local to wordle.tsx, I'll just pick one here manually or export it
+      const WORDS = ['FLAME','BLAZE','SPARK','GRIND','SCORE','PHASE','FOCUS','BRAVE','CODED','DRAFT','ELITE','FRESH','GLARE','HASTE','INTEL','JUDGE','KNEEL','LOGIC','MIXER','NIGHT','ORBIT','PLACE','QUEST','RADAR','STEAM','TRAIN','UNITY','VOICE','WATCH','YIELD']
+      initialState = { word: WORDS[Math.floor(Math.random() * WORDS.length)] }
+    }
+
     const { data, error: err } = await supabase
       .from('live_game_sessions')
-      .insert({ game_type: gt, host_id: hostId, guest_id: guestId, status: 'waiting' })
+      .insert({
+        game_type: gt,
+        host_id: hostId,
+        guest_id: guestId,
+        status: 'waiting',
+        state: initialState
+      })
       .select('id')
       .single()
 
@@ -188,15 +219,31 @@ export default function WaitingScreen() {
   }
 
   const joinSession = async (sid: string, userId: string) => {
-    // Guest joins by setting themselves as guest and status → active
-    const { data, error: err } = await supabase
+    // Check our role in this session
+    const { data: sess } = await supabase
       .from('live_game_sessions')
-      .update({ guest_id: userId, status: 'active' })
+      .select('*')
       .eq('id', sid)
-      .select()
       .single()
+    
+    if (!sess) { setError('Session not found'); return }
 
-    if (err || !data) { setError('Could not join session'); return }
+    setSessionId(sid)
+
+    if (sess.host_id !== userId && !sess.guest_id) {
+      // We are the guest joining for the first time
+      await supabase
+        .from('live_game_sessions')
+        .update({ guest_id: userId, status: 'active' })
+        .eq('id', sid)
+    } else if (sess.host_id === userId && sess.guest_id) {
+      // We are host and guest is already here
+      await supabase
+        .from('live_game_sessions')
+        .update({ status: 'active' })
+        .eq('id', sid)
+    }
+
     setPhase('waiting')
     subscribeToSession(sid, userId)
   }
@@ -257,13 +304,7 @@ export default function WaitingScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: '#07070f' }]}>
-
-      {/* Scan lines background */}
-      <View style={s.bg} pointerEvents="none">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <View key={i} style={[s.gridLine, { top: `${i * 14}%` as any }]} />
-        ))}
-      </View>
+      <NeuralBackground intensity="medium" />
 
       {/* Back */}
       <TouchableOpacity style={s.backBtn} onPress={cancelAndBack}>
