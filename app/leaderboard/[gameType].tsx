@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Image,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -145,7 +146,7 @@ export default function LeaderboardScreen() {
         {loading ? (
           <ScreenLoader message="Loading rankings…" />
         ) : (
-          <>
+          <Animated.View entering={FadeIn.duration(600)} style={{ flex: 1 }}>
             {/* Podium — top 3 */}
             {top3.length >= 3 && (
               <View style={[s.podiumCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -244,8 +245,8 @@ export default function LeaderboardScreen() {
                 )
               })}
             </View>
-          </>
-        )}
+          </Animated.View>
+        )}}
 
         <View style={{ height: 60 }} />
       </ScrollView>

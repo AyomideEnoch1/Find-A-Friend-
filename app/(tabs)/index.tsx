@@ -63,6 +63,12 @@ export default function HomeScreen() {
     })
   }, [loadFeed, loadUnreadCount])
 
+  useEffect(() => {
+    if (!loading) {
+      showTabBar()
+    }
+  }, [loading])
+
   const handleRefresh = useCallback(() => refresh(), [refresh])
   const handleEndReached = useCallback(() => {
     if (!loading && hasMore) loadMore()

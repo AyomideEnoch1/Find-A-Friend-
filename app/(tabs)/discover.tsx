@@ -17,6 +17,7 @@ import SwipeCard, { CARD_HEIGHT } from '../../components/discover/SwipeCard'
 import type { SwipeCardRef } from '../../components/discover/SwipeCard'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import { showTabBar } from '../../lib/tabBarAnim'
 import type { FollowProfile } from '../../lib/follows'
 import type { TrendingHashtag } from '../../lib/feed'
 
@@ -116,6 +117,12 @@ export default function DiscoverScreen() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!loading) {
+      showTabBar()
+    }
+  }, [loading])
 
   const handleSwipeRight = useCallback(async () => {
     const top = deck[0]

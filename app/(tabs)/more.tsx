@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/authStore'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
+import { showTabBar } from '../../lib/tabBarAnim'
 import * as Updates from 'expo-updates'
 
 const features: Array<{
@@ -44,6 +45,12 @@ export default function MoreScreen() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!loading) {
+      showTabBar()
+    }
+  }, [loading])
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure?', [

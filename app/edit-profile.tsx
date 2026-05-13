@@ -28,6 +28,7 @@ export default function EditProfileScreen() {
   const [fullName, setFullName] = useState('')
   const [bio, setBio] = useState('')
   const [department, setDepartment] = useState('')
+  const [manualDepartment, setManualDepartment] = useState('')
   const [level, setLevel] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -39,7 +40,13 @@ export default function EditProfileScreen() {
         setProfile(p)
         setFullName(p.full_name ?? '')
         setBio(p.bio ?? '')
-        setDepartment(p.department ?? '')
+        const dept = p.department ?? ''
+        if (dept && !DEPARTMENTS.includes(dept)) {
+          setDepartment('Other')
+          setManualDepartment(dept)
+        } else {
+          setDepartment(dept)
+        }
         setLevel(p.level ?? '')
       }
       setLoading(false)
@@ -78,7 +85,7 @@ export default function EditProfileScreen() {
       const { error } = await updateProfile({
         full_name: fullName.trim(),
         bio: bio.trim() || undefined,
-        department: department || undefined,
+        department: (department === 'Other' ? manualDepartment.trim() : department) || undefined,
         level: level || undefined,
         avatar_url: avatarUrl ?? undefined,
       })
@@ -177,6 +184,19 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {department === 'Other' && (
+              <View style={[s.fieldWrap, { marginTop: 12 }]}>
+                <TextInput
+                  style={[s.input, { color: theme.text }]}
+                  placeholder="Enter your department"
+                  placeholderTextColor="rgba(240,240,255,0.25)"
+                  value={manualDepartment}
+                  onChangeText={setManualDepartment}
+                  autoFocus
+                />
+              </View>
+            )}
 
             {/* Level */}
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>Level</Text>

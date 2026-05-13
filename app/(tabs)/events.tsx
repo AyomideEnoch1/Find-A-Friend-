@@ -12,6 +12,7 @@ import CalendarGrid from '../../components/events/CalendarGrid'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
+import { showTabBar } from '../../lib/tabBarAnim'
 import type { Event } from '../../lib/events'
 
 type Tab = 'upcoming' | 'rsvps' | 'past'
@@ -183,6 +184,12 @@ export default function EventsScreen() {
       setRefreshing(false)
     }
   }
+
+  useEffect(() => {
+    if (!loading) {
+      showTabBar()
+    }
+  }, [loading])
 
   const onRefresh = useCallback(() => { setRefreshing(true); loadTab(activeTab) }, [activeTab])
 

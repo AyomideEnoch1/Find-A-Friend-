@@ -25,6 +25,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(1)
   const [fullName, setFullName] = useState('')
   const [department, setDepartment] = useState('')
+  const [manualDepartment, setManualDepartment] = useState('')
   const [level, setLevel] = useState('')
   const [bio, setBio] = useState('')
   const [interests, setInterests] = useState<string[]>([])
@@ -62,7 +63,7 @@ export default function OnboardingScreen() {
       id: user.id,
       email: user.email,
       full_name: fullName.trim(),
-      department,
+      department: department === 'Other' ? manualDepartment.trim() : department,
       level,
       bio: bio.trim(),
       interests,
@@ -150,6 +151,20 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {department === 'Other' && (
+              <View style={[s.inputWrap, { marginTop: 16 }]}>
+                <Text style={s.label}>Enter your department</Text>
+                <TextInput
+                  style={s.input}
+                  placeholder="e.g. Political Science"
+                  placeholderTextColor="rgba(240,240,255,0.25)"
+                  value={manualDepartment}
+                  onChangeText={setManualDepartment}
+                  autoFocus
+                />
+              </View>
+            )}
 
             <Text style={[s.label, { marginTop: 20 }]}>Level</Text>
             <View style={s.levelRow}>
