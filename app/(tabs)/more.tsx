@@ -131,10 +131,6 @@ export default function MoreScreen() {
       onPress: () => router.push('/help' as any),
     },
     {
-      icon: '🔄', label: 'Check for updates', sub: 'Pull the latest app changes',
-      onPress: handleCheckUpdate,
-    },
-    {
       icon: '🗑️', label: 'Delete account', sub: 'Permanently remove your data',
       onPress: handleDeleteAccount,
       danger: true,
@@ -240,13 +236,19 @@ export default function MoreScreen() {
                 <Text style={[s.menuLabel, { color: item.danger ? '#ef4444' : theme.text }]}>{item.label}</Text>
                 <Text style={[s.menuSub, { color: theme.textMuted }]}>{item.sub}</Text>
               </View>
-              {item.label === 'Check for updates' && updating
-                ? <ActivityIndicator size="small" color="#a78bfa" />
-                : <Text style={[s.menuArrow, { color: theme.textMuted }]}>›</Text>}
+              <Text style={[s.menuArrow, { color: theme.textMuted }]}>›</Text>
 
             </TouchableOpacity>
           ))}
         </View>
+
+        <TouchableOpacity style={[s.updateBtn, { borderColor: theme.border }]} onPress={handleCheckUpdate} disabled={updating}>
+          {updating ? (
+            <ActivityIndicator size="small" color="#a78bfa" />
+          ) : (
+            <Text style={s.updateBtnText}>🔄 Check for updates</Text>
+          )}
+        </TouchableOpacity>
 
         <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
           <Text style={s.signOutText}>Sign out</Text>
@@ -346,6 +348,14 @@ const s = StyleSheet.create({
   menuLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   menuSub: { fontSize: 11 },
   menuArrow: { fontSize: 20 },
+
+  updateBtn: {
+    marginHorizontal: 16, backgroundColor: 'rgba(167,139,250,0.1)',
+    borderRadius: 16, padding: 16, alignItems: 'center',
+    borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.2)',
+    marginBottom: 12,
+  },
+  updateBtnText: { fontSize: 14, fontWeight: '600', color: '#a78bfa' },
 
   signOutBtn: {
     marginHorizontal: 16, backgroundColor: 'rgba(239,68,68,0.1)',

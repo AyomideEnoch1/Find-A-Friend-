@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   Image, ScrollView, ActivityIndicator, Alert,
@@ -17,7 +17,7 @@ import type { Profile } from '../lib/profiles'
 
 const DEPARTMENTS = [
   'Engineering', 'Medicine', 'Law', 'Sciences', 'Arts',
-  'Social Sciences', 'Education', 'Business', 'Agriculture', 'Other',
+  'Social Sciences', 'Education', 'Business', 'Agriculture',
 ]
 
 const LEVELS = ['100L', '200L', '300L', '400L', '500L', '600L', 'Postgrad']
@@ -28,7 +28,6 @@ export default function EditProfileScreen() {
   const [fullName, setFullName] = useState('')
   const [bio, setBio] = useState('')
   const [department, setDepartment] = useState('')
-  const [manualDepartment, setManualDepartment] = useState('')
   const [level, setLevel] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,13 +40,7 @@ export default function EditProfileScreen() {
           setProfile(p)
           setFullName(p.full_name ?? '')
           setBio(p.bio ?? '')
-          const dept = p.department ?? ''
-          if (dept && !DEPARTMENTS.includes(dept)) {
-            setDepartment('Other')
-            setManualDepartment(dept)
-          } else {
-            setDepartment(dept)
-          }
+          setDepartment(p.department ?? '')
           setLevel(p.level ?? '')
         }
       })
@@ -89,7 +82,7 @@ export default function EditProfileScreen() {
       const { error } = await updateProfile({
         full_name: fullName.trim(),
         bio: bio.trim() || undefined,
-        department: (department === 'Other' ? manualDepartment.trim() : department) || undefined,
+        department: department.trim() || undefined,
         level: level || undefined,
         avatar_url: avatarUrl ?? undefined,
       })
@@ -178,29 +171,27 @@ export default function EditProfileScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.pillRow}>
+              contentContainerStyle={s.pillRow}
+              style={{ marginBottom: 12 }}>
               {DEPARTMENTS.map(d => (
                 <TouchableOpacity
                   key={d}
                   style={[s.pill, department === d && s.pillActive]}
-                  onPress={() => setDepartment(department === d ? '' : d)}>
+                  onPress={() => setDepartment(d)}>
                   <Text style={[s.pillText, department === d && s.pillTextActive]}>{d}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {department === 'Other' && (
-              <View style={[s.fieldWrap, { marginTop: 12 }]}>
-                <TextInput
-                  style={[s.input, { color: theme.text }]}
-                  placeholder="Enter your department"
-                  placeholderTextColor="rgba(240,240,255,0.25)"
-                  value={manualDepartment}
-                  onChangeText={setManualDepartment}
-                  autoFocus
-                />
-              </View>
-            )}
+            <View style={s.fieldWrap}>
+              <TextInput
+                style={[s.input, { color: theme.text }]}
+                placeholder="Enter your department manually"
+                placeholderTextColor="rgba(240,240,255,0.25)"
+                value={department}
+                onChangeText={setDepartment}
+              />
+            </View>
 
             {/* Level */}
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>Level</Text>
