@@ -27,6 +27,7 @@ import { ReplyPayload, parseReply, ReplyBanner, QuotedBubble } from '../../compo
 import { GAME_META, type GameType } from '../../lib/games'
 import { usePresenceStore } from '../../store/presenceStore'
 import { StickerPicker } from '../../components/StickerPicker'
+import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -411,53 +412,6 @@ const ma = StyleSheet.create({
   cancelLabel: { fontSize: 14, fontFamily: typography.fontMedium },
 })
 
-// ─── Attachment sheet ─────────────────────────────────────────────────────────
-
-const SHEET_OPTIONS = [
-  { icon: 'star-outline',     label: 'Stickers',key: 'stickers' },
-  { icon: 'camera-outline',   label: 'Camera',  key: 'camera'  },
-  { icon: 'images-outline',   label: 'Gallery', key: 'gallery' },
-  { icon: 'videocam-outline', label: 'Video',   key: 'video'   },
-] as const
-
-function AttachmentSheet({ visible, uploading, onClose, onSelect }: {
-  visible: boolean; uploading: boolean
-  onClose: () => void
-  onSelect: (key: typeof SHEET_OPTIONS[number]['key']) => void
-}) {
-  const theme = useTheme()
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={att.backdrop} activeOpacity={1} onPress={onClose} />
-      <View style={[att.sheet, { backgroundColor: theme.card2, borderColor: theme.accentBorder }]}>
-        <View style={[att.handle, { backgroundColor: theme.border2 }]} />
-        <Text style={[att.title, { color: theme.text }]}>Send attachment</Text>
-        {uploading ? (
-          <View style={att.uploadingRow}>
-            <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={[att.uploadingText, { color: theme.textMuted }]}>Uploading…</Text>
-          </View>
-        ) : (
-          <View style={att.grid}>
-            {SHEET_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[att.option, { backgroundColor: theme.card, borderColor: theme.accentBorder }]}
-                onPress={() => onSelect(opt.key)}>
-                <View style={[att.iconWrap, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }]}>
-                  <Ionicons name={opt.icon as any} size={26} color={theme.accent} />
-                </View>
-                <Text style={[att.optionLabel, { color: theme.text }]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        <TouchableOpacity style={[att.cancelBtn, { borderColor: theme.border }]} onPress={onClose}>
-          <Text style={[att.cancelText, { color: theme.textMuted }]}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  )
 }
 
 const att = StyleSheet.create({
@@ -946,7 +900,7 @@ export default function DirectMessageScreen() {
     }
   }
 
-  const sendAttachment = async (key: typeof SHEET_OPTIONS[number]['key']) => {
+  const sendAttachment = async (key: AttachmentOptionKey) => {
     if (!convId) return
     setUploading(true)
     try {

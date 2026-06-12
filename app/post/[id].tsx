@@ -17,10 +17,10 @@ import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { supabase } from '../../lib/supabase'
-import { ReplyBanner } from '../../components/chat/ReplyUI'
 import { pickCommentMedia, takeCommentPhoto, recordCommentVideo } from '../../lib/feedAttachments'
 import type { FeedMedia } from '../../lib/feedAttachments'
 import { StickerPicker } from '../../components/StickerPicker'
+import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
 
 function toHandle(name: string | null | undefined) {
@@ -58,6 +58,7 @@ export default function PostDetailScreen() {
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null)
   const [attachMedia, setAttachMedia] = useState<FeedMedia | null>(null)
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [showAttachSheet, setShowAttachSheet] = useState(false)
   const [showStickerPicker, setShowStickerPicker] = useState(false)
   const { addSticker } = useStickerStore()
   const inputRef = useRef<TextInput>(null)
@@ -250,32 +251,25 @@ export default function PostDetailScreen() {
     setSending(false)
   }
 
-  const handleAttach = () => {
-    Alert.alert('Attach Media', undefined, [
-      { text: '✨ My Stickers', onPress: () => setShowStickerPicker(true) },
-      { text: 'Take Photo', onPress: async () => {
-          setUploadingMedia(true)
-          try { const media = await takeCommentPhoto(); if (media) setAttachMedia(media) } 
-          catch (e: any) { Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message }) }
-          finally { setUploadingMedia(false) }
-        }
-      },
-      { text: 'Record Video', onPress: async () => {
-          setUploadingMedia(true)
-          try { const media = await recordCommentVideo(); if (media) setAttachMedia(media) } 
-          catch (e: any) { Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message }) }
-          finally { setUploadingMedia(false) }
-        }
-      },
-      { text: 'Choose from Gallery', onPress: async () => {
-          setUploadingMedia(true)
-          try { const media = await pickCommentMedia(); if (media) setAttachMedia(media) } 
-          catch (e: any) { Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message }) }
-          finally { setUploadingMedia(false) }
-        }
-      },
-      { text: 'Cancel', style: 'cancel' }
-    ])
+  const handleAttachmentSelect = async (key: AttachmentOptionKey) => {
+    setShowAttachSheet(false)
+    if (key === 'stickers') {
+      setShowStickerPicker(true)
+      return
+    }
+
+    setUploadingMedia(true)
+    try {
+      let media: FeedMedia | null = null
+      if (key === 'camera') media = await takeCommentPhoto()
+      if (key === 'gallery') media = await pickCommentMedia()
+      if (key === 'video') media = await recordCommentVideo()
+      if (media) setAttachMedia(media)
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message })
+    } finally {
+      setUploadingMedia(false)
+    }
   }
 
   const renderBody = (text: string | null | undefined, isRepostText = false) => {
@@ -683,7 +677,7 @@ export default function PostDetailScreen() {
         <View style={[s.inputRow, { borderTopColor: theme.border, paddingBottom: insets.bottom + 4 }]}>
           <TouchableOpacity
             style={s.attachBtn}
-            onPress={handleAttach}
+            onPress={() => setShowAttachSheet(true)}
             disabled={uploadingMedia || sending}
           >
             {uploadingMedia ? <ActivityIndicator size="small" color={theme.textMuted} /> : <Ionicons name="attach-outline" size={26} color={theme.textMuted} />}
@@ -708,6 +702,13 @@ export default function PostDetailScreen() {
             </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      
+      <AttachmentSheet
+        visible={showAttachSheet}
+        uploading={uploadingMedia}
+        onClose={() => setShowAttachSheet(false)}
+        onSelect={handleAttachmentSelect}
+      />
       
       <StickerPicker 
         visible={showStickerPicker} 
