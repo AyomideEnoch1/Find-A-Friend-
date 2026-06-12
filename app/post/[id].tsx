@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase'
 import { pickCommentMedia, takeCommentPhoto, recordCommentVideo } from '../../lib/feedAttachments'
 import type { FeedMedia } from '../../lib/feedAttachments'
 import { StickerPicker } from '../../components/StickerPicker'
+import { ReplyBanner } from '../../components/chat/ReplyUI'
 import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
 
