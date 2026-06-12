@@ -106,13 +106,15 @@ export default function HomeScreen() {
   const header = (
     <View style={[s.header, { borderBottomColor: theme.border }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Image 
-          source={require('../../assets/images/icon.png')} 
-          style={{ width: 32, height: 32, borderRadius: 8 }} 
-          resizeMode="cover" 
-        />
         <View>
-          <Text style={s.logo}>FAF</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={s.logo}>FAF</Text>
+            <Image 
+              source={require('../../assets/images/adaptive-icon.png')} 
+              style={{ width: 28, height: 28 }} 
+              resizeMode="contain" 
+            />
+          </View>
           {firstName && (
             <Text style={[s.greeting, { color: theme.textMuted }]}>{getGreeting()}, {firstName} 👋</Text>
           )}
