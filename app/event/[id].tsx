@@ -10,9 +10,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getEventDetail, getEventAttendees, rsvpEvent, cancelRsvp } from '../../lib/events'
+import { getEventDetail, getEventAttendees, rsvpEvent, cancelRsvp, deleteEvent } from '../../lib/events'
 import { getInitials } from '../../lib/matching'
 import type { Event, EventRsvp } from '../../lib/events'
+import { supabase } from '../../lib/supabase'
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -21,6 +22,7 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [rsvpLoading, setRsvpLoading] = useState(false)
   const [rsvpStatus, setRsvpStatus] = useState<'going' | 'interested' | 'not_going' | null>(null)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (id) loadData()
@@ -29,19 +31,49 @@ export default function EventDetailScreen() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [eventRes, attendeesRes] = await Promise.all([
+      const [eventRes, attendeesRes, authUserRes] = await Promise.all([
         getEventDetail(id),
         getEventAttendees(id, 'going'),
+        supabase.auth.getUser()
       ])
       setEvent(eventRes.data)
       setRsvpStatus(eventRes.data?.user_rsvp_status ?? null)
       setAttendees(attendeesRes.data ?? [])
+      if (authUserRes.data?.user) {
+        setMyUserId(authUserRes.data.user.id)
+      }
     } catch {
       // Non-fatal
     } finally {
       setLoading(false)
     }
   }
+
+  const handleDeleteEvent = async () => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true)
+            const { error } = await deleteEvent(id)
+            setLoading(false)
+            if (error) {
+              Alert.alert('Error', error.message)
+            } else {
+              Alert.alert('Deleted', 'The event has been successfully deleted.')
+              router.back()
+            }
+          }
+        }
+      ]
+    )
+  }
+
 
   const handleRsvp = async () => {
     if (!event) return
@@ -115,6 +147,13 @@ export default function EventDetailScreen() {
             onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
+          {(event.organizer_id === myUserId) && (
+            <TouchableOpacity
+              style={[s.backBtn, { left: undefined, right: 16, backgroundColor: 'rgba(239, 68, 68, 0.8)' }]}
+              onPress={handleDeleteEvent}>
+              <Ionicons name="trash-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={s.content}>

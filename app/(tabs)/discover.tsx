@@ -22,40 +22,8 @@ import type { FollowProfile } from '../../lib/follows'
 import type { TrendingHashtag } from '../../lib/feed'
 import NeuralBackground from '../../components/NeuralBackground'
 import ScreenLoader from '../../components/ScreenLoader'
+import { supabase } from '../../lib/supabase'
 
-// ─── Demo fallback profiles ───────────────────────────────────────────────────
-const DEMO_PROFILES: FollowProfile[] = [
-  {
-    id: 'demo-1', full_name: 'Ada Okonkwo', department: 'Computer Science',
-    level: '300', avatar_url: null, follower_count: 284, following_count: 91,
-    interests: ['AI / ML', 'Web Dev', 'Chess', 'Music'],
-  },
-  {
-    id: 'demo-2', full_name: 'Emeka Nwosu', department: 'Electrical Engineering',
-    level: '400', avatar_url: null, follower_count: 172, following_count: 63,
-    interests: ['Robotics', 'Gaming', 'Photography'],
-  },
-  {
-    id: 'demo-3', full_name: 'Zainab Bello', department: 'Medicine & Surgery',
-    level: '500', avatar_url: null, follower_count: 341, following_count: 110,
-    interests: ['Healthcare', 'Fitness', 'Poetry', 'Cooking'],
-  },
-  {
-    id: 'demo-4', full_name: 'Chidi Obi', department: 'Business Administration',
-    level: '200', avatar_url: null, follower_count: 98, following_count: 54,
-    interests: ['Finance', 'Startups', 'Football', 'Movies'],
-  },
-  {
-    id: 'demo-5', full_name: 'Fatima Abubakar', department: 'Architecture',
-    level: '400', avatar_url: null, follower_count: 215, following_count: 78,
-    interests: ['Design', 'Art', 'Travel', 'Sustainability'],
-  },
-  {
-    id: 'demo-6', full_name: 'Tunde Adeyemi', department: 'Law',
-    level: '300', avatar_url: null, follower_count: 133, following_count: 42,
-    interests: ['Debate', 'Politics', 'Reading', 'Tennis'],
-  },
-]
 
 // ─── Action button ────────────────────────────────────────────────────────────
 function ActionBtn({ icon, color, bg, onPress, large }: {
@@ -100,21 +68,59 @@ export default function DiscoverScreen() {
   useEffect(() => {
     loadData()
     getLikesCounts().then(setLikesCount)
+
+    let channel: any = null
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      channel = supabase
+        .channel('discover-likes-realtime')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'discover_likes',
+        }, (payload: any) => {
+          const r = payload.new || payload.old
+          if (r && (r.liked_id === user.id || r.liker_id === user.id)) {
+            getLikesCounts().then(setLikesCount)
+          }
+        })
+        .subscribe()
+    })
+
+    // Subscribe to public profile updates to update follower counts in real time
+    const profilesChannel = supabase
+      .channel('discover-profiles-realtime')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+      }, (payload: any) => {
+        const updated = payload.new as FollowProfile
+        if (updated && updated.id) {
+          setDeck(prev => prev.map(u =>
+            u.id === updated.id
+              ? { ...u, follower_count: updated.follower_count }
+              : u
+          ))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+      supabase.removeChannel(profilesChannel)
+    }
   }, [])
 
   const loadData = async () => {
     setLoading(true)
     try {
       const [usersRes, trendingRes] = await Promise.all([getSuggestedUsers(), getTrending()])
-      const real = usersRes.data ?? []
-      const demoIds = new Set(real.map(u => u.id))
-      const padded = DEMO_PROFILES.filter(d => !demoIds.has(d.id))
-      // Always put real users first; pad with demos only to fill the deck
-      setDeck(real.length > 0 ? [...real, ...padded] : padded)
+      setDeck(usersRes.data ?? [])
       setTrending(trendingRes.data ?? [])
     } catch (e) {
       console.warn('[Discover] loadData error:', e)
-      setDeck(DEMO_PROFILES)
+      setDeck([])
     } finally {
       setLoading(false)
     }
@@ -131,15 +137,13 @@ export default function DiscoverScreen() {
     if (!top) return
     setDeck(prev => prev.slice(1))
     setLiked(n => n + 1)
-    if (!top.id.startsWith('demo-')) {
-      await likeUser(top.id)
-      const { error: followErr } = await followUser(top.id)
-      if (followErr) {
-        Toast.show({ type: 'error', text1: 'Could not follow', text2: followErr.message })
-      }
-      // Refresh likes count
-      getLikesCounts().then(setLikesCount)
+    await likeUser(top.id)
+    const { error: followErr } = await followUser(top.id)
+    if (followErr) {
+      Toast.show({ type: 'error', text1: 'Could not follow', text2: followErr.message })
     }
+    // Refresh likes count
+    getLikesCounts().then(setLikesCount)
   }, [deck])
 
   const handleSwipeLeft = useCallback(() => {

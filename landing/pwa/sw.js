@@ -1,4 +1,4 @@
-const CACHE_NAME = "faf-v1";
+const CACHE_NAME = "faf-v2";
 const STATIC_ASSETS = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -33,10 +33,36 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
+  // 1. HTML pages and root navigation: Network-First (fallback to Cache)
+  if (event.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
+
+  // 2. JS, CSS, images, and other assets: Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then(
-      (cached) => cached || fetch(event.request).catch(() => caches.match("/"))
-    )
+    caches.match(event.request).then((cached) => {
+      const fetchPromise = fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached); // Fallback to cached version if network fails
+      return cached || fetchPromise;
+    })
   );
 });
 
@@ -68,7 +94,9 @@ self.addEventListener("push", (event) => {
     body,
     icon: "/assets/images/icon.png",
     badge: "/assets/images/icon.png",
-    data: { type, url: "/" },
+    data: { type, url: payload.url || "/" },
+    tag: type, // deduplicate: iOS replaces same-tag notifications
+    renotify: true,
     // Vibrate pattern only works on Android
     vibrate: [100, 50, 100],
   };

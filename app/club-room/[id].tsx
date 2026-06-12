@@ -30,6 +30,7 @@ import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import { ReplyPayload, parseReply, ReplyBanner, QuotedBubble } from '../../components/chat/ReplyUI'
 
 interface RoomMessage {
   id: string
@@ -46,15 +47,19 @@ export default function ClubRoomScreen() {
   const insets = useSafeAreaInsets()
   const theme = useTheme()
   const listRef = useRef<FlatList>(null)
+  const inputRef = useRef<TextInput>(null)
 
   const [myId, setMyId] = useState('')
   const [clubName, setClubName] = useState('')
   const [clubColor, setClubColor] = useState('#a78bfa')
   const [messages, setMessages] = useState<RoomMessage[]>([])
   const [input, setInput] = useState('')
+  const [replyingTo, setReplyingTo] = useState<ReplyPayload['replyTo'] | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [isMember, setIsMember] = useState(false)
+  const [role, setRole] = useState<'member' | 'moderator' | 'admin' | null>(null)
+  const [sendSettings, setSendSettings] = useState<'all' | 'admins'>('all')
 
   const load = useCallback(async () => {
     try {
@@ -63,15 +68,28 @@ export default function ClubRoomScreen() {
       setMyId(user.id)
 
       // Load club info
-      const { data: club } = await supabase
-        .from('clubs').select('name, color').eq('id', clubId).single()
-      if (club) { setClubName(club.name); setClubColor(club.color ?? '#a78bfa') }
+      const { data: club, error: clubErr } = await supabase
+        .from('clubs').select('name, color, settings_send_messages').eq('id', clubId).single()
+      if (clubErr) {
+        console.error('Club load error:', clubErr)
+        Toast.show({ type: 'error', text1: 'Could not load club', text2: clubErr.message })
+      }
+      if (club) {
+        setClubName(club.name)
+        setClubColor(club.color ?? '#a78bfa')
+        setSendSettings(club.settings_send_messages ?? 'all')
+      }
 
       // Check membership
-      const { data: membership } = await supabase
+      const { data: membership, error: memErr } = await supabase
         .from('club_members').select('role')
         .eq('club_id', clubId).eq('user_id', user.id).maybeSingle()
+      if (memErr) {
+        console.error('Membership load error:', memErr)
+        Toast.show({ type: 'error', text1: 'Could not load membership', text2: memErr.message })
+      }
       setIsMember(!!membership)
+      setRole(membership?.role ?? null)
 
       // Load recent messages
       const { data: msgs, error } = await supabase
@@ -117,30 +135,53 @@ export default function ClubRoomScreen() {
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    const infoChannel = supabase
+      .channel(`club-info:${clubId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'clubs',
+        filter: `id=eq.${clubId}`,
+      }, (payload: any) => {
+        if (payload.new.settings_send_messages) {
+          setSendSettings(payload.new.settings_send_messages)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+      supabase.removeChannel(infoChannel)
+    }
   }, [clubId])
 
   const sendMessage = async () => {
     const text = input.trim()
+    const canChat = isMember && (sendSettings !== 'admins' || role === 'admin' || role === 'moderator')
     if (!text || !clubId || sending) return
-    if (!isMember) {
-      Toast.show({ type: 'info', text1: 'Join the club first', text2: 'You must be a member to chat.' })
+    if (!canChat) {
+      Toast.show({ type: 'error', text1: 'Restricted', text2: 'Only admins can send messages in this club.' })
       return
     }
     setInput('')
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
 
+    let payload = text
+    if (replyingTo) {
+      payload = JSON.stringify({ _type: 'reply', replyTo: replyingTo, text })
+      setReplyingTo(null)
+    }
+
     const optimistic: RoomMessage = {
       id: `opt_${Date.now()}`, _optimistic: true,
       club_id: clubId, sender_id: myId,
-      body: text, created_at: new Date().toISOString(), profiles: null,
+      body: payload, created_at: new Date().toISOString(), profiles: null,
     }
     setMessages(prev => [...prev, optimistic])
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
 
     setSending(true)
     const { error } = await supabase.from('club_messages').insert({
-      club_id: clubId, sender_id: myId, body: text,
+      club_id: clubId, sender_id: myId, body: payload,
     })
     setSending(false)
     if (error) {
@@ -154,6 +195,7 @@ export default function ClubRoomScreen() {
     const prevMsg = messages[index - 1]
     const showHeader = !prevMsg || prevMsg.sender_id !== m.sender_id
     const name = m.profiles?.full_name ?? 'Member'
+    const replyData = parseReply(m.body)
 
     return (
       <View style={[s.msgGroup, mine && s.msgGroupMine]}>
@@ -171,22 +213,40 @@ export default function ClubRoomScreen() {
         )}
         <View style={s.msgRow}>
           {!mine && <View style={{ width: 8 }} />}
-          <View style={[
-            s.bubble,
-            mine
-              ? [s.bubbleMine, { backgroundColor: clubColor }]
-              : [s.bubbleTheirs, { backgroundColor: theme.card, borderColor: theme.border }],
-            m._optimistic && { opacity: 0.65 },
-          ]}>
-            <Text style={[s.bubbleText, { color: mine ? '#fff' : theme.text }]}>{m.body}</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              let previewBody = m.body
+              const reply = parseReply(m.body)
+              if (reply) previewBody = reply.text
+              setReplyingTo({
+                id: m.id ?? '',
+                author: name,
+                body: previewBody
+              })
+              inputRef.current?.focus()
+            }}
+            delayLongPress={200}
+            style={[
+              s.bubble,
+              mine
+                ? [s.bubbleMine, { backgroundColor: clubColor }]
+                : [s.bubbleTheirs, { backgroundColor: theme.card, borderColor: theme.border }],
+              m._optimistic && { opacity: 0.65 },
+            ]}>
+            {replyData && <QuotedBubble replyTo={replyData.replyTo} />}
+            <Text style={[s.bubbleText, { color: mine ? '#fff' : theme.text }]}>{replyData ? replyData.text : m.body}</Text>
             <Text style={[s.bubbleTime, { color: mine ? 'rgba(255,255,255,0.5)' : theme.textFaint }]}>
               {getTimeAgo(m.created_at)}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     )
   }
+
+  const canChat = isMember && (sendSettings !== 'admins' || role === 'admin' || role === 'moderator')
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -227,29 +287,32 @@ export default function ClubRoomScreen() {
           />
         )}
 
+        <ReplyBanner replyingTo={replyingTo} onCancel={() => setReplyingTo(null)} />
+
         {/* Input */}
         <View style={[s.inputRow, {
           borderTopColor: theme.border, backgroundColor: theme.card,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
         }]}>
           <TextInput
+            ref={inputRef}
             style={[s.input, { backgroundColor: theme.card2, borderColor: theme.border, color: theme.text }]}
-            placeholder={isMember ? 'Message the club...' : 'Join club to chat'}
+            placeholder={isMember ? (canChat ? 'Message the club...' : 'Only admins can send messages') : 'Join club to chat'}
             placeholderTextColor={theme.textFaint}
             value={input} onChangeText={setInput}
-            multiline maxLength={500} editable={isMember}
+            multiline maxLength={500} editable={canChat}
             returnKeyType="send" onSubmitEditing={sendMessage}
           />
           <TouchableOpacity
             style={[
               s.sendBtn,
-              { backgroundColor: input.trim() && isMember ? clubColor : theme.card2, borderColor: theme.border },
-              (!input.trim() || !isMember || sending) && { opacity: 0.4 },
+              { backgroundColor: input.trim() && canChat ? clubColor : theme.card2, borderColor: theme.border },
+              (!input.trim() || !canChat || sending) && { opacity: 0.4 },
             ]}
-            onPress={sendMessage} disabled={!input.trim() || !isMember || sending}>
+            onPress={sendMessage} disabled={!input.trim() || !canChat || sending}>
             {sending
               ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="send" size={16} color={input.trim() && isMember ? '#fff' : theme.textFaint} />}
+              : <Ionicons name="send" size={16} color={input.trim() && canChat ? '#fff' : theme.textFaint} />}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

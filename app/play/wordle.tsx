@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import { recordGameResult } from '../../lib/games'
 
 const WORDS = [
   'FLAME','BLAZE','SPARK','GRIND','SCORE','PHASE','FOCUS','BRAVE','CODED','DRAFT',
@@ -86,7 +87,7 @@ export default function WordleScreen() {
   const { width: screenWidth } = useWindowDimensions()
   // Each grid column gets half the screen minus padding (16) minus divider (2) minus gap (8)
   const CELL = Math.max(26, Math.floor((screenWidth - 26) / 2 / 5) - 4)
-  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
+  const { opponentName, opponentId, sessionId } = useLocalSearchParams<{ opponentName?: string, opponentId?: string, sessionId?: string }>()
   const botName = opponentName ?? BOT_NAME
   const user = useAuthStore(s => s.user)
 
@@ -156,6 +157,11 @@ export default function WordleScreen() {
             if (payload.word === wordRef.current) {
               setGameOver(true)
               setWinner('bot')
+              // Record result for real multiplayer — opponent won
+              if (opponentId && opponentId !== 'faf-bot' && user?.id) {
+                recordGameResult('wordle', opponentId, opponentId, { me_guesses: 0, opp_guesses: next.length }).catch(() => {})
+                supabase.from('live_game_sessions').update({ status: 'finished', winner_id: opponentId }).eq('id', sessionId).then(() => {})
+              }
             } else if (next.length >= MAX_GUESSES) {
               // Both must fail to be none
             }
@@ -221,11 +227,21 @@ export default function WordleScreen() {
     if (current === word) {
       setGameOver(true)
       setWinner('me')
+      // Record result for real multiplayer games
+      if (sessionId && opponentId && opponentId !== 'faf-bot' && user?.id) {
+        recordGameResult('wordle', opponentId, user.id, { me_guesses: newGuesses.length, opp_guesses: botGuesses.length }).catch(() => {})
+        supabase.from('live_game_sessions').update({ status: 'finished', winner_id: user.id }).eq('id', sessionId).then(() => {})
+      }
     } else if (newGuesses.length >= MAX_GUESSES) {
       // If opponent still has guesses, don't end game yet
       if (!sessionId || botGuesses.length >= MAX_GUESSES) {
         setGameOver(true)
         setWinner('none')
+        // Record result for real multiplayer — nobody won
+        if (sessionId && opponentId && opponentId !== 'faf-bot' && user?.id) {
+          recordGameResult('wordle', opponentId, opponentId, { me_guesses: newGuesses.length, opp_guesses: botGuesses.length }).catch(() => {})
+          supabase.from('live_game_sessions').update({ status: 'finished', winner_id: null }).eq('id', sessionId).then(() => {})
+        }
       }
     }
 
@@ -240,7 +256,7 @@ export default function WordleScreen() {
   }
 
   const renderGrid = (guessList: string[], isMine: boolean) => {
-    const rows: JSX.Element[] = []
+    const rows: React.ReactNode[] = []
     for (let r = 0; r < MAX_GUESSES; r++) {
       const guess = guessList[r] ?? ''
       const isCurrentRow = isMine && r === guessList.length && !gameOver

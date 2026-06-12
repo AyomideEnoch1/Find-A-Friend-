@@ -4,6 +4,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useEffect } from 'react'
+import { router } from 'expo-router'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import { getTimeAgo } from '../lib/matching'
@@ -160,7 +161,10 @@ export default function MapScreen() {
             </View>
           ) : (
             events.map((e: any, i: number) => (
-              <TouchableOpacity key={i} style={s.eventRow}>
+              <TouchableOpacity
+                key={i}
+                style={s.eventRow}
+                onPress={() => router.push(`/event/${e.id}` as any)}>
                 <View style={[s.eventDot, { backgroundColor: '#a78bfa' }]} />
                 <View style={s.eventInfo}>
                   <Text style={s.eventTitle}>{e.title}</Text>
@@ -168,7 +172,12 @@ export default function MapScreen() {
                     📍 {e.venue} · {getTimeAgo(e.starts_at)}
                   </Text>
                 </View>
-                <TouchableOpacity style={s.rsvpBtn}>
+                <TouchableOpacity
+                  style={s.rsvpBtn}
+                  onPress={(ev) => {
+                    ev.stopPropagation()
+                    router.push(`/event/${e.id}` as any)
+                  }}>
                   <Text style={s.rsvpText}>RSVP</Text>
                 </TouchableOpacity>
               </TouchableOpacity>

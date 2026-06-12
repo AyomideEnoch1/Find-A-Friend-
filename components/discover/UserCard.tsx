@@ -8,6 +8,7 @@ import { getInitials } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import type { FollowProfile } from '../../lib/follows'
+import VerifiedBadge from '../ui/VerifiedBadge'
 
 interface UserCardProps {
   user: FollowProfile
@@ -63,7 +64,10 @@ export default function UserCard({ user, isFollowing: initialFollowing = false, 
         </View>
 
         <View style={s.info}>
-          <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{user.full_name ?? 'Student'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{user.full_name ?? 'Student'}</Text>
+            <VerifiedBadge type={user.badge_type} customColor={user.badge_color} size={14} />
+          </View>
           {user.department ? (
             <Text style={[s.dept, { color: theme.textMuted }]} numberOfLines={1}>
               {user.department}{user.level ? ` · ${user.level}` : ''}

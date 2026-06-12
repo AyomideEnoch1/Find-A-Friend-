@@ -6,6 +6,7 @@
  * can read the local file:// URI natively — bypassing the fetch(uri)+blob()
  * approach which throws "Network request failed" on Android.
  */
+import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
@@ -32,7 +33,13 @@ export async function uploadFile(
   const ext = mimeType.split('/')[1]?.split(';')[0] ?? uri.split('.').pop() ?? 'bin'
 
   const formData = new FormData()
-  formData.append('file', { uri, name: `upload.${ext}`, type: mimeType } as any)
+  if (Platform.OS === 'web') {
+    const resBlob = await fetch(uri)
+    const blob = await resBlob.blob()
+    formData.append('file', blob, `upload.${ext}`)
+  } else {
+    formData.append('file', { uri, name: `upload.${ext}`, type: mimeType } as any)
+  }
 
   const method = upsert ? 'PUT' : 'POST'
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {

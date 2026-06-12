@@ -34,6 +34,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import { recordGameResult } from '../../lib/games'
 
 // ─── Table geometry ───────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ const BOT_LABEL_DEFAULT = 'FAF Bot'
 
 export default function PoolScreen() {
   const theme = useTheme()
-  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
+  const { opponentName, opponentId, sessionId } = useLocalSearchParams<{ opponentName?: string, opponentId?: string, sessionId?: string }>()
   const botLabel = (opponentName as string | undefined) ?? BOT_LABEL_DEFAULT
   const user = useAuthStore(s => s.user)
   const myId = user?.id ?? ''
@@ -481,10 +482,22 @@ export default function PoolScreen() {
         const w = isBot ? 'me' : 'bot'
         addLog(isBot ? `${botLabel} sank 8-ball early — You win!` : 'You sank 8-ball early — Bot wins!')
         setWinner(w); setPhase('done')
+        // Record result for real multiplayer
+        if (sessionId && opponentId && opponentId !== 'faf-bot' && myId) {
+          const winnerId = w === 'me' ? myId : opponentId
+          recordGameResult('pool', opponentId, winnerId, { reason: 'early_eight' }).catch(() => {})
+          supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId).then(() => {})
+        }
       } else {
         const w = isBot ? 'bot' : 'me'
         addLog(isBot ? `${botLabel} sinks the 8-ball — Bot wins!` : 'You sink the 8-ball — You win!')
         setWinner(w); setPhase('done')
+        // Record result for real multiplayer
+        if (sessionId && opponentId && opponentId !== 'faf-bot' && myId) {
+          const winnerId = w === 'me' ? myId : opponentId
+          recordGameResult('pool', opponentId, winnerId, { reason: 'eight_ball' }).catch(() => {})
+          supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId).then(() => {})
+        }
       }
       return
     }

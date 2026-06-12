@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { AppState, Platform } from 'react-native'
+import { AppState, Platform, Alert } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, router, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
@@ -12,6 +12,8 @@ import { usePresenceStore } from '../store/presenceStore'
 import { useFeedStore } from '../store/feedStore'
 import { ThemeProvider, useTheme } from '../lib/theme'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { WebPushBanner } from '../components/WebPushBanner'
+import { GAME_META, type GameType } from '../lib/games'
 import { registerForPushNotifications, savePushToken } from '../lib/notifications'
 import * as Notifications from 'expo-notifications'
 import {
@@ -94,13 +96,17 @@ function AppStack() {
     const appStateSub = AppState.addEventListener('change', async (nextState) => {
       if (!presenceChannelRef.current) return
       if (nextState === 'active') {
-        await presenceChannelRef.current.track({ user_id: session.user.id, online_at: Date.now() })
+        try {
+          await presenceChannelRef.current.track({ user_id: session.user.id, online_at: Date.now() })
+        } catch {}
         // Re-register push token in case it was rotated by the OS
         registerForPushNotifications().then(token => { if (token) savePushToken(token) })
         // Pick up any OTA update that landed while the app was backgrounded
         checkForUpdate()
       } else {
-        await presenceChannelRef.current.untrack()
+        try {
+          await presenceChannelRef.current.untrack()
+        } catch {}
       }
     })
 
@@ -127,11 +133,72 @@ function AppStack() {
       })
       .subscribe()
 
+    // ── Game challenge interception ──────────────────────────────────────────
+    // Listen for incoming game challenges in the messages table.
+    // When the challenger sends a game_challenge message, this fires and shows
+    // an in-app Accept/Decline dialog.
+    const gameChannel = supabase
+      .channel(`game-challenges-${session.user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, async (payload: any) => {
+        try {
+          const msg = payload.new
+          // Only process messages sent TO the current user (not by them)
+          if (msg.sender_id === session.user.id) return
+          let body: any = null
+          try { body = JSON.parse(msg.body) } catch { return }
+          if (body?._type !== 'game_challenge') return
+
+          const gt = body.gameType as GameType
+          const meta = GAME_META[gt]
+          if (!meta) return
+
+          // Fetch challenger's name
+          const { data: challenger } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', msg.sender_id)
+            .single()
+          const challengerName = challenger?.full_name ?? 'Someone'
+
+          Alert.alert(
+            `${meta.emoji} Game Challenge!`,
+            `${challengerName} challenged you to ${meta.label}!`,
+            [
+              {
+                text: 'Decline ✕',
+                style: 'cancel',
+              },
+              {
+                text: 'Accept ✓',
+                onPress: () => {
+                  router.push({
+                    pathname: '/play/waiting' as any,
+                    params: {
+                      gameType: gt,
+                      opponentId: msg.sender_id,
+                      opponentName: challengerName,
+                    },
+                  })
+                },
+              },
+            ]
+          )
+        } catch {
+          // Non-fatal — ignore malformed messages
+        }
+      })
+      .subscribe()
+
     return () => {
       presenceChannelRef.current?.untrack()
       supabase.removeChannel(presenceChannel)
       supabase.removeChannel(notifChannel)
       supabase.removeChannel(updateChannel)
+      supabase.removeChannel(gameChannel)
       appStateSub.remove()
       presenceChannelRef.current = null
     }
@@ -212,19 +279,53 @@ function AppStack() {
         <Stack.Screen name="study-room/[id]" />
         <Stack.Screen name="feedback" />
       </Stack>
+      {/* Show push-permission banner for existing iOS PWA users */}
+      {Platform.OS === 'web' && session && (
+        <WebPushBanner userId={session.user.id} />
+      )}
     </>
   )
 }
 
-async function subscribeToWebPush(userId: string) {
+export async function subscribeToWebPush(userId: string) {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('[WebPush] Service Worker or PushManager not supported')
+      return
+    }
 
+    // iOS Safari requires the service worker to be fully active before subscribing
     const reg = await navigator.serviceWorker.ready
-    const vapidKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY
-    if (!vapidKey) return
+    if (!reg.active) {
+      console.log('[WebPush] Service worker not yet active, skipping')
+      return
+    }
+
+    // Check existing permission without prompting (prompting must come from a user gesture on iOS)
+    const existingPermission = Notification.permission
+    if (existingPermission === 'denied') {
+      console.log('[WebPush] Notification permission denied')
+      return
+    }
+
+    // Only request permission if not already granted.
+    // On iOS, this call MUST originate from a user gesture (tap).
+    // When called from useEffect (auto), iOS silently ignores it.
+    // We still try here for Android/desktop; iOS users must tap a prompt.
+    if (existingPermission !== 'granted') {
+      const granted = await Notification.requestPermission()
+      if (granted !== 'granted') {
+        console.log('[WebPush] Permission not granted:', granted)
+        return
+      }
+    }
+
+    // VAPID public key — hardcoded as fallback because process.env values
+    // are statically inlined at Metro build time; they resolve to undefined
+    // when accessed dynamically at runtime on the web target.
+    const vapidKey =
+      process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY ||
+      'BMW-cNs21tNNic2idPQjGlKXCMPtk_sgzd-K5zbrlM6ftDQlBJJB7FJcBx_lsE8fj7VMde6qYHHvYLiPB6JWke4'
 
     // Convert base64url VAPID key to Uint8Array
     const key = vapidKey.replace(/-/g, '+').replace(/_/g, '/')
@@ -232,20 +333,37 @@ async function subscribeToWebPush(userId: string) {
     const applicationServerKey = new Uint8Array(raw.length)
     for (let i = 0; i < raw.length; i++) applicationServerKey[i] = raw.charCodeAt(i)
 
-    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+    // Check if already subscribed to avoid redundant re-subscription
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+    }
+
     const json = sub.toJSON()
     const p256dh = json.keys?.p256dh
     const auth = json.keys?.auth
-    if (!p256dh || !auth) return
+    if (!p256dh || !auth) {
+      console.log('[WebPush] Missing subscription keys')
+      return
+    }
+
+    console.log('[WebPush] Saving subscription for user:', userId, 'endpoint:', sub.endpoint.slice(0, 60) + '...')
 
     const { supabase } = await import('../lib/supabase')
-    await supabase.from('web_push_subscriptions').upsert({
+    const { error } = await supabase.from('web_push_subscriptions').upsert({
       user_id: userId,
       endpoint: sub.endpoint,
       p256dh,
       auth,
     }, { onConflict: 'user_id' })
-  } catch {}
+    if (error) {
+      console.error('[WebPush] Failed to save subscription:', error.message)
+    } else {
+      console.log('[WebPush] Subscription saved successfully')
+    }
+  } catch (err) {
+    console.error('[WebPush] subscribeToWebPush error:', err)
+  }
 }
 
 async function checkForUpdate() {

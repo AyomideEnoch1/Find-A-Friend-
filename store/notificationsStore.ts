@@ -21,6 +21,8 @@
  *  - The notifications list screen
  */
 import { create } from 'zustand'
+import * as Notifications from 'expo-notifications'
+import { Platform } from 'react-native'
 import {
   getNotifications,
   getUnreadCount,
@@ -28,6 +30,20 @@ import {
   markAllRead,
 } from '../lib/notifications'
 import type { AppNotification } from '../lib/notifications'
+
+// ---------------------------------------------------------------------------
+// Helper: update app icon badge count
+// ---------------------------------------------------------------------------
+
+async function updateAppBadge(count: number) {
+  if (Platform.OS !== 'web') {
+    try {
+      await Notifications.setBadgeCountAsync(count)
+    } catch (err) {
+      console.warn('[Badge] Failed to set badge count:', err)
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -76,6 +92,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         unreadCount: unread,
         loading: false,
       })
+      updateAppBadge(unread)
     } catch (err) {
       set({ loading: false, error: (err as Error).message })
     }
@@ -88,6 +105,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       const count = await getUnreadCount()
       set({ unreadCount: count })
+      updateAppBadge(count)
     } catch {
       // Non-fatal — badge count will be stale until next refresh
     }
@@ -103,6 +121,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         n.id === notificationId ? { ...n, is_read: true } : n
       )
       const unread = updated.filter(n => !n.is_read).length
+      updateAppBadge(unread)
       return { notifications: updated, unreadCount: unread }
     })
 
@@ -115,6 +134,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
           n.id === notificationId ? { ...n, is_read: false } : n
         )
         const unread = rolledBack.filter(n => !n.is_read).length
+        updateAppBadge(unread)
         return { notifications: rolledBack, unreadCount: unread }
       })
     }
@@ -125,10 +145,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   // -------------------------------------------------------------------------
   markAllNotificationsRead: async () => {
     // Optimistic update
-    set(state => ({
-      notifications: state.notifications.map(n => ({ ...n, is_read: true })),
-      unreadCount: 0,
-    }))
+    set(state => {
+      updateAppBadge(0)
+      return {
+        notifications: state.notifications.map(n => ({ ...n, is_read: true })),
+        unreadCount: 0,
+      }
+    })
 
     const { error } = await markAllRead()
     if (error) {
@@ -141,9 +164,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   // Realtime: new notification pushed by server
   // -------------------------------------------------------------------------
   addNotification: (notification: AppNotification) => {
-    set(state => ({
-      notifications: [notification, ...state.notifications],
-      unreadCount: state.unreadCount + (notification.is_read ? 0 : 1),
-    }))
+    set(state => {
+      const newCount = state.unreadCount + (notification.is_read ? 0 : 1)
+      updateAppBadge(newCount)
+      return {
+        notifications: [notification, ...state.notifications],
+        unreadCount: newCount,
+      }
+    })
   },
 }))

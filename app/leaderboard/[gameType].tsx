@@ -17,18 +17,6 @@ import ScreenLoader from '../../components/ScreenLoader'
 
 const MIN_LOADER_MS = 1200
 
-const DEMO_LEADERS: LeaderboardEntry[] = [
-  { user_id: 'd1',  full_name: 'Ada Okonkwo',       avatar_url: null, wins: 47, games_played: 58, win_rate: 81 },
-  { user_id: 'd2',  full_name: 'Emeka Nwosu',        avatar_url: null, wins: 39, games_played: 51, win_rate: 76 },
-  { user_id: 'd3',  full_name: 'Zainab Bello',       avatar_url: null, wins: 34, games_played: 46, win_rate: 74 },
-  { user_id: 'd4',  full_name: 'Chidi Obi',          avatar_url: null, wins: 28, games_played: 40, win_rate: 70 },
-  { user_id: 'd5',  full_name: 'Fatima Abubakar',    avatar_url: null, wins: 21, games_played: 33, win_rate: 64 },
-  { user_id: 'd6',  full_name: 'Tunde Adeyemi',      avatar_url: null, wins: 18, games_played: 29, win_rate: 62 },
-  { user_id: 'd7',  full_name: 'Ngozi Eze',          avatar_url: null, wins: 15, games_played: 26, win_rate: 58 },
-  { user_id: 'd8',  full_name: 'Babatunde Lawal',    avatar_url: null, wins: 12, games_played: 22, win_rate: 55 },
-  { user_id: 'd9',  full_name: 'Amina Yusuf',        avatar_url: null, wins: 9,  games_played: 18, win_rate: 50 },
-  { user_id: 'd10', full_name: 'Obinna Okafor',      avatar_url: null, wins: 7,  games_played: 16, win_rate: 44 },
-]
 
 const MEDAL_COLORS: Record<number, string> = {
   1: '#fbbf24',
@@ -97,7 +85,7 @@ export default function LeaderboardScreen() {
 
   const fetchEntries = async (): Promise<LeaderboardEntry[]> => {
     const { data } = await getLeaderboard(gt, 20)
-    return data && data.length > 0 ? data : DEMO_LEADERS
+    return data ?? []
   }
 
   const load = async () => {
@@ -169,6 +157,18 @@ export default function LeaderboardScreen() {
 
         {loading ? (
           <ScreenLoader message="Loading rankings…" />
+        ) : entries.length === 0 ? (
+          <View style={[s.listCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={{ padding: 24, alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <Text style={[s.playerName, { color: theme.textMuted, textAlign: 'center' }]}>
+                No games played yet
+              </Text>
+              <Text style={[s.playerSub, { color: theme.textFaint, textAlign: 'center' }]}>
+                Be the first to play and claim the top spot!
+              </Text>
+            </View>
+          </View>
         ) : (
           <Animated.View entering={FadeIn.duration(600)} style={{ flex: 1 }}>
             {/* Podium — top 3 */}
@@ -270,7 +270,7 @@ export default function LeaderboardScreen() {
               })}
             </View>
           </Animated.View>
-        )}}
+        )}
 
         <View style={{ height: 60 }} />
       </ScrollView>

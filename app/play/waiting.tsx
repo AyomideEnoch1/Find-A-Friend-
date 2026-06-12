@@ -164,16 +164,23 @@ export default function WaitingScreen() {
     setMyName(prof?.full_name ?? 'You')
 
     if (params.sessionId) {
-      // Rejoining specific session
+      // Rejoining specific session (random match or resume)
       await joinSession(params.sessionId, user.id)
     } else if (params.opponentId && params.opponentId !== 'faf-bot') {
-      // Check if a waiting session already exists between these two users
+      // Check if a waiting session already exists between these two users,
+      // including sessions where the host hasn't set guest_id yet (chat challenge flow)
       const { data: existing } = await supabase
         .from('live_game_sessions')
-        .select('id, host_id, guest_id')
+        .select('id, host_id, guest_id, status')
         .eq('game_type', gt)
-        .eq('status', 'waiting')
-        .or(`and(host_id.eq.${user.id},guest_id.eq.${params.opponentId}),and(host_id.eq.${params.opponentId},guest_id.eq.${user.id})`)
+        .in('status', ['waiting', 'active'])
+        .or(
+          `and(host_id.eq.${user.id},guest_id.eq.${params.opponentId}),` +
+          `and(host_id.eq.${params.opponentId},guest_id.eq.${user.id}),` +
+          `and(host_id.eq.${params.opponentId},guest_id.is.null)`
+        )
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
 
       if (existing) {
@@ -230,20 +237,24 @@ export default function WaitingScreen() {
 
     setSessionId(sid)
 
-    if (sess.host_id !== userId && !sess.guest_id) {
-      // We are the guest joining for the first time — mark active so the host's
+    if (sess.host_id !== userId && (!sess.guest_id || sess.guest_id === userId) && sess.status === 'waiting') {
+      // We are the guest joining — mark active so the host's
       // subscription fires and both players get the launchGame() call.
       const { error: updateErr } = await supabase
         .from('live_game_sessions')
         .update({ guest_id: userId, status: 'active' })
         .eq('id', sid)
       if (updateErr) { setError('Could not join session'); return }
+      
+      sess.guest_id = userId
+      sess.status = 'active'
     } else if (sess.host_id === userId && sess.guest_id) {
       // Host is rejoining and guest is already present — ensure status is active
       await supabase
         .from('live_game_sessions')
         .update({ status: 'active' })
         .eq('id', sid)
+      sess.status = 'active'
       // Host already knows about guest — resolve opponent info immediately
       const { data: guestProf } = await supabase
         .from('profiles').select('full_name').eq('id', sess.guest_id).single()
@@ -334,7 +345,7 @@ export default function WaitingScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: '#07070f' }]}>
-      <NeuralBackground intensity="medium" />
+      <NeuralBackground intensity="light" />
 
       {/* Back */}
       <TouchableOpacity style={s.backBtn} onPress={cancelAndBack}>

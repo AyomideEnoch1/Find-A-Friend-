@@ -2,29 +2,29 @@ param(
     [string]$message = "OTA update"
 )
 
-Write-Host "Deploying to Android (EAS) and PWA (Vercel) simultaneously..." -ForegroundColor Cyan
+Write-Host "Deploying to Android (EAS) and PWA (Vercel) sequentially to avoid locks..." -ForegroundColor Cyan
 
-$easJob = Start-Job -ScriptBlock {
-    param($msg)
-    Set-Location "c:\Users\Ayomide Enoch\Desktop\FAF\faf"
-    npx eas update --branch production --message $msg 2>&1
-} -ArgumentList $message
+Set-Location "c:\Users\Ayomide Enoch\Desktop\FAF\faf"
 
-$vercelJob = Start-Job -ScriptBlock {
-    Set-Location "c:\Users\Ayomide Enoch\Desktop\FAF\faf"
-    npx expo export --platform web 2>&1
-    npx vercel deploy dist --prod 2>&1
-}
+# 1. Export the Web build (PWA)
+Write-Host "`n--- Exporting Web build ---" -ForegroundColor Yellow
+npx expo export --platform web
 
-Write-Host "Both deployments running in parallel..." -ForegroundColor Yellow
+# Rename node_modules to vendor to bypass Vercel deployment rules
+node rename-node-modules.js
 
-Wait-Job $easJob, $vercelJob | Out-Null
+# 2. Copy Vercel project configuration to dist/
+Write-Host "`n--- Preparing Vercel project configuration ---" -ForegroundColor Yellow
+Remove-Item -Path "dist\.vercel" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path ".vercel" -Destination "dist\" -Recurse -Force
+Copy-Item -Path "vercel.json" -Destination "dist\" -Force
 
-Write-Host "`n--- EAS (Android) Result ---" -ForegroundColor Green
-Receive-Job $easJob
+# 3. Deploy to Vercel (PWA)
+Write-Host "`n--- Deploying PWA to Vercel ---" -ForegroundColor Yellow
+npx vercel deploy dist --prod
 
-Write-Host "`n--- Vercel (PWA) Result ---" -ForegroundColor Green
-Receive-Job $vercelJob
+# 4. Deploy EAS Update (Android & iOS)
+Write-Host "`n--- Deploying EAS update ---" -ForegroundColor Yellow
+npx eas update --branch production --message $message
 
-Remove-Job $easJob, $vercelJob
 Write-Host "`nAll deployments complete!" -ForegroundColor Cyan

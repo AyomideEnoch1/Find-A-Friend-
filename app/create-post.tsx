@@ -26,7 +26,7 @@ import { supabase } from '../lib/supabase'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
 
-const SUPABASE_URL = 'https://vcbtvhociaioeyhhsczh.supabase.co'
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://vcbtvhociaioeyhhsczh.supabase.co'
 
 type PostType = 'feed' | 'club' | 'academic'
 
@@ -112,7 +112,7 @@ export default function CreatePostScreen() {
       const { error } = await createPost({
         body: trimmed,
         imageUrl,
-        postType: postType === 'academic' ? 'academic' : 'feed',
+        postType: postType === 'academic' ? 'academic' : postType === 'club' ? 'club' : 'feed',
         clubId: postType === 'club' ? selectedClub?.id : null,
         isAnonymous: false,
       })
@@ -144,25 +144,25 @@ export default function CreatePostScreen() {
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.closeBtn}>
+          <Ionicons name="close" size={22} color="rgba(240,240,255,0.6)" />
+        </TouchableOpacity>
+        <Text style={s.title}>New Post</Text>
+        <TouchableOpacity
+          style={[s.postBtn, (!body.trim() || posting) && s.postBtnDisabled]}
+          onPress={handlePost}
+          disabled={!body.trim() || posting}>
+          {posting
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Text style={s.postBtnText}>Post</Text>}
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn}>
-            <Ionicons name="close" size={22} color="rgba(240,240,255,0.6)" />
-          </TouchableOpacity>
-          <Text style={s.title}>New Post</Text>
-          <TouchableOpacity
-            style={[s.postBtn, (!body.trim() || posting) && s.postBtnDisabled]}
-            onPress={handlePost}
-            disabled={!body.trim() || posting}>
-            {posting
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={s.postBtnText}>Post</Text>}
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={s.scrollContent}

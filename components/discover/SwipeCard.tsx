@@ -9,10 +9,11 @@ import { router } from 'expo-router'
 import { getInitials } from '../../lib/matching'
 import { typography } from '../../lib/typography'
 import type { FollowProfile } from '../../lib/follows'
+import VerifiedBadge from '../ui/VerifiedBadge'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
 export const CARD_WIDTH = SCREEN_WIDTH - 32
-export const CARD_HEIGHT = Math.min(SCREEN_WIDTH * 1.38, 510)
+export const CARD_HEIGHT = Math.min(SCREEN_HEIGHT * 0.52, 480)
 const SWIPE_THRESHOLD = 80
 
 // Module-level constants — must be outside the component so worklets can capture them safely
@@ -69,7 +70,7 @@ const SwipeCard = forwardRef<SwipeCardRef, Props>(
     }), [onSwipeLeft, onSwipeRight])
 
     const openProfile = useCallback(() => {
-      if (user?.id && !user.id.startsWith('demo-')) {
+      if (user?.id) {
         router.push(`/profile/${user.id}` as any)
       }
     }, [user?.id])
@@ -164,9 +165,12 @@ const SwipeCard = forwardRef<SwipeCardRef, Props>(
           <View style={s.info}>
             <View style={s.nameRow}>
               <Text style={s.name} numberOfLines={1}>{user.full_name ?? 'Student'}</Text>
-              <View style={s.verifiedBadge}>
-                <Text style={s.verifiedText}>✓ Verified</Text>
-              </View>
+              <VerifiedBadge type={user.badge_type} customColor={user.badge_color} size={20} />
+              {(!user.badge_type || user.badge_type === 'none') && user.role === 'admin' && (
+                <View style={[s.verifiedBadge, { backgroundColor: 'rgba(167,139,250,0.15)', borderColor: 'rgba(167,139,250,0.45)' }]}>
+                  <Text style={[s.verifiedText, { color: '#a78bfa' }]}>👑 Admin</Text>
+                </View>
+              )}
             </View>
             <Text style={s.dept} numberOfLines={1}>
               {user.department ?? 'Student'}{user.level ? ` · ${user.level}` : ''}

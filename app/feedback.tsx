@@ -174,6 +174,18 @@ function CommentsSection({
     }
   }, [myId])
 
+  const handleDelete = async (c: FeedbackComment) => {
+    if (c.author_id !== myId) return
+    const { error } = await supabase.from('feedback_comments').delete().eq('id', c.id)
+    if (error) {
+      Toast.show({ type: 'error', text1: 'Could not delete', text2: error.message })
+    } else {
+      setComments(prev => prev.filter(x => x.id !== c.id))
+      onCommentAdded() // Refresh count
+      Toast.show({ type: 'success', text1: 'Reply deleted' })
+    }
+  }
+
   const handleSend = async () => {
     const text = newComment.trim()
     if (!text || !myId) return
@@ -221,6 +233,16 @@ function CommentsSection({
             >
               <Ionicons name="return-down-forward-outline" size={12} color={theme.textFaint} />
               <Text style={[cs.chipText, { color: theme.textFaint }]}>Reply</Text>
+            </TouchableOpacity>
+          )}
+          {/* Delete — only if mine */}
+          {c.author_id === myId && (
+            <TouchableOpacity
+              style={cs.actionChip}
+              onPress={() => handleDelete(c)}
+            >
+              <Ionicons name="trash-outline" size={12} color="#f87171" />
+              <Text style={[cs.chipText, { color: '#f87171' }]}>Delete</Text>
             </TouchableOpacity>
           )}
         </View>

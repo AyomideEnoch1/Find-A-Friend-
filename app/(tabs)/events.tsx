@@ -19,85 +19,10 @@ type Tab = 'upcoming' | 'rsvps' | 'past'
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Upcoming', value: 'upcoming' },
-  { label: 'My RSVPs', value: 'rsvps' },
+  { label: 'My Events', value: 'rsvps' },
   { label: 'Past', value: 'past' },
 ]
 
-// --- Demo events (relative to today so they always appear on the current month) ---
-function demoDate(daysOffset: number, hour: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, 0, 0, 0)
-  d.setMilliseconds(0)
-  return d.toISOString()
-}
-
-const DEMO_EVENTS: Event[] = [
-  {
-    id: 'demo-1', title: 'Tech Summit 2026', venue: 'Student Union Hall',
-    starts_at: demoDate(0, 10), ends_at: demoDate(0, 13),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Technology', cover_image_url: null,
-    rsvp_count: 142, capacity: 300, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-2', title: 'Intro to Machine Learning', venue: 'Lab Block C',
-    starts_at: demoDate(0, 15), ends_at: demoDate(0, 17),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Academic', cover_image_url: null,
-    rsvp_count: 38, capacity: 60, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-3', title: 'Campus Music Night', venue: 'Open Air Stage',
-    starts_at: demoDate(1, 19), ends_at: demoDate(1, 22),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Music', cover_image_url: null,
-    rsvp_count: 215, capacity: null, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-4', title: 'Basketball Inter-Faculty Finals', venue: 'Sports Complex',
-    starts_at: demoDate(3, 14), ends_at: demoDate(3, 17),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Sports', cover_image_url: null,
-    rsvp_count: 89, capacity: 500, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-5', title: 'Art & Design Showcase', venue: 'Gallery Hall',
-    starts_at: demoDate(5, 11), ends_at: demoDate(5, 18),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Art', cover_image_url: null,
-    rsvp_count: 67, capacity: 200, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-6', title: 'Algorithms Study Group', venue: 'Library Block B',
-    starts_at: demoDate(5, 16), ends_at: demoDate(5, 18),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Academic', cover_image_url: null,
-    rsvp_count: 12, capacity: 20, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-7', title: 'Campus Food & Culture Fair', venue: 'Main Square',
-    starts_at: demoDate(9, 12), ends_at: demoDate(9, 20),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Culture', cover_image_url: null,
-    rsvp_count: 308, capacity: null, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-  {
-    id: 'demo-8', title: 'Graduation Prep Seminar', venue: 'Lecture Hall 1',
-    starts_at: demoDate(14, 9), ends_at: demoDate(14, 11),
-    description: null, organizer_id: null, club_id: null,
-    category: 'Academic', cover_image_url: null,
-    rsvp_count: 54, capacity: 150, is_public: true,
-    map_pin_x: null, map_pin_y: null, map_location_id: null,
-  },
-]
 
 // ---------------------------------------------------------------------------------
 
@@ -137,14 +62,10 @@ function buildListData(events: Event[]): ListItem[] {
   return items
 }
 
-function mergeWithDemo(real: Event[]): Event[] {
-  const realIds = new Set(real.map(e => e.id))
-  return [...real, ...DEMO_EVENTS.filter(d => !realIds.has(d.id))]
-}
 
 export default function EventsScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming')
-  const [events, setEvents] = useState<Event[]>(DEMO_EVENTS)
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -166,7 +87,7 @@ export default function EventsScreen() {
       if (tab === 'upcoming') {
         const { data, error: err } = await getEvents({ upcoming: true })
         if (err) throw err
-        setEvents(mergeWithDemo(data ?? []))
+        setEvents(data ?? [])
       } else if (tab === 'past') {
         const { data, error: err } = await getEvents({ upcoming: false })
         if (err) throw err
@@ -178,7 +99,7 @@ export default function EventsScreen() {
         setEvents((data ?? []).map(r => ({ ...r.event, user_rsvp_status: r.rsvp.status })))
       }
     } catch {
-      if (tab === 'upcoming') setEvents(DEMO_EVENTS)
+      setEvents([])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -217,7 +138,7 @@ export default function EventsScreen() {
   }
 
   const emptyMessage = activeTab === 'rsvps'
-    ? { title: 'No RSVPs yet', sub: 'Browse upcoming events and RSVP!' }
+    ? { title: 'No events yet', sub: "Events you create or tap 'Going' on will appear here." }
     : selectedDay
     ? { title: 'No events this day', sub: 'Tap another day or clear selection' }
     : { title: 'No events this month', sub: 'Check back soon or create one.' }

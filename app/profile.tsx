@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, type ComponentProps } from 'react'
+import { useFocusEffect } from 'expo-router'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   TextInput, ActivityIndicator, Alert, Image,
@@ -18,6 +19,7 @@ import { supabase } from '../lib/supabase'
 import NeuralBackground from '../components/NeuralBackground'
 import ScreenLoader from '../components/ScreenLoader'
 import PostCard from '../components/feed/PostCard'
+import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name']
 type ProfileTab = 'posts' | 'bookmarks'
@@ -80,8 +82,12 @@ export default function ProfileScreen() {
     }
   }, [])
 
-  useEffect(() => {
+  // Reload profile every time the screen comes into focus (e.g. returning from edit-profile)
+  useFocusEffect(useCallback(() => {
     loadAll()
+  }, [loadAll]))
+
+  useEffect(() => {
 
     // Subscribe to follower_count / following_count changes on our own profile row
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -163,6 +169,18 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Cover image banner */}
+      <View style={[s.coverContainer, { borderColor: theme.border }]}>
+        {profile?.cover_url ? (
+          <Image source={{ uri: profile.cover_url }} style={s.coverImg} resizeMode="cover" />
+        ) : (
+          <View style={[s.coverPlaceholder, { backgroundColor: `${theme.accent}08` }]}>
+            <Ionicons name="image-outline" size={24} color={`${theme.accent}20`} />
+            <Text style={[s.coverPlaceholderText, { color: `${theme.accent}30` }]}>No cover image</Text>
+          </View>
+        )}
+      </View>
+
       {/* Profile card */}
       <View style={[s.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {/* Avatar */}
@@ -177,10 +195,14 @@ export default function ProfileScreen() {
         </View>
 
         {/* Verified badge */}
-        <View style={s.verifiedRow}>
-          <Ionicons name="checkmark-circle" size={13} color="#34d399" />
-          <Text style={s.verifiedText}>Verified student</Text>
-        </View>
+        {profile?.badge_type && profile.badge_type !== 'none' && (
+          <View style={s.verifiedRow}>
+            <VerifiedBadge type={profile.badge_type} customColor={profile.badge_color} size={14} />
+            <Text style={[s.verifiedText, { color: profile.badge_color || BADGE_COLORS[profile.badge_type.toLowerCase()] || '#3b82f6' }]}>
+              {BADGE_LABELS[profile.badge_type.toLowerCase()] ?? 'Verified'}
+            </Text>
+          </View>
+        )}
 
         {editing ? (
           <View style={s.editFields}>
@@ -221,7 +243,15 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <View style={s.profileInfo}>
-            <Text style={[s.profileName, { color: theme.text }]}>{profile?.full_name ?? 'Your name'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Text style={[s.profileName, { color: theme.text }]}>{profile?.full_name ?? 'Your name'}</Text>
+              <VerifiedBadge type={profile?.badge_type} customColor={profile?.badge_color} size={18} />
+              {profile?.role === 'admin' && (
+                <View style={{ backgroundColor: 'rgba(167,139,250,0.15)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.45)' }}>
+                  <Text style={{ fontSize: 10, color: '#a78bfa', fontWeight: '500' }}>👑 Admin</Text>
+                </View>
+              )}
+            </View>
             <Text style={[s.profileDept, { color: theme.textMuted }]}>
               {profile?.department ?? 'Department'}{profile?.level ? ' · ' + profile.level : ''}
             </Text>
@@ -387,7 +417,7 @@ const s = StyleSheet.create({
 
   /* Profile card */
   profileCard: {
-    marginHorizontal: 16, marginTop: 20, marginBottom: 16,
+    marginHorizontal: 16, marginTop: 12, marginBottom: 16,
     borderRadius: 24, padding: 24,
     alignItems: 'center', borderWidth: 0.5,
   },
@@ -469,4 +499,26 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.07)',
   },
   signOutText: { fontSize: 14, fontFamily: typography.fontSemiBold, color: '#ef4444' },
+  coverContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    height: 130,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    overflow: 'hidden',
+  },
+  coverImg: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  coverPlaceholderText: {
+    fontSize: 11,
+    fontFamily: typography.fontRegular,
+  },
 })

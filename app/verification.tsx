@@ -6,12 +6,24 @@ import { useEffect, useState } from 'react'
 import { useTheme } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 import { getCurrentProfile } from '../lib/profiles'
+import type { Profile } from '../lib/profiles'
+import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
+
+const BADGE_DESCRIPTIONS: Record<string, string> = {
+  verified: 'Verified student identity. Automatically granted to accounts signed up with official university email domains.',
+  official: 'Official institution, university departments, administration or student government accounts.',
+  moderator: 'Community moderators who help moderate social feed, posts, and clubs.',
+  vendor: 'Approved campus vendors, shops, food spots, or student entrepreneurs.',
+  staff: 'University faculty, lecturers, staff, or department administrators.',
+  alumni: 'FAF alumni who graduated but remain connected to the campus community.',
+  guest: 'Guest visitor account for external speakers, prospective students, or campus guests.',
+}
 
 export default function VerificationScreen() {
   const theme = useTheme()
   const [email, setEmail] = useState('')
-  const [fullName, setFullName] = useState('')
   const [createdAt, setCreatedAt] = useState('')
+  const [profile, setProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -19,7 +31,7 @@ export default function VerificationScreen() {
       setCreatedAt(data.user?.created_at ?? '')
     })
     getCurrentProfile().then(p => {
-      if (p) setFullName(p.full_name ?? '')
+      if (p) setProfile(p)
     })
   }, [])
 
@@ -29,6 +41,9 @@ export default function VerificationScreen() {
 
   const isUniversity = email.includes('.edu') || email.includes('ac.uk')
     || email.includes('edu.ng') || email.includes('ac.za') || email.includes('.edu.')
+
+  const badgeType = profile?.badge_type || (isUniversity ? 'verified' : null)
+  const badgeColor = profile?.badge_color || (badgeType ? BADGE_COLORS[badgeType] : null)
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
@@ -41,22 +56,34 @@ export default function VerificationScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-        {/* Badge */}
-        <View style={[s.badge, { backgroundColor: 'rgba(52,211,153,0.08)', borderColor: 'rgba(52,211,153,0.2)' }]}>
-          <View style={s.badgeIcon}>
-            <Ionicons name="shield-checkmark" size={36} color="#34d399" />
+        {/* Active Badge Status */}
+        {badgeType && badgeType !== 'none' ? (
+          <View style={[s.badge, { backgroundColor: `${badgeColor}08`, borderColor: `${badgeColor}30` }]}>
+            <View style={[s.badgeIcon, { backgroundColor: `${badgeColor}15` }]}>
+              <VerifiedBadge type={badgeType} customColor={badgeColor} size={38} />
+            </View>
+            <Text style={[s.badgeTitle, { color: theme.text }]}>{BADGE_LABELS[badgeType] ?? 'Verified'}</Text>
+            <Text style={[s.badgeSub, { color: theme.textMuted }]}>
+              {BADGE_DESCRIPTIONS[badgeType]}
+            </Text>
           </View>
-          <Text style={[s.badgeTitle, { color: theme.text }]}>Verified Student</Text>
-          <Text style={[s.badgeSub, { color: theme.textMuted }]}>
-            Your university email has been verified. You have full access to all FAF features.
-          </Text>
-        </View>
+        ) : (
+          <View style={[s.badge, { backgroundColor: `${theme.border}10`, borderColor: theme.border }]}>
+            <View style={[s.badgeIcon, { backgroundColor: `${theme.border}20` }]}>
+              <Ionicons name="alert-circle-outline" size={36} color={theme.textMuted} />
+            </View>
+            <Text style={[s.badgeTitle, { color: theme.text }]}>No Badge</Text>
+            <Text style={[s.badgeSub, { color: theme.textMuted }]}>
+              Your account does not have a verified badge assigned. Standard features are available.
+            </Text>
+          </View>
+        )}
 
         {/* Details */}
         <Text style={[s.sectionLabel, { color: theme.textMuted }]}>ACCOUNT DETAILS</Text>
         <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {[
-            { icon: '👤', label: 'Name',      value: fullName || '—' },
+            { icon: '👤', label: 'Name',      value: profile?.full_name || '—' },
             { icon: '📧', label: 'Email',     value: email || '—' },
             { icon: '🎓', label: 'Email type', value: isUniversity ? 'University email' : 'Standard email' },
             { icon: '📅', label: 'Joined',    value: joinDate },
@@ -69,6 +96,31 @@ export default function VerificationScreen() {
               <Text style={[s.rowValue, { color: theme.text }]}>{item.value}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Badge Manual Guide */}
+        <Text style={[s.sectionLabel, { color: theme.textMuted }]}>BADGE DIRECTORY</Text>
+        <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {Object.keys(BADGE_DESCRIPTIONS).map((type, i, arr) => {
+            const color = BADGE_COLORS[type]
+            return (
+              <View
+                key={type}
+                style={[s.badgeManualRow, i < arr.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: theme.border2 }]}>
+                <View style={[s.manualBadgeIcon, { backgroundColor: `${color}12` }]}>
+                  <VerifiedBadge type={type} customColor={color} size={16} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[s.manualBadgeLabel, { color: theme.text }]}>
+                    {BADGE_LABELS[type]}
+                  </Text>
+                  <Text style={[s.manualBadgeDesc, { color: theme.textMuted }]}>
+                    {BADGE_DESCRIPTIONS[type]}
+                  </Text>
+                </View>
+              </View>
+            )
+          })}
         </View>
 
         {/* How it works */}
@@ -105,7 +157,7 @@ const s = StyleSheet.create({
     borderRadius: 20, padding: 24, alignItems: 'center', gap: 10,
     borderWidth: 0.5, marginBottom: 4,
   },
-  badgeIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(52,211,153,0.12)', alignItems: 'center', justifyContent: 'center' },
+  badgeIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   badgeTitle: { fontSize: 20, fontWeight: '700' },
   badgeSub: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
   sectionLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
@@ -116,4 +168,8 @@ const s = StyleSheet.create({
   rowValue: { fontSize: 13, fontWeight: '500', maxWidth: '55%', textAlign: 'right' },
   step: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
   stepText: { flex: 1, fontSize: 13, lineHeight: 20 },
+  badgeManualRow: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
+  manualBadgeIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  manualBadgeLabel: { fontSize: 13, fontWeight: '600' },
+  manualBadgeDesc: { fontSize: 12, lineHeight: 17 },
 })

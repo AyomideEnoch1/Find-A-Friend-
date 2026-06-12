@@ -1,0 +1,81 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/assets/node_modules/:path*",
+      "destination": "/assets/vendor/:path*"
+    },
+    {
+      "source": "/chat/:id",
+      "destination": "/chat/[id].html"
+    },
+    {
+      "source": "/club/:id",
+      "destination": "/club/[id].html"
+    },
+    {
+      "source": "/club-room/:id",
+      "destination": "/club-room/[id].html"
+    },
+    {
+      "source": "/course/:id",
+      "destination": "/course/[id].html"
+    },
+    {
+      "source": "/event/:id",
+      "destination": "/event/[id].html"
+    },
+    {
+      "source": "/followers/:id",
+      "destination": "/followers/[id].html"
+    },
+    {
+      "source": "/following/:id",
+      "destination": "/following/[id].html"
+    },
+    {
+      "source": "/game-lobby/:gameType",
+      "destination": "/game-lobby/[gameType].html"
+    },
+    {
+      "source": "/hashtag/:tag",
+      "destination": "/hashtag/[tag].html"
+    },
+    {
+      "source": "/leaderboard/:gameType",
+      "destination": "/leaderboard/[gameType].html"
+    },
+    {
+      "source": "/post/:id",
+      "destination": "/post/[id].html"
+    },
+    {
+      "source": "/profile/:id",
+      "destination": "/profile/[id].html"
+    },
+    {
+      "source": "/study-group/:id",
+      "destination": "/study-group/[id].html"
+    },
+    {
+      "source": "/study-room/:id",
+      "destination": "/study-room/[id].html"
+    },
+    {
+      "source": "/vendor/:id",
+      "destination": "/vendor/[id].html"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import Toast from 'react-native-toast-message'
-import { getCurrentProfile, updateProfile, uploadAvatar } from '../lib/profiles'
+import { getCurrentProfile, updateProfile, uploadAvatar, uploadCover } from '../lib/profiles'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import { getInitials } from '../lib/matching'
@@ -30,6 +30,7 @@ export default function EditProfileScreen() {
   const [department, setDepartment] = useState('')
   const [level, setLevel] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
+  const [coverUri, setCoverUri] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -64,6 +65,20 @@ export default function EditProfileScreen() {
     if (!result.canceled) setAvatarUri(result.assets[0].uri)
   }
 
+  const pickCover = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow access to your photos.' })
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: false,
+      quality: 0.8,
+    })
+    if (!result.canceled) setCoverUri(result.assets[0].uri)
+  }
+
   const handleSave = async () => {
     if (!fullName.trim()) {
       Toast.show({ type: 'error', text1: 'Name required', text2: 'Please enter your full name.' })
@@ -71,12 +86,22 @@ export default function EditProfileScreen() {
     }
     setSaving(true)
     try {
-      let avatarUrl = profile?.avatar_url
+      let avatarUrl = profile?.avatar_url ?? undefined
 
       if (avatarUri) {
         const { data, error } = await uploadAvatar(avatarUri)
         if (error) throw error
-        avatarUrl = data ?? avatarUrl
+        // Add cache-bust so the new image loads immediately on this device
+        avatarUrl = data ? `${data}?t=${Date.now()}` : avatarUrl
+      }
+
+      let coverUrl = profile?.cover_url ?? undefined
+
+      if (coverUri) {
+        const { data, error } = await uploadCover(coverUri)
+        if (error) throw error
+        // Add cache-bust so the new image loads immediately on this device
+        coverUrl = data ? `${data}?t=${Date.now()}` : coverUrl
       }
 
       const { error } = await updateProfile({
@@ -85,8 +110,25 @@ export default function EditProfileScreen() {
         department: department.trim() || undefined,
         level: level || undefined,
         avatar_url: avatarUrl ?? undefined,
+        cover_url: coverUrl ?? undefined,
       })
       if (error) throw new Error(String(error))
+
+      // Update local state immediately so the change is visible on THIS device
+      setProfile(prev => prev ? {
+        ...prev,
+        full_name: fullName.trim(),
+        bio: bio.trim() || null,
+        department: department.trim() || null,
+        level: level || null,
+        avatar_url: avatarUrl ?? prev.avatar_url,
+        cover_url: coverUrl ?? prev.cover_url,
+      } : prev)
+      // Also clear the local image URIs since they are now saved
+      setAvatarUri(null)
+      setCoverUri(null)
+
+      Toast.show({ type: 'success', text1: 'Profile updated!', text2: 'Your changes are saved.' })
       router.back()
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Error', text2: err instanceof Error ? err.message : 'Could not save profile.' })
@@ -94,6 +136,7 @@ export default function EditProfileScreen() {
       setSaving(false)
     }
   }
+
 
   if (loading) {
     return (
@@ -129,6 +172,24 @@ export default function EditProfileScreen() {
           contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+
+          {/* Cover image picker */}
+          <TouchableOpacity style={[s.coverPicker, { borderColor: theme.border }]} onPress={pickCover}>
+            {coverUri || profile?.cover_url ? (
+              <>
+                <Image source={{ uri: coverUri ?? profile?.cover_url ?? '' }} style={s.coverImg} resizeMode="cover" />
+                <View style={s.coverDim}>
+                  <Ionicons name="camera-outline" size={18} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 11, marginTop: 3 }}>Change cover image</Text>
+                </View>
+              </>
+            ) : (
+              <View style={s.coverEmpty}>
+                <Ionicons name="image-outline" size={24} color="rgba(240,240,255,0.25)" />
+                <Text style={{ color: 'rgba(240,240,255,0.4)', fontSize: 12, marginTop: 4 }}>Add cover image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Avatar */}
           <View style={s.avatarSection}>
@@ -297,5 +358,28 @@ const s = StyleSheet.create({
   levelBtnActive: { backgroundColor: 'rgba(167,139,250,0.15)', borderColor: 'rgba(167,139,250,0.4)' },
   levelText: { fontSize: 13, color: 'rgba(240,240,255,0.45)', fontFamily: typography.fontRegular },
   levelTextActive: { color: '#a78bfa', fontFamily: typography.fontSemiBold },
+  coverPicker: {
+    height: 120,
+    width: '100%',
+    backgroundColor: 'rgba(167,139,250,0.04)',
+    borderBottomWidth: 0.5,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  coverImg: {
+    width: '100%',
+    height: '100%',
+  },
+  coverDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })
 

@@ -15,6 +15,7 @@ import { typography } from '../../lib/typography'
 import { pickQuestions, getQuestionsByIndices, type TriviaQuestion } from '../../lib/triviaQuestions'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
+import { recordGameResult } from '../../lib/games'
 
 const TIMER_SECS = 10
 const TOTAL_QUESTIONS = 10
@@ -24,7 +25,7 @@ type Phase = 'countdown' | 'playing' | 'result' | 'done'
 
 export default function TriviaScreen() {
   const theme = useTheme()
-  const { opponentName, sessionId } = useLocalSearchParams<{ opponentName?: string, sessionId?: string }>()
+  const { opponentName, opponentId, sessionId } = useLocalSearchParams<{ opponentName?: string, opponentId?: string, sessionId?: string }>()
   const botName = opponentName ?? BOT_NAME
   const user = useAuthStore(s => s.user)
   const myId = user?.id ?? ''
@@ -198,10 +199,18 @@ export default function TriviaScreen() {
     setMyScore(s => s + myGain)
 
     // Next question after 1.5s
-    setTimeout(() => {
+    setTimeout(async () => {
       const next = qIndex + 1
       if (next >= TOTAL_QUESTIONS) {
         setPhase('done')
+        // Record result only for real multiplayer games (not bot games)
+        if (sessionId && opponentId && opponentId !== 'faf-bot' && myId) {
+          const finalMyScore = myScore + myGain
+          const winnerId = finalMyScore > oppScore ? myId : opponentId
+          await recordGameResult('trivia', opponentId, winnerId, { me: finalMyScore, opp: oppScore })
+          // Mark session as finished
+          await supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId)
+        }
       } else {
         setQIndex(next)
         cardOpacity.value = 0

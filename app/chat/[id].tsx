@@ -23,6 +23,7 @@ import {
   parseAttachment,
   type Attachment,
 } from '../../lib/chatAttachments'
+import { ReplyPayload, parseReply, ReplyBanner, QuotedBubble } from '../../components/chat/ReplyUI'
 import { GAME_META, type GameType } from '../../lib/games'
 import { usePresenceStore } from '../../store/presenceStore'
 
@@ -328,12 +329,13 @@ const sib = StyleSheet.create({
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥']
 
-function MessageActionsModal({ msg, mine, onClose, onEdit, onDelete, onReact }: {
+function MessageActionsModal({ msg, mine, onClose, onEdit, onDelete, onReact, onReply }: {
   msg: any; mine: boolean
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
   onReact: (emoji: string) => void
+  onReply: () => void
 }) {
   const theme = useTheme()
   return (
@@ -355,6 +357,11 @@ function MessageActionsModal({ msg, mine, onClose, onEdit, onDelete, onReact }: 
         </View>
 
         <View style={[ma.divider, { backgroundColor: theme.border }]} />
+
+        <TouchableOpacity style={ma.actionRow} onPress={() => { onReply(); onClose() }}>
+          <Ionicons name="arrow-undo-outline" size={18} color={theme.accent} />
+          <Text style={[ma.actionLabel, { color: theme.text }]}>Reply</Text>
+        </TouchableOpacity>
 
         {mine && (
           <TouchableOpacity style={ma.actionRow} onPress={() => { onEdit(); onClose() }}>
@@ -725,8 +732,10 @@ export default function DirectMessageScreen() {
   const [uploading, setUploading]         = useState(false)
   const [selectedMsg, setSelectedMsg]     = useState<any>(null)
   const [editingId, setEditingId]         = useState<string | null>(null)
+  const [replyingTo, setReplyingTo]       = useState<ReplyPayload['replyTo'] | null>(null)
   const [reactions, setReactions]         = useState<Record<string, string[]>>({})
   const scrollRef = useRef<ScrollView>(null)
+  const inputRef = useRef<TextInput>(null)
   const theme = useTheme()
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -846,12 +855,38 @@ export default function DirectMessageScreen() {
     }
   }
 
-  const startEdit  = (msg: any) => { setEditingId(msg.id); setInput(msg.body) }
+  const startEdit  = (msg: any) => { 
+    setEditingId(msg.id)
+    const reply = parseReply(msg.body)
+    setInput(reply ? reply.text : msg.body) 
+  }
   const cancelEdit = () => { setEditingId(null); setInput('') }
+
+  const handleReply = (msg: any) => {
+    let previewBody = msg.body
+    const attach = parseAttachment(msg.body)
+    if (attach) previewBody = '📷 Attachment'
+    const reply = parseReply(msg.body)
+    if (reply) previewBody = reply.text
+    
+    setReplyingTo({
+      id: msg.id,
+      author: msg.profiles?.full_name ?? 'User',
+      body: previewBody
+    })
+    inputRef.current?.focus()
+  }
 
   const commitEdit = async () => {
     if (!editingId || !input.trim()) return
-    const newBody = input.trim()
+    const newText = input.trim()
+    const msgToEdit = messages.find(m => m.id === editingId)
+    let newBody = newText
+    if (msgToEdit) {
+      const parsedReply = parseReply(msgToEdit.body)
+      if (parsedReply) newBody = JSON.stringify({ ...parsedReply, text: newText })
+    }
+    
     setMessages(prev => prev.map(m => m.id === editingId ? { ...m, body: newBody, edited: true } : m))
     setEditingId(null); setInput('')
     const { error } = await supabase
@@ -872,17 +907,24 @@ export default function DirectMessageScreen() {
     if (!input.trim() || !convId || sending) return
     const text = input.trim(); setInput('')
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    
+    let payload = text
+    if (replyingTo) {
+      payload = JSON.stringify({ _type: 'reply', replyTo: replyingTo, text })
+      setReplyingTo(null)
+    }
+
     const optimistic = {
       id: `opt_${Date.now()}`, _optimistic: true,
       conversation_id: convId, sender_id: myId,
-      body: text, created_at: new Date().toISOString(), profiles: null,
+      body: payload, created_at: new Date().toISOString(), profiles: null,
     }
     setMessages(prev => [...prev, optimistic])
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80)
 
     setSending(true)
     const { error: sendError } = await supabase.from('messages').insert({
-      conversation_id: convId, sender_id: myId, body: text,
+      conversation_id: convId, sender_id: myId, body: payload,
     })
     setSending(false)
     if (sendError) {
@@ -943,6 +985,7 @@ export default function DirectMessageScreen() {
           onEdit={() => startEdit(selectedMsg)}
           onDelete={() => deleteMessage(selectedMsg.id)}
           onReact={emoji => addReaction(selectedMsg.id, emoji)}
+          onReply={() => handleReply(selectedMsg)}
         />
       )}
 
@@ -972,44 +1015,50 @@ export default function DirectMessageScreen() {
             <Ionicons name="arrow-back" size={22} color={theme.accent} />
           </TouchableOpacity>
 
-          {/* Avatar (36px circle, WhatsApp spec) */}
-          <View style={s.avatarWrap}>
-            {otherProfile?.avatar_url ? (
-              <Image
-                source={{ uri: otherProfile.avatar_url }}
-                style={[
-                  s.avatar,
+          {/* Contact header: click to open profile */}
+          <TouchableOpacity
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+            onPress={() => otherUserId && router.push(`/profile/${otherUserId}` as any)}
+            activeOpacity={0.7}>
+            {/* Avatar (36px circle, WhatsApp spec) */}
+            <View style={s.avatarWrap}>
+              {otherProfile?.avatar_url ? (
+                <Image
+                  source={{ uri: otherProfile.avatar_url }}
+                  style={[
+                    s.avatar,
+                    {
+                      borderWidth: 2,
+                      borderColor: isOnline ? '#25D366' : 'rgba(167,139,250,0.3)',
+                    },
+                  ]}
+                />
+              ) : (
+                <View style={[
+                  s.avatarFallback,
                   {
+                    backgroundColor: theme.accentBg,
                     borderWidth: 2,
                     borderColor: isOnline ? '#25D366' : 'rgba(167,139,250,0.3)',
                   },
-                ]}
-              />
-            ) : (
-              <View style={[
-                s.avatarFallback,
-                {
-                  backgroundColor: theme.accentBg,
-                  borderWidth: 2,
-                  borderColor: isOnline ? '#25D366' : 'rgba(167,139,250,0.3)',
-                },
-              ]}>
-                <Text style={s.avatarInitials}>{getInitials(otherName)}</Text>
-              </View>
-            )}
-            {/* WhatsApp green online dot */}
-            {isOnline && <PulseDot />}
-          </View>
+                ]}>
+                  <Text style={s.avatarInitials}>{getInitials(otherName)}</Text>
+                </View>
+              )}
+              {/* WhatsApp green online dot */}
+              {isOnline && <PulseDot />}
+            </View>
 
-          {/* Name + status text */}
-          <View style={{ flex: 1 }}>
-            <Text style={[s.headerName, { color: theme.text }]} numberOfLines={1}>
-              {otherName}
-            </Text>
-            <Text style={[s.headerStatus, { color: isOnline ? '#25D366' : theme.textFaint }]}>
-              {isOnline ? 'Online' : 'Last seen recently'}
-            </Text>
-          </View>
+            {/* Name + status text */}
+            <View style={{ flex: 1 }}>
+              <Text style={[s.headerName, { color: theme.text }]} numberOfLines={1}>
+                {otherName}
+              </Text>
+              <Text style={[s.headerStatus, { color: isOnline ? '#25D366' : theme.textFaint }]}>
+                {isOnline ? 'Online' : 'Last seen recently'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
           {/* Right action icons: video call, voice call, three-dots menu */}
           <View style={s.headerActions}>
@@ -1058,6 +1107,7 @@ export default function DirectMessageScreen() {
                 const challenge        = parseChallenge(m.body)
                 const acceptance       = parseAcceptance(m.body)
                 const storyInteraction = parseStoryInteraction(m.body)
+                const replyData        = parseReply(m.body)
 
                 // Day separator — inserted before a message if the day differs from the previous
                 const prevMsg   = messages[i - 1]
@@ -1158,11 +1208,14 @@ export default function DirectMessageScreen() {
                               borderColor: theme.accent,
                             },
                           ]}>
+                          {replyData && (
+                            <QuotedBubble replyTo={replyData.replyTo} />
+                          )}
                           {parsed ? (
                             <AttachmentBubble attachment={parsed} mine={mine} />
                           ) : (
                             <Text style={[s.bubbleText, { color: theme.text }]}>
-                              {m.body}
+                              {replyData ? replyData.text : m.body}
                             </Text>
                           )}
 
@@ -1227,6 +1280,9 @@ export default function DirectMessageScreen() {
             </View>
           )}
 
+          {/* Reply banner */}
+          <ReplyBanner replyingTo={replyingTo} onCancel={() => setReplyingTo(null)} />
+
           <View style={[s.inputRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
             {/* Attach icon — hidden while editing to match WhatsApp behavior */}
             {!editingId && (
@@ -1241,6 +1297,7 @@ export default function DirectMessageScreen() {
 
             {/* Pill-shaped text input */}
             <TextInput
+              ref={inputRef}
               style={[
                 s.input,
                 {

@@ -27,6 +27,10 @@ export interface Profile {
   follower_count: number
   following_count: number
   is_online?: boolean
+  is_verified?: boolean
+  cover_url?: string | null
+  badge_type?: string | null
+  badge_color?: string | null
 }
 
 export interface ProfileStats {
@@ -65,6 +69,7 @@ export async function updateProfile(updates: {
   level?: string
   interests?: string[]
   avatar_url?: string
+  cover_url?: string | null
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not logged in' }
@@ -86,7 +91,7 @@ export async function getAllProfiles() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, department, level, interests, avatar_url, follower_count, following_count')
+    .select('id, full_name, department, level, interests, avatar_url, follower_count, following_count, badge_type, badge_color')
     .neq('id', user?.id ?? '')
     .limit(20)
 
@@ -183,6 +188,32 @@ export async function uploadAvatar(uri: string): Promise<{
     await supabase
       .from('profiles')
       .update({ avatar_url: publicUrl })
+      .eq('id', user.id)
+
+    return { data: publicUrl, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+export async function uploadCover(uri: string): Promise<{
+  data: string | null
+  error: Error | null
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const ext = uri.split('.').pop()?.split('?')[0] ?? 'jpg'
+    const path = `${user.id}/cover-${Date.now()}.${ext}`
+    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+
+    const publicUrl = await uploadFile('avatars', path, uri, mimeType, true)
+
+    // Persist the URL to the profile
+    await supabase
+      .from('profiles')
+      .update({ cover_url: publicUrl })
       .eq('id', user.id)
 
     return { data: publicUrl, error: null }

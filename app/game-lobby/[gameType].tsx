@@ -28,13 +28,6 @@ export const FAF_BOT: FollowProfile = {
   following_count: 0,
 }
 
-// ─── Demo online friends for when the user has none ──────────────────────────
-const DEMO_FRIENDS: FollowProfile[] = [
-  { id: 'demo-1', full_name: 'Ada Okonkwo',     department: 'Computer Science', level: '300', avatar_url: null, follower_count: 284, following_count: 91 },
-  { id: 'demo-2', full_name: 'Emeka Nwosu',     department: 'Electrical Eng.',  level: '400', avatar_url: null, follower_count: 172, following_count: 63 },
-  { id: 'demo-3', full_name: 'Zainab Bello',    department: 'Medicine',         level: '500', avatar_url: null, follower_count: 341, following_count: 110 },
-  { id: 'demo-4', full_name: 'Chidi Obi',       department: 'Business Admin',   level: '200', avatar_url: null, follower_count: 98,  following_count: 54 },
-]
 
 function Avatar({ url, name, size, theme }: {
   url: string | null; name: string | null; size: number; theme: any
@@ -77,14 +70,14 @@ export default function GameLobbyScreen() {
       ])
 
       const real = followRes.data ?? []
-      // Always show FAF Bot first, then real friends (or demo friends if none)
-      setFriends([FAF_BOT, ...(real.length > 0 ? real : DEMO_FRIENDS)])
+      // Always show FAF Bot first, then real friends
+      setFriends([FAF_BOT, ...real])
 
       const allStats = statsRes.data ?? []
       setStat(allStats.find(s => s.game_type === gt) ?? null)
     } catch {
       // Non-fatal — show FAF Bot as fallback
-      setFriends([FAF_BOT, ...DEMO_FRIENDS])
+      setFriends([FAF_BOT])
     } finally {
       setLoading(false)
     }
@@ -97,10 +90,6 @@ export default function GameLobbyScreen() {
       return
     }
 
-    if (friend.id.startsWith('demo-')) {
-      Toast.show({ type: 'info', text1: 'Demo mode', text2: 'Follow real users to challenge them!' })
-      return
-    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -134,12 +123,69 @@ export default function GameLobbyScreen() {
     })
   }
 
-  const handleRandomMatch = () => {
-    Toast.show({
-      type: 'info',
-      text1: 'Matchmaking',
-      text2: 'Random matching coming soon — challenge a friend for now!',
-    })
+  const handleRandomMatch = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      Toast.show({ type: 'error', text1: 'Not logged in' })
+      return
+    }
+
+    Toast.show({ type: 'info', text1: '🔍 Finding a match…', text2: 'Looking for open games' })
+
+    try {
+      // Look for an open waiting session for this game type with no guest yet
+      const { data: openSessions } = await supabase
+        .from('live_game_sessions')
+        .select('id, host_id')
+        .eq('game_type', gt)
+        .eq('status', 'waiting')
+        .is('guest_id', null)
+        .neq('host_id', user.id)
+        .limit(1)
+
+      if (openSessions && openSessions.length > 0) {
+        // Join an existing open session as guest
+        const session = openSessions[0]
+        router.push({
+          pathname: '/play/waiting' as any,
+          params: {
+            gameType: gt,
+            sessionId: session.id,
+            opponentId: session.host_id,
+            opponentName: 'Random Opponent',
+          },
+        })
+      } else {
+        // No open sessions — create one and wait for someone to join
+        const { data: newSession, error } = await supabase
+          .from('live_game_sessions')
+          .insert({
+            game_type: gt,
+            host_id: user.id,
+            guest_id: null,
+            status: 'waiting',
+            state: {},
+          })
+          .select('id')
+          .single()
+
+        if (error || !newSession) {
+          Toast.show({ type: 'error', text1: 'Could not create session', text2: error?.message })
+          return
+        }
+
+        router.push({
+          pathname: '/play/waiting' as any,
+          params: {
+            gameType: gt,
+            sessionId: newSession.id,
+            opponentName: 'Random Opponent',
+          },
+        })
+      }
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Matchmaking failed', text2: e?.message })
+    }
   }
 
   if (!meta) return null
