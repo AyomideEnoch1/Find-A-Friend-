@@ -49,9 +49,10 @@ export interface FeedPost {
 export interface PostComment {
   id: string
   post_id: string
-  parent_id: string | null
+  parent_id?: string | null
   author_id: string
   body: string
+  image_url?: string | null
   is_anonymous: boolean
   created_at: string
   profiles?: FeedAuthor | null
@@ -249,7 +250,8 @@ export async function commentOnPost(
   postId: string,
   body: string,
   isAnonymous = false,
-  parentId: string | null = null
+  parentId: string | null = null,
+  imageUrl: string | null = null
 ): Promise<{ data: PostComment | null; error: Error | null }> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -262,6 +264,7 @@ export async function commentOnPost(
         parent_id: parentId,
         author_id: user.id,
         body: body.trim(),
+        image_url: imageUrl,
         is_anonymous: isAnonymous,
       })
       .select('*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)')

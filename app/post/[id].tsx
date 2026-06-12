@@ -15,9 +15,9 @@ import { useFeedStore } from '../../store/feedStore'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
-import type { FeedPost, PostComment } from '../../lib/feed'
 import { supabase } from '../../lib/supabase'
 import { ReplyBanner } from '../../components/chat/ReplyUI'
+import { pickCommentImage, takeCommentPhoto } from '../../lib/feedAttachments'
 
 function toHandle(name: string | null | undefined) {
   if (!name) return '@user'
@@ -52,6 +52,8 @@ export default function PostDetailScreen() {
   const [sending, setSending] = useState(false)
   const [myUserId, setMyUserId] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null)
+  const [attachUrl, setAttachUrl] = useState<string | null>(null)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const inputRef = useRef<TextInput>(null)
 
   const {
@@ -228,17 +230,38 @@ export default function PostDetailScreen() {
 
   const handleSend = async () => {
     const trimmed = commentText.trim()
-    if (!trimmed || sending || !post) return
+    if ((!trimmed && !attachUrl) || sending || !post) return
     setSending(true)
-    const { data, error } = await commentOnPost(post.id, trimmed, false, replyingTo?.id)
+    const { data, error } = await commentOnPost(post.id, trimmed, false, replyingTo?.id, attachUrl)
     if (!error && data) {
       setComments(prev => [...prev, data])
       incrementCommentCount(post.id)
       setPost(p => p ? { ...p, comments_count: p.comments_count + 1 } : p)
       setCommentText('')
       setReplyingTo(null)
+      setAttachUrl(null)
     }
     setSending(false)
+  }
+
+  const handleAttach = () => {
+    Alert.alert('Attach Photo', undefined, [
+      { text: 'Take Photo', onPress: async () => {
+          setUploadingMedia(true)
+          try { const url = await takeCommentPhoto(); if (url) setAttachUrl(url) } 
+          catch (e: any) { Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message }) }
+          finally { setUploadingMedia(false) }
+        }
+      },
+      { text: 'Choose from Gallery', onPress: async () => {
+          setUploadingMedia(true)
+          try { const url = await pickCommentImage(); if (url) setAttachUrl(url) } 
+          catch (e: any) { Toast.show({ type: 'error', text1: 'Upload failed', text2: e.message }) }
+          finally { setUploadingMedia(false) }
+        }
+      },
+      { text: 'Cancel', style: 'cancel' }
+    ])
   }
 
   const renderBody = (text: string | null | undefined, isRepostText = false) => {
@@ -356,7 +379,10 @@ export default function PostDetailScreen() {
             <Text style={[s.commentName, { color: theme.text }]}>{name}</Text>
             <Text style={[s.commentTime, { color: theme.textFaint }]}>{getTimeAgo(item.created_at)}</Text>
           </View>
-          {renderCommentBody(item.body)}
+          {item.body ? renderCommentBody(item.body) : null}
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={[s.commentMedia, { borderColor: theme.border }]} resizeMode="cover" />
+          ) : null}
         </View>
       </Pressable>
     )
@@ -584,17 +610,37 @@ export default function PostDetailScreen() {
               replyingTo={{
                 id: replyingTo.id,
                 body: replyingTo.body,
-                _optimistic: false,
-                sender_id: replyingTo.author_id,
-                profiles: replyingTo.profiles
-              } as any}
+                author: replyingTo.is_anonymous ? 'Anonymous' : (replyingTo.profiles?.full_name ?? 'User')
+              }}
               onCancel={() => setReplyingTo(null)} 
             />
           </View>
         )}
 
+        {/* ── Media Attachment Preview ── */}
+        {attachUrl && (
+          <View style={{ backgroundColor: theme.card, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, flexDirection: 'row' }}>
+            <View style={{ position: 'relative' }}>
+              <Image source={{ uri: attachUrl }} style={{ width: 80, height: 80, borderRadius: 8, borderWidth: 1, borderColor: theme.border }} />
+              <TouchableOpacity
+                style={{ position: 'absolute', top: -8, right: -8, backgroundColor: theme.cardSolid, borderRadius: 12 }}
+                onPress={() => setAttachUrl(null)}
+              >
+                <Ionicons name="close-circle" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* ── Reply input ── */}
         <View style={[s.inputRow, { borderTopColor: theme.border, paddingBottom: insets.bottom + 4 }]}>
+          <TouchableOpacity
+            style={s.attachBtn}
+            onPress={handleAttach}
+            disabled={uploadingMedia || sending}
+          >
+            {uploadingMedia ? <ActivityIndicator size="small" color={theme.textMuted} /> : <Ionicons name="attach-outline" size={26} color={theme.textMuted} />}
+          </TouchableOpacity>
           <TextInput
             ref={inputRef}
             style={[s.input, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
@@ -605,14 +651,14 @@ export default function PostDetailScreen() {
             multiline
             maxLength={300}
           />
-          <TouchableOpacity
-            style={[s.sendBtn, { backgroundColor: theme.accent }, (!commentText.trim() || sending) && s.sendDisabled]}
-            onPress={handleSend}
-            disabled={!commentText.trim() || sending}>
-            {sending
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="send" size={16} color="#fff" />}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.sendBtn, { backgroundColor: theme.accent }, ((!commentText.trim() && !attachUrl) || sending) && s.sendDisabled]}
+              onPress={handleSend}
+              disabled={(!commentText.trim() && !attachUrl) || sending}>
+              {sending
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="send" size={16} color="#fff" />}
+            </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -791,6 +837,7 @@ const s = StyleSheet.create({
   commentName: { fontSize: 13, fontFamily: typography.fontSemiBold },
   commentTime: { fontSize: 11, fontFamily: typography.fontRegular },
   commentBody: { fontSize: 14, lineHeight: 20, fontFamily: typography.fontRegular },
+  commentMedia: { width: '100%', height: 160, borderRadius: 8, borderWidth: 1, marginTop: 6 },
 
   /* Empty */
   emptyWrap: { alignItems: 'center', paddingTop: 48, gap: 8 },
@@ -799,9 +846,14 @@ const s = StyleSheet.create({
 
   /* Input */
   inputRow: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    flexDirection: 'row', alignItems: 'flex-end', gap: 6,
     paddingHorizontal: 12, paddingTop: 8,
     borderTopWidth: 0.5,
+  },
+  attachBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
   },
   input: {
     flex: 1, borderRadius: 22,

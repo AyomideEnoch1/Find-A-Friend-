@@ -25,7 +25,7 @@ export function parseAttachment(body: string): Attachment | null {
 }
 
 async function uploadToStorage(uri: string, path: string, mimeType: string): Promise<string> {
-  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
   const { error } = await supabase.storage
     .from('chat-files')
     .upload(path, decode(base64), { contentType: mimeType, upsert: false })
