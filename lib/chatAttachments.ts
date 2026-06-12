@@ -1,5 +1,4 @@
 import * as ImagePicker from 'expo-image-picker'
-import * as FileSystem from 'expo-file-system'
 import { decode } from 'base64-arraybuffer'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
@@ -26,20 +25,13 @@ export function parseAttachment(body: string): Attachment | null {
 }
 
 async function uploadToStorage(uri: string, path: string, mimeType: string): Promise<string> {
-  if (Platform.OS === 'web') {
-    const res = await fetch(uri)
-    const blob = await res.blob()
-    const { error } = await supabase.storage
-      .from('chat-files')
-      .upload(path, blob, { contentType: mimeType, upsert: false })
-    if (error) throw new Error(error.message)
-  } else {
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })
-    const { error } = await supabase.storage
-      .from('chat-files')
-      .upload(path, decode(base64), { contentType: mimeType, upsert: false })
-    if (error) throw new Error(error.message)
-  }
+  const res = await fetch(uri)
+  const arrayBuffer = await res.arrayBuffer()
+  const { error } = await supabase.storage
+    .from('chat-files')
+    .upload(path, arrayBuffer, { contentType: mimeType, upsert: false })
+  if (error) throw new Error(error.message)
+  
   const { data } = supabase.storage.from('chat-files').getPublicUrl(path)
   return data.publicUrl
 }
