@@ -10,13 +10,14 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Toast from 'react-native-toast-message'
-import { getPost, getComments, commentOnPost, reportPost } from '../../lib/feed'
+import { getPost, getComments, commentOnPost, reportPost, deleteComment } from '../../lib/feed'
 import { useFeedStore } from '../../store/feedStore'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import type { FeedPost, PostComment } from '../../lib/feed'
 import { supabase } from '../../lib/supabase'
+import { ReplyBanner } from '../../components/chat/ReplyUI'
 
 function toHandle(name: string | null | undefined) {
   if (!name) return '@user'
@@ -50,6 +51,7 @@ export default function PostDetailScreen() {
   const [commentText, setCommentText] = useState('')
   const [sending, setSending] = useState(false)
   const [myUserId, setMyUserId] = useState<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<PostComment | null>(null)
   const inputRef = useRef<TextInput>(null)
 
   const {
@@ -68,9 +70,64 @@ export default function PostDetailScreen() {
     quoteText = ''
   }
 
+  function flattenComments(parentId: string | null, depth = 0): (PostComment & { depth: number })[] {
+    const nodes = comments.filter(c => c.parent_id === parentId)
+    let res: (PostComment & { depth: number })[] = []
+    nodes.forEach(node => {
+      res.push({ ...node, depth })
+      res = res.concat(flattenComments(node.id, depth + 1))
+    })
+    return res
+  }
+  const threadedComments = flattenComments(null)
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null))
     if (id) loadData()
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+
+    const channel = supabase
+      .channel(`post-comments:${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'post_comments',
+        filter: `post_id=eq.${id}`,
+      }, async (payload: any) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, full_name, department, level, avatar_url, role, badge_type, badge_color')
+          .eq('id', payload.new.author_id)
+          .single()
+
+        const newComment: PostComment = {
+          ...payload.new,
+          profiles: profile,
+        }
+
+        setComments(prev => {
+          if (prev.some(c => c.id === newComment.id)) return prev
+          return [...prev, newComment]
+        })
+        setPost(p => p ? { ...p, comments_count: p.comments_count + 1 } : p)
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'post_comments',
+        filter: `post_id=eq.${id}`,
+      }, (payload: any) => {
+        setComments(prev => prev.filter(c => c.id !== payload.old?.id))
+        setPost(p => p ? { ...p, comments_count: Math.max(0, p.comments_count - 1) } : p)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [id])
 
   const loadData = async () => {
@@ -173,12 +230,13 @@ export default function PostDetailScreen() {
     const trimmed = commentText.trim()
     if (!trimmed || sending || !post) return
     setSending(true)
-    const { data, error } = await commentOnPost(post.id, trimmed)
+    const { data, error } = await commentOnPost(post.id, trimmed, false, replyingTo?.id)
     if (!error && data) {
       setComments(prev => [...prev, data])
       incrementCommentCount(post.id)
       setPost(p => p ? { ...p, comments_count: p.comments_count + 1 } : p)
       setCommentText('')
+      setReplyingTo(null)
     }
     setSending(false)
   }
@@ -261,11 +319,33 @@ export default function PostDetailScreen() {
     )
   }
 
-  const renderComment = useCallback(({ item }: { item: PostComment }) => {
+  const renderComment = useCallback(({ item }: { item: PostComment & { depth?: number } }) => {
     const name = item.is_anonymous ? 'Anonymous' : (item.profiles?.full_name ?? 'User')
     const initials = item.is_anonymous ? '?' : getInitials(item.profiles?.full_name ?? '?')
+    const depth = item.depth || 0
+    const isChild = depth > 0
+
+    const handleCommentLongPress = () => {
+      Alert.alert('Options', undefined, [
+        { text: 'Reply', onPress: () => { setReplyingTo(item); inputRef.current?.focus() } },
+        item.author_id === myUserId 
+          ? { text: 'Delete', style: 'destructive', onPress: async () => {
+              await deleteComment(item.id)
+              setComments(prev => prev.filter(c => c.id !== item.id))
+            }}
+          : { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Reported', 'Thanks for reporting.') },
+        { text: 'Cancel', style: 'cancel' }
+      ])
+    }
+
     return (
-      <View style={[s.commentRow, { borderBottomColor: theme.border }]}>
+      <Pressable 
+        onLongPress={handleCommentLongPress}
+        style={[
+          s.commentRow, 
+          { borderBottomColor: theme.border },
+          isChild && { paddingLeft: 16 + depth * 20, backgroundColor: theme.card }
+        ]}>
         <View style={[s.commentAvatar, { backgroundColor: theme.cardSolid, borderColor: theme.border }]}>
           {!item.is_anonymous && item.profiles?.avatar_url
             ? <Image source={{ uri: item.profiles.avatar_url }} style={s.commentAvatarImg} />
@@ -278,9 +358,9 @@ export default function PostDetailScreen() {
           </View>
           {renderCommentBody(item.body)}
         </View>
-      </View>
+      </Pressable>
     )
-  }, [theme])
+  }, [theme, myUserId])
 
   if (loading) {
     return (
@@ -481,7 +561,7 @@ export default function PostDetailScreen() {
         </View>
 
         <FlatList
-          data={comments}
+          data={threadedComments}
           keyExtractor={item => item.id}
           renderItem={renderComment}
           ListHeaderComponent={PostHeader}
@@ -496,6 +576,22 @@ export default function PostDetailScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
+
+        {/* ── Reply banner ── */}
+        {replyingTo && (
+          <View style={{ backgroundColor: theme.card, paddingTop: 8 }}>
+            <ReplyBanner 
+              replyingTo={{
+                id: replyingTo.id,
+                body: replyingTo.body,
+                _optimistic: false,
+                sender_id: replyingTo.author_id,
+                profiles: replyingTo.profiles
+              } as any}
+              onCancel={() => setReplyingTo(null)} 
+            />
+          </View>
+        )}
 
         {/* ── Reply input ── */}
         <View style={[s.inputRow, { borderTopColor: theme.border, paddingBottom: insets.bottom + 4 }]}>

@@ -49,6 +49,7 @@ export interface FeedPost {
 export interface PostComment {
   id: string
   post_id: string
+  parent_id: string | null
   author_id: string
   body: string
   is_anonymous: boolean
@@ -247,7 +248,8 @@ export async function getMyLikedPostIds(postIds: string[]): Promise<string[]> {
 export async function commentOnPost(
   postId: string,
   body: string,
-  isAnonymous = false
+  isAnonymous = false,
+  parentId: string | null = null
 ): Promise<{ data: PostComment | null; error: Error | null }> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -257,6 +259,7 @@ export async function commentOnPost(
       .from('post_comments')
       .insert({
         post_id: postId,
+        parent_id: parentId,
         author_id: user.id,
         body: body.trim(),
         is_anonymous: isAnonymous,

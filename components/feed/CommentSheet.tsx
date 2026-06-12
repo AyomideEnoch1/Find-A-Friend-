@@ -24,6 +24,7 @@ import { getComments, commentOnPost } from '../../lib/feed'
 import { useFeedStore } from '../../store/feedStore'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import type { PostComment } from '../../lib/feed'
+import { supabase } from '../../lib/supabase'
 
 interface CommentSheetProps {
   postId: string
@@ -53,8 +54,47 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
   }, [])
 
   useEffect(() => {
-    if (visible && postId) {
-      loadComments()
+    if (!visible || !postId) return
+
+    loadComments()
+
+    const channel = supabase
+      .channel(`post-comments-sheet:${postId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'post_comments',
+        filter: `post_id=eq.${postId}`,
+      }, async (payload: any) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', payload.new.author_id)
+          .single()
+
+        const newComment: PostComment = {
+          ...payload.new,
+          profiles: profile,
+        }
+
+        setComments(prev => {
+          if (prev.some(c => c.id === newComment.id)) return prev
+          return [...prev, newComment]
+        })
+        incrementCommentCount(postId)
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'post_comments',
+        filter: `post_id=eq.${postId}`,
+      }, (payload: any) => {
+        setComments(prev => prev.filter(c => c.id !== payload.old?.id))
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   }, [visible, postId])
 
