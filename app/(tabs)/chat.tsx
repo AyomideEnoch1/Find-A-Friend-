@@ -50,6 +50,22 @@ const pod = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34d399' },
 })
 
+function formatMessagePreview(body: string, isMe: boolean): string {
+  if (!body) return ''
+  const prefix = isMe ? 'You: ' : ''
+  try {
+    const obj = JSON.parse(body)
+    if (obj._type === 'story_reaction') return `${prefix}Reacted ${obj.emoji} to story`
+    if (obj._type === 'story_comment') return `${prefix}Commented on story`
+    if (obj._type === 'game_challenge') return `${prefix}Sent a game challenge 🎮`
+    if (obj._type === 'challenge_accepted') return `${prefix}Accepted challenge ⚡`
+    if (obj._type === 'sticker') return `${prefix}Sent a sticker`
+  } catch {
+    // Not JSON
+  }
+  return `${prefix}${body}`
+}
+
 // ─── Conversation card ────────────────────────────────────────────────────────
 function ConvCard({ conv, myId, isOnline, onPress }: {
   conv: any; myId: string; isOnline: (id: string) => boolean; onPress: () => void
@@ -108,7 +124,7 @@ function ConvCard({ conv, myId, isOnline, onPress }: {
           </View>
           <Text style={[cvs.preview, { color: theme.textMuted }]} numberOfLines={1}>
             {lastMsg
-              ? (lastMsg.sender_id === myId ? `You: ${lastMsg.body}` : lastMsg.body)
+              ? formatMessagePreview(lastMsg.body, lastMsg.sender_id === myId)
               : 'Start a conversation'}
           </Text>
         </View>
