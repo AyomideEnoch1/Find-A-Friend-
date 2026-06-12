@@ -50,6 +50,22 @@ const pod = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34d399' },
 })
 
+function formatMessagePreview(body: string, isMe: boolean): string {
+  if (!body) return ''
+  const prefix = isMe ? 'You: ' : ''
+  try {
+    const obj = JSON.parse(body)
+    if (obj._type === 'story_reaction') return `${prefix}Reacted ${obj.emoji} to story`
+    if (obj._type === 'story_comment') return `${prefix}Commented on story`
+    if (obj._type === 'game_challenge') return `${prefix}Sent a game challenge 🎮`
+    if (obj._type === 'challenge_accepted') return `${prefix}Accepted challenge ⚡`
+    if (obj._type === 'sticker') return `${prefix}Sent a sticker`
+  } catch {
+    // Not JSON
+  }
+  return `${prefix}${body}`
+}
+
 // ─── Conversation card ────────────────────────────────────────────────────────
 function ConvCard({ conv, myId, isOnline, onPress }: {
   conv: any; myId: string; isOnline: (id: string) => boolean; onPress: () => void
@@ -108,7 +124,7 @@ function ConvCard({ conv, myId, isOnline, onPress }: {
           </View>
           <Text style={[cvs.preview, { color: theme.textMuted }]} numberOfLines={1}>
             {lastMsg
-              ? (lastMsg.sender_id === myId ? `You: ${lastMsg.body}` : lastMsg.body)
+              ? formatMessagePreview(lastMsg.body, lastMsg.sender_id === myId)
               : 'Start a conversation'}
           </Text>
         </View>
@@ -205,18 +221,17 @@ export default function ChatScreen() {
     loadConversations()
 
     let listChannel: ReturnType<typeof supabase.channel> | null = null
+    let isMounted = true
 
     // We only subscribe once we know the user's conversation IDs.
     // getUser() is cached by Supabase so this is cheap.
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
+      if (!user || !isMounted) return
 
-      // Build a filter once conversations are loaded.
-      // Re-subscribe whenever loadConversations runs (it updates state which we
-      // read via the ref below). A simpler approach: subscribe with the
-      // user_id participant filter so we only get messages from our convs.
+      // Unique channel name to prevent "cannot add postgres_changes after subscribe" error
+      // due to React 18 strict mode / hot reloads not cleaning up async channels instantly.
       listChannel = supabase
-        .channel('chat-list-updates')
+        .channel(`chat-list-updates-${Date.now()}-${Math.random()}`)
         .on(
           'postgres_changes',
           {
@@ -226,8 +241,6 @@ export default function ChatScreen() {
           },
           (payload: any) => {
             // Only refetch if this message belongs to one of the user's convs.
-            // conversations state may not be loaded yet on first run — in that
-            // case we always refresh (first message ever scenario).
             setConversations(prev => {
               const myConvIds = new Set(prev.map((c: any) => c.conversation_id))
               if (myConvIds.size === 0 || myConvIds.has(payload.new?.conversation_id)) {
@@ -242,6 +255,7 @@ export default function ChatScreen() {
     })
 
     return () => {
+      isMounted = false
       if (listChannel) supabase.removeChannel(listChannel)
     }
   }, [loadConversations])
