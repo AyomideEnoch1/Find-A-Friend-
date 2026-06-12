@@ -18,6 +18,9 @@ export interface FeedAuthor {
   department: string | null
   level: string | null
   avatar_url: string | null
+  role?: string | null
+  badge_type?: string | null
+  badge_color?: string | null
 }
 
 export interface FeedPost {
@@ -75,7 +78,7 @@ export interface CreatePostPayload {
 // ---------------------------------------------------------------------------
 
 const POST_SELECT =
-  '*, profiles!author_id(id, full_name, department, level, avatar_url), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, profiles!author_id(id, full_name, department, level, avatar_url), post_likes(count), post_comments(count), reposts(count))'
+  '*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color), post_likes(count), post_comments(count), reposts(count))'
 
 function toFeedPost(raw: any): FeedPost {
   if (!raw) return raw
@@ -258,7 +261,7 @@ export async function commentOnPost(
         body: body.trim(),
         is_anonymous: isAnonymous,
       })
-      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)')
       .single()
 
     if (error) throw error
@@ -275,7 +278,7 @@ export async function getComments(postId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('post_comments')
-      .select('*, profiles!author_id(id, full_name, department, level, avatar_url)')
+      .select('*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
 
@@ -319,6 +322,18 @@ export async function repostPost(
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
+
+    // Guard: check if the user has already reposted this post
+    const { data: existingRepost } = await supabase
+      .from('reposts')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (existingRepost) {
+      throw new Error('You have already reposted this post')
+    }
 
     // Fetch original post to copy its content into the repost row
     const { data: original, error: origError } = await supabase

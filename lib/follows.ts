@@ -21,6 +21,9 @@ export interface FollowProfile {
   follower_count: number
   following_count: number
   interests?: string[] | null
+  role?: string | null
+  badge_type?: string | null
+  badge_color?: string | null
 }
 
 export type FollowStatus = 'following' | 'not_following'
@@ -132,7 +135,7 @@ export async function getFollowers(userId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('follows')
-      .select('profiles!follows_follower_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count)')
+      .select('profiles!follows_follower_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)')
       .eq('following_id', userId)
       .order('created_at', { ascending: false })
 
@@ -153,7 +156,7 @@ export async function getFollowing(userId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('follows')
-      .select('profiles!follows_following_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count)')
+      .select('profiles!follows_following_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)')
       .eq('follower_id', userId)
       .order('created_at', { ascending: false })
 
@@ -200,9 +203,11 @@ export async function getSuggestedUsers(): Promise<{
 
     let candidateQuery = supabase
       .from('profiles')
-      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests')
+      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests, role, badge_type, badge_color')
       .limit(50)
       .neq('id', user.id)  // always exclude self
+      .neq('full_name', '')
+      .not('full_name', 'is', null)
 
     // Exclude already-followed users one-by-one (safer than .not+in for small lists)
     for (const id of alreadyFollowingIds) {
@@ -240,7 +245,7 @@ export async function getUserProfile(userId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests')
+      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color')
       .eq('id', userId)
       .single()
 

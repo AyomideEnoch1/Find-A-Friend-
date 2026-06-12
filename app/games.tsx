@@ -20,13 +20,6 @@ import ScreenLoader from '../components/ScreenLoader'
 const GAME_TYPES: GameType[] = ['pool', 'trivia', 'wordle']
 const MEDALS = ['🥇', '🥈', '🥉']
 
-const DEMO_LEADERS: LeaderboardEntry[] = [
-  { user_id: 'd1', full_name: 'Ada Okonkwo',     avatar_url: null, wins: 47, games_played: 58, win_rate: 81 },
-  { user_id: 'd2', full_name: 'Emeka Nwosu',     avatar_url: null, wins: 39, games_played: 51, win_rate: 76 },
-  { user_id: 'd3', full_name: 'Zainab Bello',    avatar_url: null, wins: 34, games_played: 46, win_rate: 74 },
-  { user_id: 'd4', full_name: 'Chidi Obi',       avatar_url: null, wins: 28, games_played: 40, win_rate: 70 },
-  { user_id: 'd5', full_name: 'Fatima Abubakar', avatar_url: null, wins: 21, games_played: 33, win_rate: 64 },
-]
 
 function Avatar({ url, name, size, theme }: {
   url: string | null; name: string | null; size: number; theme: any
@@ -67,7 +60,7 @@ export default function GamesScreen() {
   const theme = useTheme()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
   const [stats, setStats] = useState<UserGameStats[]>([])
-  const [leaders, setLeaders] = useState<LeaderboardEntry[]>(DEMO_LEADERS)
+  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([])
   const [activeGame, setActiveGame] = useState<GameType>('pool')
   const [loading, setLoading] = useState(true)
   const [lbLoading, setLbLoading] = useState(false)
@@ -91,9 +84,9 @@ export default function GamesScreen() {
     setLbLoading(true)
     try {
       const { data } = await getLeaderboard(gt, 5)
-      setLeaders(data && data.length > 0 ? data : DEMO_LEADERS)
+      setLeaders(data && data.length > 0 ? data : [])
     } catch {
-      setLeaders(DEMO_LEADERS)
+      setLeaders([])
     } finally {
       setLbLoading(false)
     }
@@ -223,6 +216,18 @@ export default function GamesScreen() {
         {/* Leader rows */}
         {lbLoading ? (
           <ActivityIndicator color={theme.accent} style={{ marginVertical: 20 }} />
+        ) : leaders.length === 0 ? (
+          <View style={[s.lbCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={{ padding: 24, alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 32 }}>🏆</Text>
+              <Text style={[s.lbName, { color: theme.textMuted, textAlign: 'center' }]}>
+                No games played yet
+              </Text>
+              <Text style={[s.lbSub, { color: theme.textFaint, textAlign: 'center' }]}>
+                Be the first to play and claim the top spot!
+              </Text>
+            </View>
+          </View>
         ) : (
           <View style={[s.lbCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {leaders.map((entry, i) => (

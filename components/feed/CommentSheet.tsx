@@ -15,8 +15,10 @@ import {
   Keyboard,
   ActivityIndicator,
   Image,
+  Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 import Toast from 'react-native-toast-message'
 import { getComments, commentOnPost } from '../../lib/feed'
 import { useFeedStore } from '../../store/feedStore'
@@ -80,6 +82,56 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
     }
   }
 
+  const handleReply = (item: PostComment) => {
+    const authorName = item.is_anonymous ? 'Anonymous' : (item.profiles?.full_name ?? 'User')
+    // We replace spaces in the name with underscores for a valid looking tag, or just leave it. 
+    // Actually, simple @Name is fine since regex doesn't care for spaces, wait, the regex uses @[a-zA-Z0-9_]+
+    // So we need to sanitize the name to only have valid characters.
+    const cleanName = authorName.replace(/[^a-zA-Z0-9_]/g, '')
+    const tag = `@${cleanName} `
+    setText(prev => prev ? `${prev} ${tag}` : tag)
+    inputRef.current?.focus()
+  }
+
+  const renderCommentBody = (text: string | null | undefined) => {
+    const regex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)\b(?:\/[^\s]*)?|#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/gi
+    const parts = (text || '').split(regex)
+    return (
+      <Text style={s.commentBody}>
+        {parts.map((part, i) => {
+          if (part.startsWith('#'))
+            return <Text key={i} style={{ color: '#a78bfa' }} onPress={() => { onClose(); router.push(`/hashtag/${part.slice(1)}` as any) }}>{part}</Text>
+          if (part.startsWith('@'))
+            return <Text key={i} style={{ color: '#a78bfa' }}>{part}</Text>
+          if (part.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/i)) {
+            return (
+              <Text
+                key={i}
+                style={{ color: '#a78bfa', textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
+          if (part.match(/^https?:\/\//i) || part.match(/^www\./i) || part.match(/^[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)/i)) {
+            const url = part.match(/^https?:\/\//i) ? part : `https://${part}`
+            return (
+              <Text
+                key={i}
+                style={{ color: '#a78bfa', textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(url).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
+          return <Text key={i}>{part}</Text>
+        })}
+      </Text>
+    )
+  }
+
   const renderComment = ({ item }: { item: PostComment }) => (
     <View style={s.commentRow}>
       <View style={s.commentAvatar}>
@@ -92,11 +144,18 @@ export default function CommentSheet({ postId, visible, onClose }: CommentSheetP
         )}
       </View>
       <View style={s.commentContent}>
-        <Text style={s.commentAuthor}>
-          {item.is_anonymous ? 'Anonymous' : (item.profiles?.full_name ?? 'User')}
-        </Text>
-        <Text style={s.commentBody}>{item.body}</Text>
-        <Text style={s.commentTime}>{getTimeAgo(item.created_at)}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={s.commentAuthor}>
+            {item.is_anonymous ? 'Anonymous' : (item.profiles?.full_name ?? 'User')}
+          </Text>
+          <Text style={s.commentTime}>{getTimeAgo(item.created_at)}</Text>
+        </View>
+        {renderCommentBody(item.body)}
+        <View style={{ flexDirection: 'row', marginTop: 2 }}>
+          <TouchableOpacity onPress={() => handleReply(item)}>
+            <Text style={{ fontSize: 11, color: '#a78bfa', fontWeight: '600' }}>Reply</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )

@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../lib/profiles'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import VerifiedBadge from '../../components/ui/VerifiedBadge'
 
 type Tab = 'posts' | 'liked'
 
@@ -280,7 +281,15 @@ export default function ProfileScreen() {
 
       {/* Name + bio */}
       <View style={s.nameSection}>
-        <Text style={s.name}>{profile.full_name ?? 'Student'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Text style={s.name}>{profile.full_name ?? 'Student'}</Text>
+          <VerifiedBadge type={profile.badge_type} customColor={profile.badge_color} size={18} />
+          {(!profile.badge_type || profile.badge_type === 'none') && profile.role === 'admin' && (
+            <View style={{ backgroundColor: 'rgba(167,139,250,0.15)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.45)' }}>
+              <Text style={{ fontSize: 10, color: '#a78bfa', fontWeight: '500' }}>👑 Admin</Text>
+            </View>
+          )}
+        </View>
         {(profile.department || profile.level) && (
           <Text style={s.dept}>
             {[profile.department, profile.level].filter(Boolean).join(' · ')}

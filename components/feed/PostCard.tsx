@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Image, Modal, Share, Pressable, Alert, Platform,
+  Image, Modal, Share, Pressable, Alert, Platform, Linking,
 } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { Ionicons } from '@expo/vector-icons'
@@ -16,6 +16,7 @@ import { useTheme, glowShadow } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { createStory } from '../../lib/stories'
 import type { FeedPost } from '../../lib/feed'
+import VerifiedBadge from '../ui/VerifiedBadge'
 
 interface PostCardProps {
   post: FeedPost
@@ -142,8 +143,9 @@ export default function PostCard({ post }: PostCardProps) {
     }
   }
 
-  const renderBody = (text: string, isRepostText = false) => {
-    const parts = text.split(/([@#]\w+)/g)
+  const renderBody = (text: string | null | undefined, isRepostText = false) => {
+    const regex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)\b(?:\/[^\s]*)?|#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/gi
+    const parts = (text || '').split(regex)
     return (
       <Text style={[isRepostText ? s.repostBody : s.body, { color: theme.text }]}>
         {parts.map((part, i) => {
@@ -151,6 +153,29 @@ export default function PostCard({ post }: PostCardProps) {
             return <Text key={i} style={{ color: theme.accent }} onPress={() => router.push(`/hashtag/${part.slice(1)}` as any)}>{part}</Text>
           if (part.startsWith('@'))
             return <Text key={i} style={{ color: theme.accent }}>{part}</Text>
+          if (part.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/i)) {
+            return (
+              <Text
+                key={i}
+                style={{ color: theme.accent, textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
+          if (part.match(/^https?:\/\//i) || part.match(/^www\./i) || part.match(/^[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)/i)) {
+            const url = part.match(/^https?:\/\//i) ? part : `https://${part}`
+            return (
+              <Text
+                key={i}
+                style={{ color: theme.accent, textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(url).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
           return <Text key={i}>{part}</Text>
         })}
       </Text>
@@ -198,6 +223,14 @@ export default function PostCard({ post }: PostCardProps) {
             <TouchableOpacity onPress={handleAuthorPress} disabled={isAnon} style={{ flex: 1 }}>
               <View style={s.nameRow}>
                 <Text style={[s.name, { color: theme.text }]} numberOfLines={1}>{displayName}</Text>
+                {!isAnon && (
+                  <VerifiedBadge type={post.profiles?.badge_type} customColor={post.profiles?.badge_color} size={14} />
+                )}
+                {!isAnon && (!post.profiles?.badge_type || post.profiles.badge_type === 'none') && post.profiles?.role === 'admin' && (
+                  <View style={[s.badge, { backgroundColor: 'rgba(167,139,250,0.1)', borderColor: 'rgba(167,139,250,0.35)' }]}>
+                    <Text style={[s.badgeText, { color: theme.accent }]}>👑 Admin</Text>
+                  </View>
+                )}
                 {post.post_type === 'academic' && (
                   <View style={s.badge}><Text style={s.badgeText}>Academic</Text></View>
                 )}

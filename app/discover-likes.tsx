@@ -11,17 +11,8 @@ import { typography } from '../lib/typography'
 import { getLikesReceived, getMutualLikes } from '../lib/discoverLikes'
 import { getInitials } from '../lib/matching'
 import type { FollowProfile } from '../lib/follows'
+import { supabase } from '../lib/supabase'
 
-// ─── Demo data ────────────────────────────────────────────────────────────────
-const DEMO_LIKED_YOU: FollowProfile[] = [
-  { id: 'demo-1', full_name: 'Ada Okonkwo',     department: 'Computer Science', level: '300', avatar_url: null, follower_count: 284, following_count: 91 },
-  { id: 'demo-2', full_name: 'Zainab Bello',    department: 'Medicine',         level: '500', avatar_url: null, follower_count: 341, following_count: 110 },
-  { id: 'demo-3', full_name: 'Chidi Obi',       department: 'Business Admin',   level: '200', avatar_url: null, follower_count: 98,  following_count: 54 },
-]
-const DEMO_MATCHES: FollowProfile[] = [
-  { id: 'demo-4', full_name: 'Emeka Nwosu',     department: 'Electrical Eng.',  level: '400', avatar_url: null, follower_count: 172, following_count: 63 },
-  { id: 'demo-5', full_name: 'Fatima Abubakar', department: 'Architecture',     level: '400', avatar_url: null, follower_count: 215, following_count: 78 },
-]
 
 function Avatar({ url, name, size, theme }: {
   url: string | null; name: string | null; size: number; theme: any
@@ -83,7 +74,31 @@ export default function DiscoverLikesScreen() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'matches' | 'likes'>('matches')
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+
+    let channel: any = null
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      channel = supabase
+        .channel('discover-likes-details-realtime')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'discover_likes',
+        }, (payload: any) => {
+          const r = payload.new || payload.old
+          if (r && (r.liked_id === user.id || r.liker_id === user.id)) {
+            load()
+          }
+        })
+        .subscribe()
+    })
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [])
 
   const load = async () => {
     try {
@@ -94,12 +109,11 @@ export default function DiscoverLikesScreen() {
       const realLikes   = likesRes.data   ?? []
       const realMatches = mutualRes.data  ?? []
 
-      setLikedYou(realLikes.length   > 0 ? realLikes   : DEMO_LIKED_YOU)
-      setMatches( realMatches.length > 0 ? realMatches : DEMO_MATCHES)
+      setLikedYou(realLikes)
+      setMatches(realMatches)
     } catch {
-      // Fall back to demo data
-      setLikedYou(DEMO_LIKED_YOU)
-      setMatches(DEMO_MATCHES)
+      setLikedYou([])
+      setMatches([])
     } finally {
       setLoading(false)
     }
@@ -211,9 +225,7 @@ export default function DiscoverLikesScreen() {
                   )
                 }
                 onPress={() => {
-                  if (!user.id.startsWith('demo-')) {
-                    router.push(`/profile/${user.id}` as any)
-                  }
+                  router.push(`/profile/${user.id}` as any)
                 }}
               />
               {i < displayed.length - 1 && (

@@ -201,6 +201,13 @@ export async function createEvent(payload: CreateEventPayload): Promise<{
       .single()
 
     if (error) throw error
+
+    // Auto-RSVP the organizer as 'going' so the event appears in their My Events tab
+    await supabase
+      .from('event_rsvps')
+      .upsert({ event_id: (data as any).id, user_id: user.id, status: 'going' },
+               { onConflict: 'event_id,user_id' })
+
     return { data: data as Event, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -356,3 +363,25 @@ export async function uploadEventCover(uri: string): Promise<{
     return { data: null, error: err as Error }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Delete event
+// ---------------------------------------------------------------------------
+
+export async function deleteEvent(eventId: string): Promise<{
+  data: null
+  error: Error | null
+}> {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId)
+
+    if (error) throw error
+    return { data: null, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+

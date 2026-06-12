@@ -31,8 +31,9 @@ import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
+import { ReplyPayload, parseReply, ReplyBanner, QuotedBubble } from '../../components/chat/ReplyUI'
 
-const ROOM_COLOR = '#60a5fa'
+const ROOM_COLOR = '#3b82f6'
 
 interface RoomMessage {
   id: string
@@ -49,11 +50,13 @@ export default function StudyRoomScreen() {
   const insets = useSafeAreaInsets()
   const theme = useTheme()
   const listRef = useRef<FlatList>(null)
+  const inputRef = useRef<TextInput>(null)
 
   const [myId, setMyId] = useState('')
   const [groupName, setGroupName] = useState('Study Room')
   const [messages, setMessages] = useState<RoomMessage[]>([])
   const [input, setInput] = useState('')
+  const [replyingTo, setReplyingTo] = useState<ReplyPayload['replyTo'] | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [isMember, setIsMember] = useState(false)
@@ -127,16 +130,24 @@ export default function StudyRoomScreen() {
     }
     setInput('')
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+
+    let payload = text
+    if (replyingTo) {
+      payload = JSON.stringify({ _type: 'reply', replyTo: replyingTo, text })
+      setReplyingTo(null)
+    }
+
     const optimistic: RoomMessage = {
       id: `opt_${Date.now()}`, _optimistic: true,
       group_id: groupId, sender_id: myId,
-      body: text, created_at: new Date().toISOString(), profiles: null,
+      body: payload, created_at: new Date().toISOString(), profiles: null,
     }
     setMessages(prev => [...prev, optimistic])
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
+
     setSending(true)
     const { error } = await supabase.from('study_group_messages').insert({
-      group_id: groupId, sender_id: myId, body: text,
+      group_id: groupId, sender_id: myId, body: payload,
     })
     setSending(false)
     if (error) {
@@ -147,9 +158,10 @@ export default function StudyRoomScreen() {
 
   const renderMessage = ({ item: m, index }: { item: RoomMessage; index: number }) => {
     const mine = m.sender_id === myId
-    const prev = messages[index - 1]
-    const showHeader = !prev || prev.sender_id !== m.sender_id
+    const prevMsg = messages[index - 1]
+    const showHeader = !prevMsg || prevMsg.sender_id !== m.sender_id
     const name = m.profiles?.full_name ?? 'Member'
+    const replyData = parseReply(m.body)
 
     return (
       <View style={[s.msgGroup, mine && s.msgGroupMine]}>
@@ -167,17 +179,33 @@ export default function StudyRoomScreen() {
         )}
         <View style={s.msgRow}>
           {!mine && <View style={{ width: 8 }} />}
-          <View style={[
-            s.bubble,
-            mine ? [s.bubbleMine, { backgroundColor: ROOM_COLOR }]
-                 : [s.bubbleTheirs, { backgroundColor: theme.card, borderColor: theme.border }],
-            m._optimistic && { opacity: 0.65 },
-          ]}>
-            <Text style={[s.bubbleText, { color: mine ? '#fff' : theme.text }]}>{m.body}</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+              let previewBody = m.body
+              const reply = parseReply(m.body)
+              if (reply) previewBody = reply.text
+              setReplyingTo({
+                id: m.id ?? '',
+                author: name,
+                body: previewBody
+              })
+              inputRef.current?.focus()
+            }}
+            delayLongPress={200}
+            style={[
+              s.bubble,
+              mine ? [s.bubbleMine, { backgroundColor: ROOM_COLOR }]
+                   : [s.bubbleTheirs, { backgroundColor: theme.card, borderColor: theme.border }],
+              m._optimistic && { opacity: 0.65 },
+            ]}>
+            {replyData && <QuotedBubble replyTo={replyData.replyTo} />}
+            <Text style={[s.bubbleText, { color: mine ? '#fff' : theme.text }]}>{replyData ? replyData.text : m.body}</Text>
             <Text style={[s.bubbleTime, { color: mine ? 'rgba(255,255,255,0.5)' : theme.textFaint }]}>
               {getTimeAgo(m.created_at)}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     )
@@ -220,11 +248,15 @@ export default function StudyRoomScreen() {
             }
           />
         )}
+        
+        <ReplyBanner replyingTo={replyingTo} onCancel={() => setReplyingTo(null)} />
+
         <View style={[s.inputRow, {
           borderTopColor: theme.border, backgroundColor: theme.card,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
         }]}>
           <TextInput
+            ref={inputRef}
             style={[s.input, { backgroundColor: theme.card2, borderColor: theme.border, color: theme.text }]}
             placeholder={isMember ? 'Message the group...' : 'Join to chat'}
             placeholderTextColor={theme.textFaint}

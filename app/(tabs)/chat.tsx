@@ -19,6 +19,7 @@ import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { usePresenceStore } from '../../store/presenceStore'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
+import Toast from 'react-native-toast-message'
 
 // ─── Pulsing online dot ───────────────────────────────────────────────────────
 function PulseOnlineDot({ style }: { style?: object }) {
@@ -202,21 +203,58 @@ export default function ChatScreen() {
 
   useEffect(() => {
     loadConversations()
-    const listChannel = supabase
-      .channel('chat-list-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-        loadConversations()
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(listChannel) }
+
+    let listChannel: ReturnType<typeof supabase.channel> | null = null
+
+    // We only subscribe once we know the user's conversation IDs.
+    // getUser() is cached by Supabase so this is cheap.
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+
+      // Build a filter once conversations are loaded.
+      // Re-subscribe whenever loadConversations runs (it updates state which we
+      // read via the ref below). A simpler approach: subscribe with the
+      // user_id participant filter so we only get messages from our convs.
+      listChannel = supabase
+        .channel('chat-list-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+          },
+          (payload: any) => {
+            // Only refetch if this message belongs to one of the user's convs.
+            // conversations state may not be loaded yet on first run — in that
+            // case we always refresh (first message ever scenario).
+            setConversations(prev => {
+              const myConvIds = new Set(prev.map((c: any) => c.conversation_id))
+              if (myConvIds.size === 0 || myConvIds.has(payload.new?.conversation_id)) {
+                // Trigger async reload outside of setState
+                loadConversations()
+              }
+              return prev // state unchanged here; loadConversations will update it
+            })
+          }
+        )
+        .subscribe()
+    })
+
+    return () => {
+      if (listChannel) supabase.removeChannel(listChannel)
+    }
   }, [loadConversations])
 
   const openConversation = (conv: any) => {
     const participants = conv.conversations?.conversation_participants ?? []
     const other = participants.find((p: any) => p.user_id !== myId)
-    if (other?.user_id) {
-      router.push(`/chat/${other.user_id}` as any)
+    if (!other?.user_id) {
+      // Group chat or missing participant — navigate by conversation id when supported
+      Toast.show({ type: 'info', text1: 'Group chats coming soon!', text2: 'Direct messages only for now.' })
+      return
     }
+    router.push(`/chat/${other.user_id}` as any)
   }
 
   const startNewChat = (otherUser: any) => {

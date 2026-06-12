@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
@@ -160,10 +160,6 @@ export default function VerifyScreen() {
 
     if (!trimmedEmail || !password) {
       Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill in all fields' })
-      return
-    }
-    if (!isUniversityEmail(trimmedEmail)) {
-      Toast.show({ type: 'error', text1: 'University email required', text2: 'Use your official university email (e.g. .edu.ng)' })
       return
     }
     if (password.length < 6) {

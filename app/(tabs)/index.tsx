@@ -80,7 +80,7 @@ export default function HomeScreen() {
     ), []
   )
 
-  const renderHeader = useCallback(() => activeTab === 'following' ? <View><StoriesRow /></View> : null, [activeTab])
+  const renderHeader = useCallback(() => <View><StoriesRow /></View>, [])
 
   const renderFooter = useCallback(() =>
     loading && posts.length > 0 ? (

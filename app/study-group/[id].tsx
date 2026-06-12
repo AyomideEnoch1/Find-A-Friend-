@@ -25,12 +25,12 @@ type Tab = 'discussion' | 'members' | 'info'
 interface GroupMember {
   user_id: string
   joined_at: string
-  profiles: Array<{
+  profiles: {
     id: string
     full_name: string | null
     avatar_url: string | null
     department: string | null
-  }> | null
+  } | null
 }
 
 export default function StudyGroupDetailScreen() {
@@ -97,7 +97,13 @@ export default function StudyGroupDetailScreen() {
         .select('user_id, joined_at, profiles(id, full_name, avatar_url, department)')
         .eq('group_id', id)
         .order('joined_at', { ascending: true })
-      if (!error) setMembers((data ?? []) as GroupMember[])
+      if (!error) {
+        const mapped = (data ?? []).map((item: any) => ({
+          ...item,
+          profiles: Array.isArray(item.profiles) ? (item.profiles[0] ?? null) : (item.profiles ?? null)
+        }))
+        setMembers(mapped as GroupMember[])
+      }
     }
     setTabLoading(false)
   }

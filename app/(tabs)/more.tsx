@@ -1,20 +1,20 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, Image,
+  ActivityIndicator, Image,
 } from 'react-native'
-import Toast from 'react-native-toast-message'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getCurrentProfile, getProfileStats } from '../../lib/profiles'
 import type { Profile, ProfileStats } from '../../lib/profiles'
 import { getInitials } from '../../lib/matching'
 import { useAuthStore } from '../../store/authStore'
-import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import { showTabBar } from '../../lib/tabBarAnim'
-import * as Updates from 'expo-updates'
+import VerifiedBadge from '../../components/ui/VerifiedBadge'
 
 const features: Array<{
   icon: string; title: string; subtitle: string
@@ -34,108 +34,30 @@ export default function MoreScreen() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [stats, setStats] = useState<ProfileStats>({ posts: 0, friends: 0, followers: 0, following: 0, clubs: 0 })
   const [loading, setLoading] = useState(true)
-  const { signOut, user } = useAuthStore()
+  const { user } = useAuthStore()
   const theme = useTheme()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
+    setLoading(true)
     Promise.all([getCurrentProfile(), getProfileStats()])
       .then(([p, s]) => {
         setProfile(p)
         setStats(s)
       })
-      .catch(() => {
-        // Non-fatal
-      })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
+  useFocusEffect(
+    useCallback(() => {
+      loadData()
+    }, [loadData])
+  )
+
   useEffect(() => {
-    if (!loading) {
-      showTabBar()
-    }
+    if (!loading) showTabBar()
   }, [loading])
-
-  const handleSignOut = () => {
-    Alert.alert('Sign out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: async () => {
-        await signOut()
-        router.replace('/(auth)/welcome' as any)
-      }},
-    ])
-  }
-
-  const [updating, setUpdating] = useState(false)
-
-  const handleCheckUpdate = async () => {
-    if (updating) return
-    setUpdating(true)
-    Toast.show({ type: 'info', text1: 'Checking for updates...', text2: 'Restarting to apply latest version.' })
-    setTimeout(async () => {
-      try {
-        await Updates.reloadAsync()
-      } catch {
-        Toast.show({ type: 'error', text1: 'Restart failed', text2: 'Try closing and reopening the app manually.' })
-        setUpdating(false)
-      }
-    }, 1200)
-  }
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your profile, posts, and all your data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            // Delete profile row first (cascades to posts, follows, etc. via DB FK constraints)
-            if (user?.id) {
-              await supabase.from('profiles').delete().eq('id', user.id)
-            }
-          } catch {
-            // Ignore — sign out either way so the user is not stuck
-          }
-          await supabase.auth.signOut()
-          Toast.show({ type: 'success', text1: 'Account deleted', text2: 'Your data has been removed.' })
-          router.replace('/(auth)/welcome' as any)
-        }},
-      ]
-    )
-  }
-
-  const menuItems = [
-    {
-      icon: '🔖', label: 'Bookmarks', sub: 'Your saved posts',
-      onPress: () => router.push('/bookmarks' as any),
-    },
-    {
-      icon: '🔔', label: 'Notifications', sub: 'Manage your alerts',
-      onPress: () => router.push('/notifications' as any),
-    },
-    {
-      icon: '🔒', label: 'Privacy settings', sub: 'Profile visibility',
-      onPress: () => router.push('/privacy-settings' as any),
-    },
-    {
-      icon: '🌙', label: 'Appearance', sub: 'Dark & darker mode',
-      onPress: () => router.push('/appearance' as any),
-    },
-    {
-      icon: '🎓', label: 'Verification', sub: 'University email verified',
-      onPress: () => router.push('/verification' as any),
-    },
-    {
-      icon: '❓', label: 'Help & support', sub: 'FAQs and contact',
-      onPress: () => router.push('/help' as any),
-    },
-    {
-      icon: '🗑️', label: 'Delete account', sub: 'Permanently remove your data',
-      onPress: handleDeleteAccount,
-      danger: true,
-    },
-  ]
 
   const statItems = [
     { label: 'Posts',     value: stats.posts },
@@ -150,6 +72,9 @@ export default function MoreScreen() {
 
         <View style={s.header}>
           <Text style={[s.title, { color: theme.text }]}>More</Text>
+          <TouchableOpacity onPress={() => router.push('/settings' as any)} style={s.settingsBtn}>
+            <Ionicons name="settings-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
         </View>
 
         {/* Profile card */}
@@ -172,9 +97,7 @@ export default function MoreScreen() {
           <View style={s.profileInfo}>
             <View style={s.profileNameRow}>
               <Text style={[s.profileName, { color: theme.text }]}>{profile?.full_name ?? 'Your name'}</Text>
-              <View style={s.verifiedBadge}>
-                <Text style={s.verifiedText}>✓ Verified</Text>
-              </View>
+              <VerifiedBadge type={profile?.badge_type} customColor={profile?.badge_color} size={16} />
             </View>
             <Text style={[s.profileDept, { color: theme.textMuted }]}>
               {profile?.department ?? 'Department'}{profile?.level ? ' · ' + profile.level : ''}
@@ -204,61 +127,28 @@ export default function MoreScreen() {
           ))}
         </View>
 
-        {/* Features grid */}
+        {/* Features horizontal list */}
         <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Features</Text>
-        <View style={s.featuresGrid}>
+        <View style={[s.featuresList, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {features.map((feature, i) => (
             <TouchableOpacity
               key={i}
-              style={[s.featureCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+              style={[
+                s.featureRow, 
+                i === features.length - 1 && { borderBottomWidth: 0 }, 
+                { borderBottomColor: theme.border2 }
+              ]}
               onPress={() => router.push(feature.route as any)}>
               <View style={[s.featureIconWrap, { backgroundColor: feature.bg, borderColor: feature.border }]}>
                 <Text style={s.featureIcon}>{feature.icon}</Text>
               </View>
-              <Text style={[s.featureTitle, { color: theme.text }]}>{feature.title}</Text>
-              <Text style={[s.featureSub, { color: theme.textMuted }]}>{feature.subtitle}</Text>
+              <View style={s.featureTextWrap}>
+                <Text style={[s.featureTitle, { color: theme.text }]}>{feature.title}</Text>
+                <Text style={[s.featureSub, { color: theme.textMuted }]}>{feature.subtitle}</Text>
+              </View>
+              <Text style={[s.featureArrow, { color: theme.textMuted }]}>›</Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* Account menu */}
-        <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Account</Text>
-        <View style={[s.menuList, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {menuItems.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[s.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: theme.border2 }]}
-              onPress={item.onPress}>
-              <View style={[s.menuIconWrap, { backgroundColor: theme.card2 }]}>
-                <Text style={s.menuIcon}>{item.icon}</Text>
-              </View>
-              <View style={s.menuText}>
-                <Text style={[s.menuLabel, { color: item.danger ? '#ef4444' : theme.text }]}>{item.label}</Text>
-                <Text style={[s.menuSub, { color: theme.textMuted }]}>{item.sub}</Text>
-              </View>
-              <Text style={[s.menuArrow, { color: theme.textMuted }]}>›</Text>
-
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity style={[s.updateBtn, { borderColor: theme.border }]} onPress={handleCheckUpdate} disabled={updating}>
-          {updating ? (
-            <ActivityIndicator size="small" color="#a78bfa" />
-          ) : (
-            <Text style={s.updateBtnText}>🔄 Check for updates</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
-          <Text style={s.signOutText}>Sign out</Text>
-        </TouchableOpacity>
-
-        <View style={s.versionWrap}>
-          <Text style={[s.versionText, { color: theme.textFaint }]}>FAF v1.0.0</Text>
-          <Text style={[s.versionText, { color: theme.textFaint }]}>
-            Update: {Updates.updateId ? Updates.updateId.slice(0, 8) : 'base build'}
-          </Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -269,8 +159,9 @@ export default function MoreScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '700' },
+  settingsBtn: { padding: 4 },
 
   profileCard: {
     marginHorizontal: 16, marginBottom: 14,
@@ -316,53 +207,23 @@ const s = StyleSheet.create({
     fontSize: 13, fontWeight: '500',
     paddingHorizontal: 16, marginBottom: 12,
   },
-  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10, marginBottom: 28 },
-  featureCard: {
-    width: '47%', borderRadius: 16,
-    padding: 14, borderWidth: 0.5,
-  },
-  featureIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 10, borderWidth: 0.5,
-  },
-  featureIcon: { fontSize: 22 },
-  featureTitle: { fontSize: 13, fontWeight: '600', marginBottom: 3 },
-  featureSub: { fontSize: 10, lineHeight: 14 },
-
-  menuList: {
+  featuresList: {
     marginHorizontal: 16,
     borderRadius: 16,
-    marginBottom: 16, borderWidth: 0.5, overflow: 'hidden',
+    marginBottom: 28, borderWidth: 0.5, overflow: 'hidden',
   },
-  menuItem: {
+  featureRow: {
     flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12,
     borderBottomWidth: 0.5,
   },
-  menuIconWrap: {
+  featureIconWrap: {
     width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 0.5,
   },
-  menuIcon: { fontSize: 16 },
-  menuText: { flex: 1 },
-  menuLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
-  menuSub: { fontSize: 11 },
-  menuArrow: { fontSize: 20 },
-
-  updateBtn: {
-    marginHorizontal: 16, backgroundColor: 'rgba(167,139,250,0.1)',
-    borderRadius: 16, padding: 16, alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(167,139,250,0.2)',
-    marginBottom: 12,
-  },
-  updateBtnText: { fontSize: 14, fontWeight: '600', color: '#a78bfa' },
-
-  signOutBtn: {
-    marginHorizontal: 16, backgroundColor: 'rgba(239,68,68,0.1)',
-    borderRadius: 16, padding: 16, alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(239,68,68,0.2)',
-  },
-  signOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
-  versionWrap: { alignItems: 'center', gap: 2, marginTop: 20 },
-  versionText: { fontSize: 11 },
+  featureIcon: { fontSize: 16 },
+  featureTextWrap: { flex: 1 },
+  featureTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  featureSub: { fontSize: 11 },
+  featureArrow: { fontSize: 20 },
 })

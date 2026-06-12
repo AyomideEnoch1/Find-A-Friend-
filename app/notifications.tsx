@@ -187,7 +187,6 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           onRefresh={loadNotifications}
           refreshing={loading}
-          tintColor={theme.accent}
         />
       )}
     </SafeAreaView>

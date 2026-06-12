@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react'
 import {
-  View, Text, StyleSheet, TouchableOpacity, Share,
+  View, Text, StyleSheet, TouchableOpacity, Share, Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
@@ -38,6 +38,45 @@ export default function AnonPostCard({ post, onCommentPress }: AnonPostCardProps
     await Share.share({ message: `${post.body}\n\n— Posted anonymously on FAF` })
   }
 
+  const renderBody = (text: string | null | undefined) => {
+    const regex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}|\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)\b(?:\/[^\s]*)?|#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/gi
+    const parts = (text || '').split(regex)
+    return (
+      <Text style={s.body}>
+        {parts.map((part, i) => {
+          if (part.startsWith('#'))
+            return <Text key={i} style={{ color: '#a78bfa' }} onPress={() => router.push(`/hashtag/${part.slice(1)}` as any)}>{part}</Text>
+          if (part.startsWith('@'))
+            return <Text key={i} style={{ color: '#a78bfa' }}>{part}</Text>
+          if (part.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/i)) {
+            return (
+              <Text
+                key={i}
+                style={{ color: '#a78bfa', textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
+          if (part.match(/^https?:\/\//i) || part.match(/^www\./i) || part.match(/^[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|ng|io|co|me|info|biz|uk|ca|de|jp|fr|au|us|ru|ch|it|nl|se|no|es|mil)/i)) {
+            const url = part.match(/^https?:\/\//i) ? part : `https://${part}`
+            return (
+              <Text
+                key={i}
+                style={{ color: '#a78bfa', textDecorationLine: 'underline' }}
+                onPress={() => Linking.openURL(url).catch(() => {})}
+              >
+                {part}
+              </Text>
+            )
+          }
+          return <Text key={i}>{part}</Text>
+        })}
+      </Text>
+    )
+  }
+
   return (
     <View style={s.card}>
       {/* Header — always anonymous */}
@@ -51,7 +90,7 @@ export default function AnonPostCard({ post, onCommentPress }: AnonPostCardProps
         </View>
       </View>
 
-      <Text style={s.body}>{post.body}</Text>
+      {renderBody(post.body)}
 
       {post.tags && post.tags.length > 0 && (
         <View style={s.tags}>

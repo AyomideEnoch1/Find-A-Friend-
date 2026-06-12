@@ -31,6 +31,8 @@ export interface Club {
   // Client-derived
   is_member?: boolean
   user_role?: 'member' | 'moderator' | 'admin' | null
+  settings_send_messages?: 'all' | 'admins'
+  settings_edit_info?: 'all' | 'admins'
 }
 
 export interface ClubMember {
@@ -137,6 +139,7 @@ export async function createClub(payload: CreateClubPayload): Promise<{
       .single()
 
     if (error) throw error
+    if (!data) throw new Error('Club was created but the database did not return the new club record.')
 
     // Auto-join as admin
     await supabase.from('club_members').insert({
@@ -146,6 +149,49 @@ export async function createClub(payload: CreateClubPayload): Promise<{
     })
 
     return { data: data as Club, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Update club (admin only — enforced by RLS)
+// ---------------------------------------------------------------------------
+
+export interface UpdateClubPayload {
+  name?: string
+  description?: string | null
+  category?: string
+  color?: string
+  cover_url?: string | null
+}
+
+export async function updateClub(
+  clubId: string,
+  payload: UpdateClubPayload
+): Promise<{ error: Error | null }> {
+  try {
+    const { error } = await supabase
+      .from('clubs')
+      .update(payload)
+      .eq('id', clubId)
+    if (error) throw error
+    return { error: null }
+  } catch (err) {
+    return { error: err as Error }
+  }
+}
+
+export async function uploadClubCover(uri: string): Promise<{
+  data: string | null
+  error: Error | null
+}> {
+  try {
+    const ext = uri.split('.').pop()?.split('?')[0] ?? 'jpg'
+    const filename = `club-cover-${Date.now()}.${ext}`
+    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+    const publicUrl = await uploadFile('club-covers', filename, uri, mimeType, true)
+    return { data: publicUrl, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -389,6 +435,7 @@ export async function getClubMembers(
   limit = 50
 ): Promise<{ data: ClubMember[] | null; error: Error | null }> {
   try {
+    // Try with joined_at ordering first (available after migration)
     const { data, error } = await supabase
       .from('club_members')
       .select('*, profiles!user_id(id, full_name, avatar_url, department, level)')
@@ -396,7 +443,19 @@ export async function getClubMembers(
       .order('joined_at', { ascending: false })
       .limit(limit)
 
-    if (error) throw error
+    if (error) {
+      // joined_at column may not exist on older DB instances — fall back without ordering
+      if (error.message?.includes('joined_at')) {
+        const { data: fallback, error: fallbackErr } = await supabase
+          .from('club_members')
+          .select('*, profiles!user_id(id, full_name, avatar_url, department, level)')
+          .eq('club_id', clubId)
+          .limit(limit)
+        if (fallbackErr) throw fallbackErr
+        return { data: fallback as ClubMember[], error: null }
+      }
+      throw error
+    }
     return { data: data as ClubMember[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -428,20 +487,91 @@ export async function getClubEvents(clubId: string): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Upload club cover image
+// Club Management (Admin Actions)
 // ---------------------------------------------------------------------------
 
-export async function uploadClubCover(uri: string): Promise<{
-  data: string | null
+export async function deleteClub(clubId: string): Promise<{
+  data: null
   error: Error | null
 }> {
   try {
-    const ext = uri.split('.').pop() ?? 'jpg'
-    const path = `${Date.now()}.${ext}`
-    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+    const { error } = await supabase
+      .from('clubs')
+      .delete()
+      .eq('id', clubId)
 
-    const publicUrl = await uploadFile('club-covers', path, uri, mimeType)
-    return { data: publicUrl, error: null }
+    if (error) throw error
+    return { data: null, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+export async function addClubMember(
+  clubId: string,
+  userId: string
+): Promise<{
+  data: ClubMember | null
+  error: Error | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('club_members')
+      .insert({
+        club_id: clubId,
+        user_id: userId,
+        role: 'member',
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as ClubMember, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+export async function updateClubMemberRole(
+  clubId: string,
+  userId: string,
+  role: 'member' | 'moderator' | 'admin'
+): Promise<{
+  data: ClubMember | null
+  error: Error | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('club_members')
+      .update({ role })
+      .eq('club_id', clubId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as ClubMember, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+export async function removeClubMember(
+  clubId: string,
+  userId: string
+): Promise<{
+  data: null
+  error: Error | null
+}> {
+  try {
+    const { error } = await supabase
+      .from('club_members')
+      .delete()
+      .eq('club_id', clubId)
+      .eq('user_id', userId)
+
+    if (error) throw error
+    return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

@@ -1,9 +1,38 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import webpush from 'npm:web-push'
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 
+// VAPID credentials for Web Push
+const VAPID_CONTACT = Deno.env.get('VAPID_CONTACT') || 'mailto:ayomidenoch15@gmail.com'
+const VAPID_PUBLIC_KEY =
+  Deno.env.get('NEXT_PUBLIC_VAPID_PUBLIC_KEY') ||
+  Deno.env.get('VAPID_PUBLIC_KEY') ||
+  'BMW-cNs21tNNic2idPQjGlKXCMPtk_sgzd-K5zbrlM6ftDQlBJJB7FJcBx_lsE8fj7VMde6qYHHvYLiPB6JWke4'
+const VAPID_PRIVATE_KEY =
+  Deno.env.get('VAPID_PRIVATE_KEY') ||
+  'Vqg_x7sX5hqGSQLMaBcLXHnIQlCUqlETcmSeJSVp0HM'
+
+// Initialize VAPID
+webpush.setVapidDetails(VAPID_CONTACT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+
 function buildBody(type: string, actorName: string, customBody?: string | null): string {
-  if (customBody) return customBody
+  if (customBody) {
+    if (customBody.trim().startsWith('{')) {
+      try {
+        const obj = JSON.parse(customBody)
+        if (obj?._type === 'game_challenge') {
+          return `${actorName} challenged you to a game of ${obj.label || 'Games'} ${obj.emoji || '🎮'}`
+        }
+        if (obj?._type === 'challenge_accepted') {
+          return `${actorName} accepted your challenge to play ${obj.label || 'Games'} ${obj.emoji || '🎮'}!`
+        }
+      } catch {
+        // Fall back to returning raw customBody on JSON parse error
+      }
+    }
+    return customBody
+  }
   switch (type) {
     case 'like':               return `${actorName} liked your post`
     case 'comment':            return `${actorName} commented on your post`
@@ -51,18 +80,19 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } }
     )
 
-    // Fetch recipient's push token
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('push_token')
-      .eq('id', record.user_id)
-      .single()
-
-    if (!profile?.push_token) {
-      return new Response(JSON.stringify({ ok: false, reason: 'no_token' }), {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      })
-    }
+    // Fetch recipient's push token (Expo) and unread count
+    const [{ data: profile }, { count: unreadCount }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('push_token')
+        .eq('id', record.user_id)
+        .single(),
+      supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', record.user_id)
+        .eq('is_read', false)
+    ])
 
     // Fetch actor name for notification body
     let actorName = 'Someone'
@@ -78,27 +108,84 @@ Deno.serve(async (req) => {
     const body = buildBody(record.type, actorName, record.body)
     const route = buildRoute(record.entity_type, record.entity_id)
 
-    const message = {
-      to: profile.push_token,
-      title: 'FAF',
-      body,
-      sound: 'default',
-      channelId: 'default',
-      data: {
-        notificationId: record.id,
-        ...(route ? { route } : {}),
-        ...(record.actor_id ? { actorId: record.actor_id } : {}),
-      },
+    let expoSuccess = false
+    let webSuccessCount = 0
+
+    // 1. Send to Expo Push if there is an Expo token
+    if (profile?.push_token && (profile.push_token.startsWith('ExponentPushToken[') || profile.push_token.startsWith('ExpoPushToken['))) {
+      try {
+        const message = {
+          to: profile.push_token,
+          title: 'FAF',
+          body,
+          sound: 'default',
+          badge: unreadCount ?? 1,
+          channelId: 'default',
+          data: {
+            notificationId: record.id,
+            ...(route ? { route } : {}),
+            ...(record.actor_id ? { actorId: record.actor_id } : {}),
+          },
+        }
+
+        const expoResp = await fetch(EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(message),
+        })
+
+        const result = await expoResp.json()
+        console.log('✅ Expo push sent. Result:', JSON.stringify(result))
+        expoSuccess = true
+      } catch (err) {
+        console.error('❌ Expo push failed:', err.message)
+      }
     }
 
-    const expoResp = await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(message),
-    })
+    // 2. Send Web Push to all active web push subscriptions for this user
+    const { data: webSubs } = await supabase
+      .from('web_push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .eq('user_id', record.user_id)
 
-    const result = await expoResp.json()
-    return new Response(JSON.stringify({ ok: true, result }), {
+    if (webSubs && webSubs.length > 0) {
+      const webPayload = JSON.stringify({
+        title: 'FAF',
+        body,
+        type: record.type,
+        url: route || '/',
+        timestamp: new Date().toISOString(),
+      })
+
+      for (const sub of webSubs) {
+        try {
+          await webpush.sendNotification({
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth
+            }
+          }, webPayload)
+          console.log('✅ Web push sent to endpoint:', sub.endpoint)
+          webSuccessCount++
+        } catch (err) {
+          console.error('❌ Web push failed for endpoint:', sub.endpoint, err.message)
+          // Clean up expired subscriptions (410 Gone / 404 Not Found)
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await supabase
+              .from('web_push_subscriptions')
+              .delete()
+              .eq('endpoint', sub.endpoint)
+          }
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      expoSent: expoSuccess,
+      webSentCount: webSuccessCount
+    }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     })
   } catch (err) {

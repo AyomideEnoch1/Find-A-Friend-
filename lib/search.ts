@@ -22,6 +22,8 @@ export async function searchUsers(query: string, limit = 20): Promise<{
       .from('profiles')
       .select('id, full_name, department, level, avatar_url, follower_count, following_count')
       .or(`full_name.ilike.%${query}%,department.ilike.%${query}%`)
+      .neq('full_name', '')
+      .not('full_name', 'is', null)
       .limit(limit)
 
     if (error) throw error
