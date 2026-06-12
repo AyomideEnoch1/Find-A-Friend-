@@ -416,7 +416,7 @@ const ma = StyleSheet.create({
 
 const SCREEN_W = Dimensions.get('window').width
 
-function AttachmentBubble({ attachment }: { attachment: Attachment; mine: boolean }) {
+function AttachmentBubble({ attachment, onLongPress }: { attachment: Attachment; mine: boolean; onLongPress?: () => void }) {
   const handleOpen = () => Linking.openURL(attachment.url).catch(() => {})
 
   if (attachment._type === 'image') {
@@ -424,7 +424,7 @@ function AttachmentBubble({ attachment }: { attachment: Attachment; mine: boolea
     const aspectH = attachment.width && attachment.height
       ? imgW * (attachment.height / attachment.width) : imgW
     return (
-      <TouchableOpacity onPress={handleOpen} activeOpacity={0.85}>
+      <TouchableOpacity onPress={handleOpen} onLongPress={onLongPress} activeOpacity={0.85}>
         <Image
           source={{ uri: attachment.url }}
           style={{ width: imgW, height: Math.min(aspectH, 320), borderRadius: 12 }}
@@ -438,6 +438,7 @@ function AttachmentBubble({ attachment }: { attachment: Attachment; mine: boolea
     <TouchableOpacity
       style={[attb.videoWrap, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
       onPress={handleOpen}
+      onLongPress={onLongPress}
       activeOpacity={0.85}>
       <View style={attb.playBtn}>
         <Ionicons name="play" size={24} color="#fff" />
@@ -1192,7 +1193,16 @@ export default function DirectMessageScreen() {
                             <QuotedBubble replyTo={replyData.replyTo} />
                           )}
                           {parsed ? (
-                            <AttachmentBubble attachment={parsed} mine={mine} />
+                          <AttachmentBubble 
+                              attachment={parsed} 
+                              mine={mine} 
+                              onLongPress={() => {
+                                if (!m._optimistic) {
+                                  import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium))
+                                  setSelectedMsg(m)
+                                }
+                              }} 
+                            />
                           ) : (
                             <Text style={[s.bubbleText, { color: theme.text }]}>
                               {replyData ? replyData.text : m.body}

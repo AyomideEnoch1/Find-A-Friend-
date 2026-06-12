@@ -208,8 +208,10 @@ export default function VerifyScreen() {
       if (error) {
         if (error.message.toLowerCase().includes('not confirmed')) {
           Toast.show({ type: 'info', text1: 'Email not confirmed', text2: 'Check your inbox for a confirmation link.' })
-        } else {
+        } else if (error.message.toLowerCase().includes('invalid login credentials')) {
           Toast.show({ type: 'error', text1: 'Sign in failed', text2: 'Wrong email or password.' })
+        } else {
+          Toast.show({ type: 'error', text1: 'Sign in error', text2: error.message })
         }
         return
       }
