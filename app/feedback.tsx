@@ -255,16 +255,23 @@ function CommentsSection({
   );
 
   const handleDelete = async (c: FeedbackComment) => {
-    if (c.author_id !== myId) return
-    const { error } = await supabase.from('feedback_comments').delete().eq('id', c.id)
+    if (c.author_id !== myId) return;
+    const { error } = await supabase
+      .from("feedback_comments")
+      .delete()
+      .eq("id", c.id);
     if (error) {
-      Toast.show({ type: 'error', text1: 'Could not delete', text2: error.message })
+      Toast.show({
+        type: "error",
+        text1: "Could not delete",
+        text2: error.message,
+      });
     } else {
-      setComments(prev => prev.filter(x => x.id !== c.id))
-      onCommentAdded() // Refresh count
-      Toast.show({ type: 'success', text1: 'Reply deleted' })
+      setComments((prev) => prev.filter((x) => x.id !== c.id));
+      onCommentAdded(); // Refresh count
+      Toast.show({ type: "success", text1: "Reply deleted" });
     }
-  }
+  };
 
   const handleSend = async () => {
     const text = newComment.trim();
@@ -370,7 +377,7 @@ function CommentsSection({
               onPress={() => handleDelete(c)}
             >
               <Ionicons name="trash-outline" size={12} color="#f87171" />
-              <Text style={[cs.chipText, { color: '#f87171' }]}>Delete</Text>
+              <Text style={[cs.chipText, { color: "#f87171" }]}>Delete</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1046,9 +1053,7 @@ function ComposeBox({
       style={[
         cb.wrap,
         {
-          backgroundColor: theme.cardSolid,
-          borderTopColor: PURPLE_BORDER,
-          paddingBottom: insetBottom + 12,
+          paddingBottom: Math.max(insetBottom, 12),
         },
       ]}
     >
@@ -1067,7 +1072,7 @@ function ComposeBox({
       >
         <TextInput
           style={[cb.input, { color: theme.text }]}
-          placeholder="Share your thoughts with the campussss..."
+          placeholder="Share your thoughts"
           placeholderTextColor={theme.textFaint}
           value={body}
           onChangeText={setBody}
@@ -1077,32 +1082,32 @@ function ComposeBox({
           onBlur={() => setFocused(false)}
           accessibilityLabel="Compose feedback"
         />
-        <View style={cb.bottomRow}>
+        <Animated.View style={animBtnStyle}>
+          <TouchableOpacity
+            style={[
+              cb.sendBtn,
+              (overLimit || sending || !body.trim()) && { opacity: 0.45 },
+            ]}
+            onPress={handleSend}
+            disabled={overLimit || sending || !body.trim()}
+            accessibilityLabel="Send feedback"
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+        <View style={{ position: "absolute", right: 14, bottom: 2 }}>
           <Text
             style={[
               cb.counter,
               { color: overLimit ? "#f87171" : theme.textFaint },
             ]}
           >
-            {remaining}
+            {remaining} Left
           </Text>
-          <Animated.View style={animBtnStyle}>
-            <TouchableOpacity
-              style={[
-                cb.sendBtn,
-                (overLimit || sending || !body.trim()) && { opacity: 0.45 },
-              ]}
-              onPress={handleSend}
-              disabled={overLimit || sending || !body.trim()}
-              accessibilityLabel="Send feedback"
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </Animated.View>
         </View>
       </Animated.View>
     </View>
@@ -1110,26 +1115,27 @@ function ComposeBox({
 }
 
 const cb = StyleSheet.create({
-  wrap: { borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 12 },
+  wrap: { borderTopWidth: 1, paddingHorizontal: 10, paddingTop: 12 },
   inputWrap: {
     borderRadius: 18,
     borderWidth: 1.5,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingTop: 12,
     paddingBottom: 10,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
   },
   input: {
     fontSize: 14,
     fontFamily: typography.fontRegular,
     lineHeight: 20,
-    minHeight: 40,
+    minHeight: 50,
+    maxHeight: 120,
+    width: "75%",
     textAlignVertical: "top",
-  },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
   },
   counter: { fontSize: 11, fontFamily: typography.fontRegular },
   sendBtn: {
@@ -1391,11 +1397,12 @@ export default function FeedbackScreen() {
   return (
     <SafeAreaView
       style={[s.container, { backgroundColor: theme.bg }]}
-      edges={["top"]}
+      edges={["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
         <View style={s.header}>
@@ -1469,7 +1476,7 @@ export default function FeedbackScreen() {
           <ComposeBox
             myId={myId}
             theme={theme}
-            insetBottom={insets.bottom}
+            insetBottom={0}
             onPosted={load}
           />
         )}

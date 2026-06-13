@@ -13,6 +13,7 @@ import Animated, {
   withTiming, withDelay, withRepeat, withSequence, withSpring, Easing,
 } from 'react-native-reanimated'
 import { typography } from '../../lib/typography'
+import { Ionicons } from '@expo/vector-icons'
 
 const { width } = Dimensions.get('window')
 
@@ -29,7 +30,7 @@ function isUniversityEmail(email: string) {
 }
 
 function AnimatedInput({
-  label, placeholder, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize,
+  label, placeholder, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize, isPassword,
 }: {
   label: string
   placeholder: string
@@ -38,8 +39,10 @@ function AnimatedInput({
   secureTextEntry?: boolean
   keyboardType?: any
   autoCapitalize?: any
+  isPassword?: boolean
 }) {
   const [focused, setFocused] = useState(false)
+  const [hidden, setHidden] = useState(true)
   const borderOp = useSharedValue(0)
   const labelOp = useSharedValue(0.45)
 
@@ -56,18 +59,27 @@ function AnimatedInput({
       <Animated.Text style={[iv.label, labelStyle]}>{label}</Animated.Text>
       <View style={iv.inputOuter}>
         <TextInput
-          style={iv.input}
+          style={[iv.input, isPassword && { paddingRight: 50 }]}
           placeholder={placeholder}
           placeholderTextColor="rgba(167,139,250,0.25)"
           value={value}
           onChangeText={onChangeText}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={isPassword ? hidden : secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize ?? 'none'}
           autoCorrect={false}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
+        {isPassword && (
+          <TouchableOpacity
+            style={iv.eyeBtn}
+            onPress={() => setHidden(!hidden)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={hidden ? "eye-off-outline" : "eye-outline"} size={20} color="rgba(196,181,253,0.6)" />
+          </TouchableOpacity>
+        )}
         <Animated.View style={[iv.focusLine, borderStyle]} />
       </View>
     </View>
@@ -90,6 +102,10 @@ const iv = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 15,
     fontSize: 14, fontFamily: typography.fontRegular,
     color: '#f0e8ff',
+  },
+  eyeBtn: {
+    position: 'absolute', right: 16, height: '100%',
+    justifyContent: 'center',
   },
   focusLine: {
     position: 'absolute', bottom: 0, left: 12, right: 12,
@@ -299,7 +315,7 @@ export default function VerifyScreen() {
                   placeholder={mode === 'signup' ? 'Min. 6 characters' : 'Your password'}
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  isPassword
                 />
                 {mode === 'signup' && (
                   <AnimatedInput
@@ -307,7 +323,7 @@ export default function VerifyScreen() {
                     placeholder="Repeat your password"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
-                    secureTextEntry
+                    isPassword
                   />
                 )}
 

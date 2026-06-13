@@ -27,6 +27,7 @@ import { uploadFile } from '../lib/upload'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
 import { Video, ResizeMode } from 'expo-av'
+import { useFeedStore } from '../store/feedStore'
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://vcbtvhociaioeyhhsczh.supabase.co'
 
@@ -113,6 +114,11 @@ export default function CreatePostScreen() {
         isAnonymous: false,
       })
       if (error) throw error
+      
+      if (postType === 'feed') {
+        useFeedStore.getState().refresh()
+      }
+      
       router.back()
     } catch (err: any) {
       Alert.alert('Error', err?.message ?? JSON.stringify(err) ?? 'Unknown error')

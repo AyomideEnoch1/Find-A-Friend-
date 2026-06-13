@@ -3,7 +3,7 @@
 // GOOGLE_SERVICES_JSON is set as an EAS File Secret and resolves to the
 // absolute path of the injected google-services.json during the build.
 
-const base = require('./app.json')
+const base = require("./app.json");
 
 module.exports = {
   ...base,
@@ -11,7 +11,8 @@ module.exports = {
     ...base.expo,
     android: {
       ...base.expo.android,
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
     },
   },
-}
+};
