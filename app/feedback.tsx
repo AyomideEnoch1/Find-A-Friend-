@@ -1053,7 +1053,7 @@ function ComposeBox({
       style={[
         cb.wrap,
         {
-          paddingBottom: insetBottom + 12,
+          paddingBottom: Math.max(insetBottom, 12),
         },
       ]}
     >
@@ -1397,11 +1397,12 @@ export default function FeedbackScreen() {
   return (
     <SafeAreaView
       style={[s.container, { backgroundColor: theme.bg }]}
-      edges={["top"]}
+      edges={["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
         <View style={s.header}>
@@ -1475,7 +1476,7 @@ export default function FeedbackScreen() {
           <ComposeBox
             myId={myId}
             theme={theme}
-            insetBottom={insets.bottom}
+            insetBottom={0}
             onPosted={load}
           />
         )}
