@@ -1,6 +1,6 @@
 import { Animated } from 'react-native'
 
-export const tabBarTranslateY = new Animated.Value(100)
+export const tabBarTranslateY = new Animated.Value(0)
 
 // Enough to push the tallest tab bar (60 + 34 safe area) off screen
 const SLIDE_DISTANCE = 100
