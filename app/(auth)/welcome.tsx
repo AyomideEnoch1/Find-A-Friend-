@@ -7,16 +7,17 @@ import Animated, {
   withTiming, withDelay, withRepeat, withSequence, withSpring, Easing,
 } from 'react-native-reanimated'
 import { typography } from '../../lib/typography'
+import { GraduationCap, Brain, CalendarDays, MessageSquare, Building2, Gamepad2 } from 'lucide-react-native'
 
 const { width, height } = Dimensions.get('window')
 
 const FEATURES = [
-  { icon: '🎓', text: 'Verified campus students only' },
-  { icon: '🧠', text: 'Smart interest-based matching' },
-  { icon: '📅', text: 'Live events & campus map' },
-  { icon: '💬', text: 'Real-time encrypted messaging' },
-  { icon: '🏛️', text: 'Clubs, societies & study groups' },
-  { icon: '🎮', text: 'Social games & challenges' },
+  { IconComponent: GraduationCap, text: 'Verified campus students only' },
+  { IconComponent: Brain, text: 'Smart interest-based matching' },
+  { IconComponent: CalendarDays, text: 'Live events & campus map' },
+  { IconComponent: MessageSquare, text: 'Real-time encrypted messaging' },
+  { IconComponent: Building2, text: 'Clubs, societies & study groups' },
+  { IconComponent: Gamepad2, text: 'Social games & challenges' },
 ]
 
 function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number; color: string; delay: number }) {
@@ -46,7 +47,7 @@ function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number;
   )
 }
 
-function FeatureRow({ icon, text, delay }: { icon: string; text: string; delay: number }) {
+function FeatureRow({ IconComponent, text, delay }: { IconComponent: any; text: string; delay: number }) {
   const opacity = useSharedValue(0)
   const tx = useSharedValue(-24)
   useEffect(() => {
@@ -57,7 +58,7 @@ function FeatureRow({ icon, text, delay }: { icon: string; text: string; delay: 
   return (
     <Animated.View style={[s.featureRow, style]}>
       <View style={s.featureIconWrap}>
-        <Text style={s.featureIcon}>{icon}</Text>
+        <IconComponent size={16} color="#c4b5fd" />
       </View>
       <Text style={s.featureText}>{text}</Text>
     </Animated.View>
@@ -172,7 +173,7 @@ export default function WelcomeScreen() {
               <View style={[s.featureCardDot, { backgroundColor: '#60a5fa' }]} />
             </View>
             {FEATURES.map((f, i) => (
-              <FeatureRow key={i} icon={f.icon} text={f.text} delay={600 + i * 90} />
+              <FeatureRow key={i} IconComponent={f.IconComponent} text={f.text} delay={600 + i * 90} />
             ))}
           </View>
 
@@ -280,7 +281,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(167,139,250,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  featureIcon: { fontSize: 16 },
   featureText: {
     fontSize: 13, fontFamily: typography.fontMedium,
     color: 'rgba(210,190,255,0.75)',

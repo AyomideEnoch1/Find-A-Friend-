@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import * as Updates from 'expo-updates'
+import { Bookmark, Bell, Lock, Moon, GraduationCap, CircleHelp, Trash2 } from 'lucide-react-native'
 
 export default function SettingsScreen() {
   const { signOut, user } = useAuthStore()
@@ -102,35 +103,35 @@ export default function SettingsScreen() {
 
   const menuItems = [
     {
-      icon: '🔖', label: 'Bookmarks', sub: 'Your saved posts',
+      IconComponent: Bookmark, label: 'Bookmarks', sub: 'Your saved posts',
       onPress: () => router.push('/bookmarks' as any),
     },
     {
-      icon: '🔔', label: 'Notifications', sub: 'Manage your alerts',
+      IconComponent: Bell, label: 'Notifications', sub: 'Manage your alerts',
       onPress: () => router.push('/notifications' as any),
     },
     {
-      icon: '🔒', label: 'Privacy settings', sub: 'Profile visibility',
+      IconComponent: Lock, label: 'Privacy settings', sub: 'Profile visibility',
       onPress: () => router.push('/privacy-settings' as any),
     },
     {
-      icon: '🌙', label: 'Appearance', sub: 'Dark & darker mode',
+      IconComponent: Moon, label: 'Appearance', sub: 'Dark & darker mode',
       onPress: () => router.push('/appearance' as any),
     },
     {
-      icon: '🎓', label: 'Verification', sub: 'University email verified',
+      IconComponent: GraduationCap, label: 'Verification', sub: 'University email verified',
       onPress: () => router.push('/verification' as any),
     },
     {
-      icon: '🎖️', label: 'Badges Guide', sub: 'What each badge represents',
+      IconComponent: CircleHelp, label: 'Badges Guide', sub: 'What each badge represents',
       onPress: () => router.push('/badges-info' as any),
     },
     {
-      icon: '❓', label: 'Help & support', sub: 'FAQs and contact',
+      IconComponent: CircleHelp, label: 'Help & support', sub: 'FAQs and contact',
       onPress: () => router.push('/help' as any),
     },
     {
-      icon: '🗑️', label: 'Delete account', sub: 'Permanently remove your data',
+      IconComponent: Trash2, label: 'Delete account', sub: 'Permanently remove your data',
       onPress: handleDeleteAccount,
       danger: true,
     },
@@ -156,8 +157,8 @@ export default function SettingsScreen() {
               key={i}
               style={[s.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: theme.border2 }]}
               onPress={item.onPress}>
-              <View style={[s.menuIconWrap, { backgroundColor: theme.card2 }]}>
-                <Text style={s.menuIcon}>{item.icon}</Text>
+              <View style={[s.menuIconWrap, { backgroundColor: theme.border, borderColor: theme.border2, borderWidth: 0.5 }]}>
+                <item.IconComponent size={20} color={item.danger ? '#ef4444' : theme.text} />
               </View>
               <View style={s.menuText}>
                 <Text style={[s.menuLabel, { color: item.danger ? '#ef4444' : theme.text }]}>{item.label}</Text>
@@ -254,7 +255,6 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
-  menuIcon: { fontSize: 16 },
   menuText: { flex: 1 },
   menuLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   menuSub: { fontSize: 11 },
