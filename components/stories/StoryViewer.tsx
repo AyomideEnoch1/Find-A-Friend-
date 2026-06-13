@@ -68,7 +68,6 @@ export default function StoryViewer() {
     progressAnim.setValue(0);
     currentProgress.current = 0;
   }, [story?.id, progressAnim]);
->>>>>>> 6cbb52fa3782d8cc7de586e06cb71ab85611c2d7
 
   // Reactions + comments
   const [myReaction, setMyReaction] = useState<string | null>(null);
