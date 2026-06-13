@@ -1070,14 +1070,6 @@ function ComposeBox({
           },
         ]}
       >
-        <Text
-          style={[
-            cb.counter,
-            { color: overLimit ? "#f87171" : theme.textFaint },
-          ]}
-        >
-          {remaining}
-        </Text>
         <TextInput
           style={[cb.input, { color: theme.text }]}
           placeholder="Share your thoughts"
@@ -1107,6 +1099,16 @@ function ComposeBox({
             )}
           </TouchableOpacity>
         </Animated.View>
+        <View style={{ position: "absolute", right: 14, bottom: 2 }}>
+          <Text
+            style={[
+              cb.counter,
+              { color: overLimit ? "#f87171" : theme.textFaint },
+            ]}
+          >
+            {remaining} Left
+          </Text>
+        </View>
       </Animated.View>
     </View>
   );
@@ -1117,7 +1119,7 @@ const cb = StyleSheet.create({
   inputWrap: {
     borderRadius: 18,
     borderWidth: 1.5,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingTop: 12,
     paddingBottom: 10,
     display: "flex",
@@ -1130,7 +1132,7 @@ const cb = StyleSheet.create({
     fontSize: 14,
     fontFamily: typography.fontRegular,
     lineHeight: 20,
-    minHeight: 40,
+    minHeight: 50,
     maxHeight: 120,
     width: "75%",
     textAlignVertical: "top",
