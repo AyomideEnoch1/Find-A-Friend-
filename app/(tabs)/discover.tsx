@@ -7,6 +7,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Toast from 'react-native-toast-message'
@@ -23,7 +24,7 @@ import type { TrendingHashtag } from '../../lib/feed'
 import NeuralBackground from '../../components/NeuralBackground'
 import ScreenLoader from '../../components/ScreenLoader'
 import { supabase } from '../../lib/supabase'
-
+import { useBadgesStore } from '../../store/badgesStore'
 
 // ─── Action button ────────────────────────────────────────────────────────────
 function ActionBtn({ icon, color, bg, onPress, large }: {
@@ -64,6 +65,13 @@ export default function DiscoverScreen() {
   const [likesCount, setLikesCount] = useState({ received: 0, mutual: 0 })
   const theme = useTheme()
   const topCardRef = useRef<SwipeCardRef>(null)
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('discover')
+    }, [markSeen])
+  )
 
   useEffect(() => {
     loadData()
@@ -268,14 +276,14 @@ export default function DiscoverScreen() {
             <ActionBtn
               icon="close"
               color="#f87171"
-              bg="rgba(248,113,113,0.1)"
+              bg="rgba(28,28,46,0.95)"
               onPress={() => topCardRef.current?.swipeLeft()}
               large
             />
             <ActionBtn
               icon="star"
               color="#60a5fa"
-              bg="rgba(96,165,250,0.1)"
+              bg="rgba(28,28,46,0.95)"
               onPress={() => {
                 // Super like — follow and special toast
                 topCardRef.current?.swipeRight()
@@ -284,7 +292,7 @@ export default function DiscoverScreen() {
             <ActionBtn
               icon="heart"
               color="#4ade80"
-              bg="rgba(74,222,128,0.1)"
+              bg="rgba(28,28,46,0.95)"
               onPress={() => topCardRef.current?.swipeRight()}
               large
             />

@@ -5,6 +5,7 @@ import {
   Image, Modal, Share, Pressable, Alert, Platform, Linking,
 } from 'react-native'
 import Toast from 'react-native-toast-message'
+import { Video, ResizeMode } from 'expo-av'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -158,7 +159,10 @@ export default function PostCard({ post }: PostCardProps) {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(`mailto:${part}`).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: `mailto:${part}`, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -170,7 +174,10 @@ export default function PostCard({ post }: PostCardProps) {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(url).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(url).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: url, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -252,11 +259,21 @@ export default function PostCard({ post }: PostCardProps) {
           {/* Media with accent border */}
           {post.image_url && !isRepost ? (
             <TouchableOpacity onPress={() => setImageOpen(true)} activeOpacity={0.95}>
-              <Image
-                source={{ uri: post.image_url }}
-                style={[s.media, { borderColor: theme.border }]}
-                resizeMode="cover"
-              />
+              {post.image_url.match(/\.(mp4|mov|webm)$/i) ? (
+                <Video
+                  source={{ uri: post.image_url }}
+                  style={[s.media, { borderColor: theme.border }]}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                  shouldPlay={false}
+                />
+              ) : (
+                <Image
+                  source={{ uri: post.image_url }}
+                  style={[s.media, { borderColor: theme.border }]}
+                  resizeMode="cover"
+                />
+              )}
             </TouchableOpacity>
           ) : null}
 
@@ -297,11 +314,20 @@ export default function PostCard({ post }: PostCardProps) {
               </View>
               {orig.body ? renderBody(orig.body, true) : null}
               {orig.image_url ? (
-                <Image
-                  source={{ uri: orig.image_url }}
-                  style={[s.repostMedia, { borderColor: theme.border }]}
-                  resizeMode="cover"
-                />
+                orig.image_url.match(/\.(mp4|mov|webm)$/i) ? (
+                  <Video
+                    source={{ uri: orig.image_url }}
+                    style={[s.repostMedia, { borderColor: theme.border }]}
+                    resizeMode={ResizeMode.COVER}
+                    useNativeControls
+                  />
+                ) : (
+                  <Image
+                    source={{ uri: orig.image_url }}
+                    style={[s.repostMedia, { borderColor: theme.border }]}
+                    resizeMode="cover"
+                  />
+                )
               ) : null}
             </TouchableOpacity>
           ) : null}
@@ -320,7 +346,17 @@ export default function PostCard({ post }: PostCardProps) {
       {post.image_url ? (
         <Modal visible={imageOpen} transparent animationType="fade">
           <Pressable style={s.imgModal} onPress={() => setImageOpen(false)}>
-            <Image source={{ uri: post.image_url }} style={s.imgModalImg} resizeMode="contain" />
+            {post.image_url.match(/\.(mp4|mov|webm)$/i) ? (
+              <Video
+                source={{ uri: post.image_url }}
+                style={s.imgModalImg}
+                resizeMode={ResizeMode.CONTAIN}
+                useNativeControls
+                shouldPlay
+              />
+            ) : (
+              <Image source={{ uri: post.image_url }} style={s.imgModalImg} resizeMode="contain" />
+            )}
           </Pressable>
         </Modal>
       ) : null}

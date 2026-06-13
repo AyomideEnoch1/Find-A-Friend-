@@ -31,6 +31,9 @@ export interface Profile {
   cover_url?: string | null
   badge_type?: string | null
   badge_color?: string | null
+  current_streak?: number
+  longest_streak?: number
+  last_active_date?: string | null
 }
 
 export interface ProfileStats {

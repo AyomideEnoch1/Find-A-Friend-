@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTheme } from '../lib/theme'
@@ -16,6 +17,7 @@ import { getInitials } from '../lib/matching'
 import { useTabBarScroll } from '../lib/useTabBarScroll'
 import NeuralBackground from '../components/NeuralBackground'
 import ScreenLoader from '../components/ScreenLoader'
+import { useBadgesStore } from '../store/badgesStore'
 
 const GAME_TYPES: GameType[] = ['pool', 'trivia', 'wordle']
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -64,6 +66,13 @@ export default function GamesScreen() {
   const [activeGame, setActiveGame] = useState<GameType>('pool')
   const [loading, setLoading] = useState(true)
   const [lbLoading, setLbLoading] = useState(false)
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    React.useCallback(() => {
+      markSeen('games')
+    }, [markSeen])
+  )
 
   useEffect(() => { init() }, [])
 

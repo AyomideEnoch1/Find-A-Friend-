@@ -5,7 +5,9 @@ import { useTheme, glowShadow } from '../../lib/theme'
 import { BlurView } from 'expo-blur'
 import { StyleSheet, Platform, View } from 'react-native'
 import { useNotificationsStore } from '../../store/notificationsStore'
+import { useBadgesStore } from '../../store/badgesStore'
 import { tabBarTranslateY, showTabBar } from '../../lib/tabBarAnim'
+import { useEffect } from 'react'
 
 function TabIcon({ name, color, size, focused }: { name: any; color: string; size: number; focused: boolean }) {
   return (
@@ -22,6 +24,14 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const theme = useTheme()
   const unreadCount = useNotificationsStore(s => s.unreadCount)
+  const { counts, syncCounts } = useBadgesStore()
+
+  useEffect(() => {
+    syncCounts()
+    // Optional: sync periodically or when app comes to foreground, but calling once on mount is a good start.
+    const interval = setInterval(syncCounts, 30000) // Poll every 30s
+    return () => clearInterval(interval)
+  }, [syncCounts])
 
   return (
     <Tabs
@@ -55,6 +65,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home" color={color} size={size} focused={focused} />
           ),
+          tabBarBadge: counts.home > 0 ? (counts.home > 9 ? '9+' : counts.home) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
       <Tabs.Screen
@@ -64,6 +76,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="search" color={color} size={size} focused={focused} />
           ),
+          tabBarBadge: counts.discover > 0 ? (counts.discover > 9 ? '9+' : counts.discover) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
       <Tabs.Screen
@@ -73,6 +87,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="calendar" color={color} size={size} focused={focused} />
           ),
+          tabBarBadge: counts.events > 0 ? (counts.events > 9 ? '9+' : counts.events) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
       <Tabs.Screen
@@ -83,6 +99,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="chatbubbles" color={color} size={size} focused={focused} />
           ),
+          tabBarBadge: counts.chat > 0 ? (counts.chat > 9 ? '9+' : counts.chat) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
       <Tabs.Screen

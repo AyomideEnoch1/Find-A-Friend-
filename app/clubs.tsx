@@ -8,6 +8,7 @@ import {
   TouchableOpacity, TextInput, RefreshControl, ActivityIndicator, Modal, Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import Toast from 'react-native-toast-message'
@@ -16,6 +17,7 @@ import { getClubs, getMyClubMemberships, createClub, uploadClubCover } from '../
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import ClubCard from '../components/clubs/ClubCard'
+import { useBadgesStore } from '../store/badgesStore'
 import type { Club } from '../lib/clubs'
 
 const CLUB_COLORS = [
@@ -63,6 +65,14 @@ export default function ClubsScreen() {
     })
     if (!result.canceled) setNewCoverUri(result.assets[0].uri)
   }
+
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('clubs_feature')
+    }, [markSeen])
+  )
 
   useEffect(() => { loadClubs() }, [])
 

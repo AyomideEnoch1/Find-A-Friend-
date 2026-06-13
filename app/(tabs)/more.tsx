@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getCurrentProfile, getProfileStats } from '../../lib/profiles'
@@ -15,6 +15,7 @@ import { useTheme } from '../../lib/theme'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import { showTabBar } from '../../lib/tabBarAnim'
 import VerifiedBadge from '../../components/ui/VerifiedBadge'
+import { useBadgesStore } from '../../store/badgesStore'
 
 const features: Array<{
   icon: string; title: string; subtitle: string
@@ -37,8 +38,17 @@ export default function MoreScreen() {
   const { user } = useAuthStore()
   const theme = useTheme()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
+  const counts = useBadgesStore(s => s.counts)
 
-  const loadData = useCallback(async () => {
+  const featureBadges: Record<string, number> = {
+    '/academic': counts.academic,
+    '/clubs': counts.clubs_feature,
+    '/games': counts.games,
+    '/anonymous': counts.anonymous,
+    '/vendors': counts.vendors,
+  }
+
+  const loadData = React.useCallback(async () => {
     setLoading(true)
     Promise.all([getCurrentProfile(), getProfileStats()])
       .then(([p, s]) => {
@@ -50,7 +60,7 @@ export default function MoreScreen() {
   }, [])
 
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       loadData()
     }, [loadData])
   )
@@ -130,25 +140,33 @@ export default function MoreScreen() {
         {/* Features horizontal list */}
         <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Features</Text>
         <View style={[s.featuresList, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {features.map((feature, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[
-                s.featureRow, 
-                i === features.length - 1 && { borderBottomWidth: 0 }, 
-                { borderBottomColor: theme.border2 }
-              ]}
-              onPress={() => router.push(feature.route as any)}>
-              <View style={[s.featureIconWrap, { backgroundColor: feature.bg, borderColor: feature.border }]}>
-                <Text style={s.featureIcon}>{feature.icon}</Text>
-              </View>
-              <View style={s.featureTextWrap}>
-                <Text style={[s.featureTitle, { color: theme.text }]}>{feature.title}</Text>
-                <Text style={[s.featureSub, { color: theme.textMuted }]}>{feature.subtitle}</Text>
-              </View>
-              <Text style={[s.featureArrow, { color: theme.textMuted }]}>›</Text>
-            </TouchableOpacity>
-          ))}
+          {features.map((feature, i) => {
+            const badgeCount = featureBadges[feature.route] || 0
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[
+                  s.featureRow, 
+                  i === features.length - 1 && { borderBottomWidth: 0 }, 
+                  { borderBottomColor: theme.border2 }
+                ]}
+                onPress={() => router.push(feature.route as any)}>
+                <View style={[s.featureIconWrap, { backgroundColor: feature.bg, borderColor: feature.border }]}>
+                  <Text style={s.featureIcon}>{feature.icon}</Text>
+                </View>
+                <View style={s.featureTextWrap}>
+                  <Text style={[s.featureTitle, { color: theme.text }]}>{feature.title}</Text>
+                  <Text style={[s.featureSub, { color: theme.textMuted }]}>{feature.subtitle}</Text>
+                </View>
+                {badgeCount > 0 && (
+                  <View style={s.badge}>
+                    <Text style={s.badgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
+                  </View>
+                )}
+                <Text style={[s.featureArrow, { color: theme.textMuted }]}>›</Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         <View style={{ height: 40 }} />
@@ -226,4 +244,18 @@ const s = StyleSheet.create({
   featureTitle: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
   featureSub: { fontSize: 11 },
   featureArrow: { fontSize: 20 },
+  badge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
 })

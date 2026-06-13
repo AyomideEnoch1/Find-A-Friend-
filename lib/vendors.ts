@@ -21,6 +21,7 @@ export interface Vendor {
   description: string | null
   icon: string | null
   logo_url: string | null
+  cover_url: string | null
   location_text: string
   map_location_id: string | null
   is_approved: boolean
@@ -59,6 +60,7 @@ export interface VendorApplicationPayload {
   icon?: string
   locationText: string
   mapLocationId?: string
+  cover_url?: string
 }
 
 export interface CreateListingPayload {
@@ -150,6 +152,31 @@ export async function getVendorDetail(vendorId: string): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// My vendor detail
+// ---------------------------------------------------------------------------
+
+export async function getMyVendor(): Promise<{
+  data: VendorWithDeals | null
+  error: Error | null
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*, vendor_deals(*)')
+      .eq('owner_id', user.id)
+      .maybeSingle()
+
+    if (error) throw error
+    return { data: data as VendorWithDeals, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // All active deals (across all approved vendors)
 // ---------------------------------------------------------------------------
 
@@ -215,6 +242,7 @@ export async function applyAsVendor(payload: VendorApplicationPayload): Promise<
         icon: payload.icon ?? null,
         location_text: payload.locationText,
         map_location_id: payload.mapLocationId ?? null,
+        cover_url: payload.cover_url ?? null,
         is_approved: false,
       })
       .select()
@@ -254,6 +282,58 @@ export async function createListing(payload: CreateListingPayload): Promise<{
     return { data: data as VendorDeal, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Update a deal listing
+// ---------------------------------------------------------------------------
+
+export async function updateDeal(dealId: string, payload: Partial<CreateListingPayload>): Promise<{
+  data: VendorDeal | null
+  error: Error | null
+}> {
+  try {
+    const updateData: any = {}
+    if (payload.title !== undefined) updateData.title = payload.title
+    if (payload.description !== undefined) updateData.description = payload.description
+    if (payload.discount !== undefined) updateData.discount = payload.discount
+    if (payload.howToRedeem !== undefined) updateData.how_to_redeem = payload.howToRedeem
+    if (payload.validFrom !== undefined) updateData.valid_from = payload.validFrom
+    if (payload.validUntil !== undefined) updateData.valid_until = payload.validUntil
+
+    const { data, error } = await supabase
+      .from('vendor_deals')
+      .update(updateData)
+      .eq('id', dealId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as VendorDeal, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Delete a deal listing
+// ---------------------------------------------------------------------------
+
+export async function deleteDeal(dealId: string): Promise<{
+  data: boolean
+  error: Error | null
+}> {
+  try {
+    const { error } = await supabase
+      .from('vendor_deals')
+      .delete()
+      .eq('id', dealId)
+
+    if (error) throw error
+    return { data: true, error: null }
+  } catch (err) {
+    return { data: false, error: err as Error }
   }
 }
 
@@ -387,6 +467,29 @@ export async function uploadVendorLogo(uri: string): Promise<{
 
     const ext = uri.split('.').pop() ?? 'jpg'
     const path = `${user.id}/${Date.now()}.${ext}`
+    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+
+    const publicUrl = await uploadFile('vendor-assets', path, uri, mimeType)
+    return { data: publicUrl, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Upload vendor cover
+// ---------------------------------------------------------------------------
+
+export async function uploadVendorCover(uri: string): Promise<{
+  data: string | null
+  error: Error | null
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const ext = uri.split('.').pop() ?? 'jpg'
+    const path = `${user.id}/cover_${Date.now()}.${ext}`
     const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
     const publicUrl = await uploadFile('vendor-assets', path, uri, mimeType)

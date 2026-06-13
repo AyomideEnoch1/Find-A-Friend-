@@ -11,8 +11,10 @@ import { useStickerStore } from '../store/stickerStore'
 interface StickerPickerProps {
   visible: boolean
   onClose: () => void
-  onSelectSticker: (url: string) => void
+  onSelectSticker: (url: string, type: 'image' | 'video') => void
 }
+
+const isVideo = (url: string) => /\.(mp4|mov|webm)$/i.test(url)
 
 const { height: screenHeight } = Dimensions.get('window')
 
@@ -26,13 +28,22 @@ export function StickerPicker({ visible, onClose, onSelectSticker }: StickerPick
     }
   }, [visible, loaded, loading])
 
-  const renderItem = ({ item }: { item: { id: string, media_url: string } }) => (
+  const renderItem = ({ item }: { item: { id: string, media_url: string } }) => {
+    const video = isVideo(item.media_url)
+    return (
     <View style={s.stickerItemWrap}>
       <TouchableOpacity
-        style={[s.stickerItem, { borderColor: theme.border }]}
-        onPress={() => onSelectSticker(item.media_url)}
+        style={[s.stickerItem, { borderColor: theme.border, backgroundColor: video ? 'black' : 'rgba(255,255,255,0.02)' }]}
+        onPress={() => onSelectSticker(item.media_url, video ? 'video' : 'image')}
       >
-        <Image source={{ uri: item.media_url }} style={s.stickerImg} resizeMode="contain" />
+        {video ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="videocam" size={24} color="white" />
+            <Text style={{ color: 'white', fontSize: 10, marginTop: 4 }}>VIDEO</Text>
+          </View>
+        ) : (
+          <Image source={{ uri: item.media_url }} style={s.stickerImg} resizeMode="contain" />
+        )}
       </TouchableOpacity>
       <TouchableOpacity
         style={s.deleteBtn}
@@ -41,7 +52,7 @@ export function StickerPicker({ visible, onClose, onSelectSticker }: StickerPick
         <Ionicons name="close-circle" size={20} color={theme.textMuted} />
       </TouchableOpacity>
     </View>
-  )
+  )}
 
   return (
     <Modal

@@ -3,7 +3,7 @@ import {
   StyleSheet, TextInput, ActivityIndicator, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'

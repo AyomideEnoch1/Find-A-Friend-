@@ -176,8 +176,14 @@ export default function VendorDetailScreen() {
 
             {/* Vendor hero */}
             <View style={[s.hero, { backgroundColor: accentColor + '18' }]}>
+              {vendor.cover_url && (
+                <Image source={{ uri: vendor.cover_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              )}
+              {vendor.cover_url && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
+              )}
               {vendor.logo_url ? (
-                <Image source={{ uri: vendor.logo_url }} style={s.heroLogo} resizeMode="contain" />
+                <Image source={{ uri: vendor.logo_url }} style={[s.heroLogo, vendor.cover_url ? { borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' } : {}]} resizeMode="contain" />
               ) : (
                 <Text style={s.heroEmoji}>{vendor.icon ?? '🏪'}</Text>
               )}

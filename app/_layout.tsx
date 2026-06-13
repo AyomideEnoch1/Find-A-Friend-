@@ -12,9 +12,11 @@ import { useThemeStore } from '../store/themeStore'
 import { useNotificationsStore } from '../store/notificationsStore'
 import { usePresenceStore } from '../store/presenceStore'
 import { useFeedStore } from '../store/feedStore'
+import { useStreakStore } from '../store/streakStore'
 import { ThemeProvider, useTheme } from '../lib/theme'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { WebPushBanner } from '../components/WebPushBanner'
+import { StreakModal } from '../components/StreakModal'
 import { GAME_META, type GameType } from '../lib/games'
 import { registerForPushNotifications, savePushToken } from '../lib/notifications'
 import * as Notifications from 'expo-notifications'
@@ -74,6 +76,9 @@ function AppStack() {
     // Load initial unread count
     loadUnreadCount();
 
+    // Check streak
+    useStreakStore.getState().recordDailyActivity();
+
     // ── Presence channel ────────────────────────────────────────────────────
     // Supabase Presence automatically removes users when they disconnect
     // (app killed, network loss, crash) — far more reliable than writing to DB.
@@ -110,6 +115,8 @@ function AppStack() {
         registerForPushNotifications().then(token => { if (token) savePushToken(token) })
         // Pick up any OTA update that landed while the app was backgrounded
         checkForUpdate()
+        // Check daily streak
+        useStreakStore.getState().recordDailyActivity()
       } else {
         try {
           await presenceChannelRef.current.untrack()
@@ -446,6 +453,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
           <AppStack />
+          <StreakModal />
           <Toast />
         </ThemeProvider>
       </ErrorBoundary>

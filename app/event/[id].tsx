@@ -148,11 +148,18 @@ export default function EventDetailScreen() {
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
           {(event.organizer_id === myUserId) && (
-            <TouchableOpacity
-              style={[s.backBtn, { left: undefined, right: 16, backgroundColor: 'rgba(239, 68, 68, 0.8)' }]}
-              onPress={handleDeleteEvent}>
-              <Ionicons name="trash-outline" size={20} color="#fff" />
-            </TouchableOpacity>
+            <View style={s.actionBtnsRight}>
+              <TouchableOpacity
+                style={[s.actionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+                onPress={() => router.push(`/edit-event/${event.id}` as any)}>
+                <Ionicons name="pencil-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.actionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.8)' }]}
+                onPress={handleDeleteEvent}>
+                <Ionicons name="trash-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -270,6 +277,14 @@ const s = StyleSheet.create({
     position: 'absolute', top: 48, left: 16,
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  actionBtnsRight: {
+    position: 'absolute', top: 48, right: 16,
+    flexDirection: 'row', gap: 8,
+  },
+  actionBtn: {
+    width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
   content: { padding: 20 },

@@ -1,11 +1,11 @@
-import { useRef, useCallback } from 'react'
+import React, { useRef } from 'react'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 import { hideTabBar, showTabBar } from './tabBarAnim'
 
 export function useTabBarScroll() {
   const lastY = useRef(0)
 
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const onScroll = React.useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y
     const dy = y - lastY.current
     lastY.current = y

@@ -271,3 +271,74 @@ export async function sendLocalNotification(
     console.log('Could not send notification:', error)
   }
 }
+
+export async function scheduleEventReminders(
+  eventId: string,
+  title: string,
+  startsAt: string
+): Promise<void> {
+  try {
+    const startDate = new Date(startsAt)
+    if (isNaN(startDate.getTime())) return
+
+    // 1 week before
+    const weekBefore = new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000)
+    if (weekBefore > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `event-${eventId}-week`,
+        content: {
+          title: 'Upcoming Event 🗓️',
+          body: `${title} is coming up in exactly one week!`,
+          data: { route: `/event/${eventId}` },
+          sound: true,
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: weekBefore },
+      })
+    }
+
+    // 1 day before
+    const dayBefore = new Date(startDate.getTime() - 24 * 60 * 60 * 1000)
+    if (dayBefore > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `event-${eventId}-day`,
+        content: {
+          title: 'Event Tomorrow!',
+          body: `Don't forget, ${title} is happening tomorrow!`,
+          data: { route: `/event/${eventId}` },
+          sound: true,
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: dayBefore },
+      })
+    }
+
+    // 1 hour before
+    const hourBefore = new Date(startDate.getTime() - 60 * 60 * 1000)
+    if (hourBefore > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `event-${eventId}-hour`,
+        content: {
+          title: 'Starting soon ⏳',
+          body: `${title} starts in one hour. Get ready!`,
+          data: { route: `/event/${eventId}` },
+          sound: true,
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: hourBefore },
+      })
+    }
+
+    console.log(`[Notifications] Reminders scheduled for event ${eventId}`)
+  } catch (error) {
+    console.log('[Notifications] Could not schedule event reminders:', error)
+  }
+}
+
+export async function cancelEventReminders(eventId: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(`event-${eventId}-week`)
+    await Notifications.cancelScheduledNotificationAsync(`event-${eventId}-day`)
+    await Notifications.cancelScheduledNotificationAsync(`event-${eventId}-hour`)
+    console.log(`[Notifications] Reminders cancelled for event ${eventId}`)
+  } catch (error) {
+    console.log('[Notifications] Could not cancel event reminders:', error)
+  }
+}

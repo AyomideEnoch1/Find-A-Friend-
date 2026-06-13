@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app/vendor-apply.tsx
  * Vendor application form — name, category, description, location.
  */
@@ -6,12 +6,14 @@ import React, { useState } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { applyAsVendor } from '../lib/vendors'
+import { applyAsVendor, uploadVendorCover } from '../lib/vendors'
 import { useTheme } from '../lib/theme'
+import * as ImagePicker from 'expo-image-picker'
 
 const CATEGORIES = ['Food', 'Fashion', 'Tech', 'Beauty', 'Books', 'Health', 'Services']
 
@@ -25,19 +27,40 @@ export default function VendorApplyScreen() {
   const [locationText, setLocationText] = useState('')
   const [icon, setIcon] = useState('🏪')
   const [submitting, setSubmitting] = useState(false)
+  const [coverUri, setCoverUri] = useState<string | null>(null)
 
   const canSubmit = name.trim().length > 0 && category.length > 0 && locationText.trim().length > 0
+
+  const handlePickCover = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets[0]) {
+      setCoverUri(result.assets[0].uri)
+    }
+  }
 
   const handleSubmit = async () => {
     if (!canSubmit) return
     setSubmitting(true)
     try {
+      let finalCoverUrl: string | undefined = undefined
+      if (coverUri) {
+        const { data: uploadUrl, error: uploadErr } = await uploadVendorCover(coverUri)
+        if (uploadErr) throw uploadErr
+        if (uploadUrl) finalCoverUrl = uploadUrl
+      }
+
       const { data, error } = await applyAsVendor({
         name: name.trim(),
         category,
         description: description.trim() || undefined,
         icon,
         locationText: locationText.trim(),
+        cover_url: finalCoverUrl,
       })
       if (error) throw error
       Alert.alert(
@@ -102,6 +125,19 @@ export default function VendorApplyScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {/* Cover Image */}
+          <Text style={s.label}>Cover Image <Text style={s.optional}>(optional)</Text></Text>
+          <TouchableOpacity style={s.coverPicker} onPress={handlePickCover}>
+            {coverUri ? (
+              <Image source={{ uri: coverUri }} style={s.coverPreview} />
+            ) : (
+              <View style={s.coverPlaceholder}>
+                <Ionicons name="image-outline" size={32} color="rgba(240,240,255,0.2)" />
+                <Text style={s.coverPlaceholderText}>Tap to add cover photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Business name */}
           <Text style={s.label}>Business Name <Text style={s.required}>*</Text></Text>
@@ -232,5 +268,17 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.06)',
   },
   termsText: { flex: 1, fontSize: 11, color: 'rgba(240,240,255,0.3)', lineHeight: 16 },
+  coverPicker: {
+    height: 120, borderRadius: 12, backgroundColor: '#1c1c2e',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 16, overflow: 'hidden',
+  },
+  coverPreview: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  coverPlaceholderText: {
+    fontSize: 12, color: 'rgba(240,240,255,0.4)', fontWeight: '500',
+  },
 })
 

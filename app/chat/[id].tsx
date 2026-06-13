@@ -940,7 +940,7 @@ export default function DirectMessageScreen() {
           onReact={emoji => addReaction(selectedMsg.id, emoji)}
           onReply={() => handleReply(selectedMsg)}
           onSaveSticker={
-            parseAttachment(selectedMsg.body)?._type === 'image' 
+            parseAttachment(selectedMsg.body)
               ? async () => {
                   const url = parseAttachment(selectedMsg.body)!.url
                   const { error } = await addSticker(url)
@@ -955,9 +955,9 @@ export default function DirectMessageScreen() {
       <StickerPicker 
         visible={showStickerPicker}
         onClose={() => setShowStickerPicker(false)}
-        onSelectSticker={(url) => {
+        onSelectSticker={(url, type) => {
           setShowStickerPicker(false)
-          const attach: Attachment = { _type: 'image', url, width: 800, height: 800 }
+          const attach: Attachment = { _type: type, url, width: 800, height: 800 }
           const body = JSON.stringify(attach)
           const optimistic = {
             id: `opt_${Date.now()}`, _optimistic: true,

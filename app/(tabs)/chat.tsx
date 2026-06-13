@@ -8,7 +8,8 @@ import Animated, {
   withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState, useEffect, useCallback } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
+import React, { useState, useEffect, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
@@ -20,6 +21,7 @@ import { typography } from '../../lib/typography'
 import { usePresenceStore } from '../../store/presenceStore'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import Toast from 'react-native-toast-message'
+import { useBadgesStore } from '../../store/badgesStore'
 
 // ─── Pulsing online dot ───────────────────────────────────────────────────────
 function PulseOnlineDot({ style }: { style?: object }) {
@@ -155,6 +157,13 @@ export default function ChatScreen() {
   const [convSearch, setConvSearch] = useState('')
   const theme = useTheme()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('chat')
+    }, [markSeen])
+  )
 
   const loadConversations = useCallback(async () => {
     try {

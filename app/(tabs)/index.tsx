@@ -13,9 +13,12 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useFocusEffect } from '@react-navigation/native'
 import { router } from 'expo-router'
 import { useFeedStore } from '../../store/feedStore'
 import { useNotificationsStore } from '../../store/notificationsStore'
+import { useBadgesStore } from '../../store/badgesStore'
+import { useStreakStore } from '../../store/streakStore'
 import PostCard from '../../components/feed/PostCard'
 import StoriesRow from '../../components/feed/StoriesRow'
 import StoryViewer from '../../components/stories/StoryViewer'
@@ -42,19 +45,34 @@ export default function HomeScreen() {
   } = useFeedStore()
 
   const { unreadCount, loadUnreadCount } = useNotificationsStore()
+  const { currentStreak, hasLoaded } = useStreakStore()
   const theme = useTheme()
+  const markSeen = useBadgesStore(s => s.markSeen)
 
   const [firstName, setFirstName] = useState<string | null>(null)
   const lastScrollY = useRef(0)
 
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('home')
+      if (posts.length === 0) {
+        showTabBar()
+      }
+    }, [markSeen, posts.length])
+  )
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (posts.length === 0) {
+      showTabBar()
+      return
+    }
     const y = e.nativeEvent.contentOffset.y
     const dy = y - lastScrollY.current
     lastScrollY.current = y
     if (y < 50) { showTabBar(); return }
     if (dy > 8) hideTabBar()
     else if (dy < -8) showTabBar()
-  }, [])
+  }, [posts.length])
 
   useEffect(() => {
     loadFeed()
@@ -109,11 +127,6 @@ export default function HomeScreen() {
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={s.logo}>FAF</Text>
-            <Image 
-              source={require('../../assets/images/adaptive-icon.png')} 
-              style={{ width: 28, height: 28 }} 
-              resizeMode="contain" 
-            />
           </View>
           {firstName && (
             <Text style={[s.greeting, { color: theme.textMuted }]}>{getGreeting()}, {firstName} 👋</Text>
@@ -121,6 +134,13 @@ export default function HomeScreen() {
         </View>
       </View>
       <View style={s.headerRight}>
+        {hasLoaded && currentStreak > 0 && (
+          <View style={[s.streakBadge, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
+            <Ionicons name="flame" size={16} color="#f97316" />
+            <Text style={s.streakText}>{currentStreak}</Text>
+          </View>
+        )}
+
         <TouchableOpacity
           style={[s.iconBtn, { backgroundColor: theme.card }]}
           onPress={handleRefresh}
@@ -251,6 +271,13 @@ const s = StyleSheet.create({
   tabPill: {
     borderRadius: 20, borderWidth: 1,
     paddingHorizontal: 18, paddingVertical: 5,
+  },
+  streakBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+  },
+  streakText: {
+    color: '#f97316', fontSize: 13, fontFamily: typography.fontBold,
   },
   listContent: { paddingBottom: 148 },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },

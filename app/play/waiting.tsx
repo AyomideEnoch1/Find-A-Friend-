@@ -198,8 +198,8 @@ export default function WaitingScreen() {
     // For Trivia or Wordle, generate the secret/set immediately
     let initialState: any = {}
     if (gt === 'trivia') {
-      const { pickQuestionIndices } = require('../../lib/triviaQuestions')
-      initialState = { q_indices: pickQuestionIndices(10) }
+      const { pickUniqueQuestionIndices } = require('../../lib/triviaQuestions')
+      initialState = { q_indices: await pickUniqueQuestionIndices(10) }
     } else if (gt === 'wordle') {
       // Pick a random word from the constant list in wordle.tsx (copied here or exported)
       // Since WORDS is local to wordle.tsx, I'll just pick one here manually or export it
@@ -220,6 +220,30 @@ export default function WaitingScreen() {
       .single()
 
     if (err || !data) { setError('Could not create session'); return }
+
+    // Double check for race conditions (duplicate sessions)
+    if (guestId) {
+      const { data: duplicates } = await supabase
+        .from('live_game_sessions')
+        .select('id, created_at')
+        .eq('game_type', gt)
+        .in('status', ['waiting', 'active'])
+        .or(
+          `and(host_id.eq.${hostId},guest_id.eq.${guestId}),` +
+          `and(host_id.eq.${guestId},guest_id.eq.${hostId})`
+        )
+        .order('created_at', { ascending: true })
+
+      if (duplicates && duplicates.length > 1) {
+        // If ours is not the oldest one, delete ours and join the oldest one instead
+        if (duplicates[0].id !== data.id) {
+          await supabase.from('live_game_sessions').delete().eq('id', data.id)
+          await joinSession(duplicates[0].id, hostId)
+          return
+        }
+      }
+    }
+
     setSessionId(data.id)
     setPhase('waiting')
     subscribeToSession(data.id, hostId)

@@ -355,7 +355,7 @@ export default function StudyGroupDetailScreen() {
         <FlatList
           data={[]}
           keyExtractor={() => 'empty'}
-          renderItem={null}
+          renderItem={() => null}
           ListHeaderComponent={renderTabContent()}
           scrollEnabled
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 80 }}

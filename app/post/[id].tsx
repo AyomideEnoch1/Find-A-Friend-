@@ -5,6 +5,7 @@ import {
   TouchableOpacity, ActivityIndicator, KeyboardAvoidingView,
   Platform, Image, Alert, Share, Pressable, Linking,
 } from 'react-native'
+import { Video, ResizeMode } from 'expo-av'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -288,7 +289,10 @@ export default function PostDetailScreen() {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(`mailto:${part}`).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: `mailto:${part}`, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -300,7 +304,10 @@ export default function PostDetailScreen() {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(url).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(url).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: url, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -327,7 +334,10 @@ export default function PostDetailScreen() {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(`mailto:${part}`).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(`mailto:${part}`).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: `mailto:${part}`, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -339,7 +349,10 @@ export default function PostDetailScreen() {
               <Text
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: 'underline' }}
-                onPress={() => Linking.openURL(url).catch(() => {})}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Linking.openURL(url).catch(() => {})
+                }}
+                {...(Platform.OS === 'web' ? { href: url, accessibilityRole: 'link', target: '_blank' } as any : {})}
               >
                 {part}
               </Text>
@@ -362,7 +375,7 @@ export default function PostDetailScreen() {
         { text: 'Reply', onPress: () => { setReplyingTo(item); inputRef.current?.focus() } }
       ]
 
-      if (item.media_url && item.media_type !== 'video') {
+      if (item.media_url) {
         options.push({
           text: '⭐ Save as Sticker',
           onPress: async () => {
@@ -497,7 +510,18 @@ export default function PostDetailScreen() {
       <View style={s.bodySection}>
         {quoteText ? renderBody(quoteText) : null}
         {post.image_url && !isRepost
-          ? <Image source={{ uri: post.image_url }} style={[s.postImage, { borderColor: theme.border }]} resizeMode="cover" />
+          ? (
+              post.image_url.match(/\.(mp4|mov|webm)$/i) ? (
+                <Video
+                  source={{ uri: post.image_url }}
+                  style={[s.postImage, { borderColor: theme.border }]}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                />
+              ) : (
+                <Image source={{ uri: post.image_url }} style={[s.postImage, { borderColor: theme.border }]} resizeMode="cover" />
+              )
+            )
           : null}
 
         {/* Nested original post card (X/Twitter Quote style) */}
@@ -537,11 +561,20 @@ export default function PostDetailScreen() {
             </View>
             {orig.body ? renderBody(orig.body, true) : null}
             {orig.image_url ? (
-              <Image
-                source={{ uri: orig.image_url }}
-                style={[s.repostMedia, { borderColor: theme.border }]}
-                resizeMode="cover"
-              />
+              orig.image_url.match(/\.(mp4|mov|webm)$/i) ? (
+                <Video
+                  source={{ uri: orig.image_url }}
+                  style={[s.repostMedia, { borderColor: theme.border }]}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                />
+              ) : (
+                <Image
+                  source={{ uri: orig.image_url }}
+                  style={[s.repostMedia, { borderColor: theme.border }]}
+                  resizeMode="cover"
+                />
+              )
             ) : null}
           </TouchableOpacity>
         ) : null}
@@ -714,8 +747,8 @@ export default function PostDetailScreen() {
       <StickerPicker 
         visible={showStickerPicker} 
         onClose={() => setShowStickerPicker(false)}
-        onSelectSticker={(url) => {
-          setAttachMedia({ url, type: 'image' })
+        onSelectSticker={(url, type) => {
+          setAttachMedia({ url, type })
           setShowStickerPicker(false)
         }}
       />

@@ -48,6 +48,7 @@ export default function StoryViewer() {
   const progressAnim = useRef(new Animated.Value(0)).current
   const progressRef  = useRef<Animated.CompositeAnimation | null>(null)
   const [paused, setPaused] = useState(false)
+  const [mediaLoaded, setMediaLoaded] = useState(false)
 
   // Reactions + comments
   const [myReaction,     setMyReaction]     = useState<string | null>(null)
@@ -78,22 +79,28 @@ export default function StoryViewer() {
   }, [story, progressAnim, handleNext])
 
   useEffect(() => {
-    if (visible && story) {
+    if (visible && story?.id) {
+      setMediaLoaded(false)
       markViewed(story.id)
+    }
+  }, [story?.id, visible])
+
+  useEffect(() => {
+    if (visible && story && mediaLoaded) {
       if (!paused) startProgress()
     }
     return () => {
       progressRef.current?.stop()
     }
-  }, [viewerGroupId, viewerIndex, visible, startProgress])
+  }, [viewerGroupId, viewerIndex, visible, startProgress, mediaLoaded])
 
   useEffect(() => {
-    if (paused) {
+    if (paused || !mediaLoaded) {
       progressRef.current?.stop()
-    } else if (visible && story) {
+    } else if (visible && story && mediaLoaded) {
       startProgress()
     }
-  }, [paused])
+  }, [paused, mediaLoaded, visible, story])
 
   // Load current user's reaction when story changes
   useEffect(() => {
@@ -230,12 +237,21 @@ export default function StoryViewer() {
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
       <StatusBar hidden />
       <View style={s.container}>
-        {/* Story image */}
+        {/* Story media */}
         <Image
           source={{ uri: story.media_url }}
           style={s.media}
           resizeMode="cover"
+          onLoadStart={() => setMediaLoaded(false)}
+          onLoad={() => setMediaLoaded(true)}
         />
+
+        {/* Loading Indicator */}
+        {!mediaLoaded && (
+          <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        )}
 
         {/* Dark gradient overlay */}
         <View style={s.topGradient} />

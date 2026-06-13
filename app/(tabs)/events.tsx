@@ -4,6 +4,7 @@ import {
   RefreshControl, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { getEvents, getMyRsvps } from '../../lib/events'
@@ -13,6 +14,7 @@ import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import { showTabBar } from '../../lib/tabBarAnim'
+import { useBadgesStore } from '../../store/badgesStore'
 import type { Event } from '../../lib/events'
 
 type Tab = 'upcoming' | 'rsvps' | 'past'
@@ -75,6 +77,13 @@ export default function EventsScreen() {
   })
   const theme = useTheme()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('events')
+    }, [markSeen])
+  )
 
   useEffect(() => {
     setSelectedDay(null)

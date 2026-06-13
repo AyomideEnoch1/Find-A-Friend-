@@ -8,6 +8,7 @@ import {
   RefreshControl, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { getAnonymousPosts } from '../lib/anonymous'
@@ -16,6 +17,7 @@ import CommentSheet from '../components/feed/CommentSheet'
 import type { AnonymousPost } from '../lib/anonymous'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
+import { useBadgesStore } from '../store/badgesStore'
 
 export default function AnonymousScreen() {
   const [posts, setPosts] = useState<AnonymousPost[]>([])
@@ -26,6 +28,13 @@ export default function AnonymousScreen() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [commentPostId, setCommentPostId] = useState<string | null>(null)
   const theme = useTheme()
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('anonymous')
+    }, [markSeen])
+  )
 
   useEffect(() => {
     loadPosts()

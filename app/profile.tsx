@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getCurrentProfile, getProfileStats, updateProfile } from '../lib/profiles'
 import type { Profile, ProfileStats } from '../lib/profiles'
 import { getUserFeedPosts, getBookmarkedPosts } from '../lib/feed'
+import { getMyVendor } from '../lib/vendors'
 import type { FeedPost } from '../lib/feed'
 import { getInitials } from '../lib/matching'
 import { useAuthStore } from '../store/authStore'
@@ -54,15 +55,17 @@ export default function ProfileScreen() {
   const [activeTab,  setActiveTab]  = useState<ProfileTab>('posts')
   const [userPosts,  setUserPosts]  = useState<FeedPost[]>([])
   const [bookmarks,  setBookmarks]  = useState<FeedPost[]>([])
+  const [hasVendor,  setHasVendor]  = useState(false)
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [p, s] = await Promise.all([getCurrentProfile(), getProfileStats()])
+      const [p, s, v] = await Promise.all([getCurrentProfile(), getProfileStats(), getMyVendor()])
       setProfile(p)
       setStats(s)
+      if (v.data) setHasVendor(true)
       setFullName(p?.full_name ?? '')
       setBio(p?.bio ?? '')
       setInterests(p?.interests ?? [])
@@ -332,6 +335,14 @@ export default function ProfileScreen() {
         Account
       </Text>
       <View style={[s.menuList, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        {hasVendor && (
+          <TouchableOpacity style={[s.menuItem, { borderBottomColor: theme.border }]}
+            onPress={() => router.push('/manage-vendor' as any)}>
+            <Ionicons name="storefront-outline" size={19} color={theme.accent} />
+            <Text style={[s.menuLabel, { color: theme.text, fontFamily: typography.fontSemiBold }]}>Vendor Dashboard</Text>
+            <Ionicons name="chevron-forward" size={15} color={theme.textFaint} />
+          </TouchableOpacity>
+        )}
         {ACCOUNT_MENU.map((item, i) => (
           <TouchableOpacity key={i} style={[s.menuItem, { borderBottomColor: theme.border }]}
             onPress={() => router.push(item.route as any)}>

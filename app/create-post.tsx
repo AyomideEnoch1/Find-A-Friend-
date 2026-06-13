@@ -23,8 +23,10 @@ import * as ImagePicker from 'expo-image-picker'
 import { createPost } from '../lib/feed'
 import { getClubs } from '../lib/clubs'
 import { supabase } from '../lib/supabase'
+import { uploadFile } from '../lib/upload'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
+import { Video, ResizeMode } from 'expo-av'
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://vcbtvhociaioeyhhsczh.supabase.co'
 
@@ -40,6 +42,7 @@ export default function CreatePostScreen() {
   const theme = useTheme()
   const [body, setBody] = useState('')
   const [imageUri, setImageUri] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null)
   const [postType, setPostType] = useState<PostType>('feed')
   const [clubs, setClubs] = useState<Club[]>([])
   const [selectedClub, setSelectedClub] = useState<Club | null>(null)
@@ -64,34 +67,27 @@ export default function CreatePostScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: false,
       quality: 0.75,
     })
-    if (!result.canceled) setImageUri(result.assets[0].uri)
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri)
+      setMediaType(result.assets[0].type === 'video' ? 'video' : 'image')
+    }
   }
 
-  const uploadImage = async (uri: string): Promise<string> => {
+  const uploadMedia = async (uri: string): Promise<string> => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Not authenticated')
-    const ext = uri.split('.').pop() ?? 'jpg'
+    const ext = uri.split('.').pop()?.toLowerCase() ?? (mediaType === 'video' ? 'mp4' : 'jpg')
     const path = `${session.user.id}/${Date.now()}.${ext}`
-    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+    let mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+    if (mediaType === 'video' || ext === 'mp4') mimeType = 'video/mp4'
+    else if (ext === 'mov') mimeType = 'video/quicktime'
+    else if (ext === 'webm') mimeType = 'video/webm'
 
-    const formData = new FormData()
-    formData.append('file', { uri, name: `upload.${ext}`, type: mimeType } as any)
-
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/posts-media/${path}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
-      body: formData,
-    })
-    if (!res.ok) {
-      const msg = await res.text().catch(() => `HTTP ${res.status}`)
-      throw new Error(`Image upload failed: ${msg}`)
-    }
-    const { data } = supabase.storage.from('posts-media').getPublicUrl(path)
-    return data.publicUrl
+    return await uploadFile('posts-media', path, uri, mimeType)
   }
 
   const handlePost = async () => {
@@ -107,7 +103,7 @@ export default function CreatePostScreen() {
     setPosting(true)
     try {
       let imageUrl: string | null = null
-      if (imageUri) imageUrl = await uploadImage(imageUri)
+      if (imageUri) imageUrl = await uploadMedia(imageUri)
 
       const { error } = await createPost({
         body: trimmed,
@@ -237,13 +233,27 @@ export default function CreatePostScreen() {
             <Text style={s.charCount}>{body.length}/500</Text>
           </View>
 
-          {/* Image preview */}
+          {/* Media preview */}
           {imageUri && (
             <View style={s.imagePreview}>
-              <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="cover" />
+              {mediaType === 'video' ? (
+                <Video
+                  source={{ uri: imageUri }}
+                  style={s.previewImg}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                  shouldPlay
+                  isLooping
+                />
+              ) : (
+                <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="cover" />
+              )}
               <TouchableOpacity
                 style={s.removeImg}
-                onPress={() => setImageUri(null)}>
+                onPress={() => {
+                  setImageUri(null)
+                  setMediaType(null)
+                }}>
                 <Ionicons name="close-circle" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -253,7 +263,7 @@ export default function CreatePostScreen() {
           <TouchableOpacity style={s.mediaBtn} onPress={pickImage}>
             <Ionicons name="image-outline" size={18} color="rgba(240,240,255,0.5)" />
             <Text style={s.mediaBtnText}>
-              {imageUri ? 'Change photo' : 'Add photo'}
+              {imageUri ? 'Change media' : 'Add photo/video'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

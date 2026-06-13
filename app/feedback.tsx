@@ -1122,8 +1122,7 @@ const cb = StyleSheet.create({
     fontSize: 14,
     fontFamily: typography.fontRegular,
     lineHeight: 20,
-    minHeight: 20,
-    maxHeight: 20,
+    minHeight: 40,
     textAlignVertical: "top",
   },
   bottomRow: {

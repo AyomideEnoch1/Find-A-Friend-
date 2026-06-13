@@ -8,12 +8,14 @@ import {
   TouchableOpacity, TextInput, RefreshControl, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { getVendorsWithDeals } from '../lib/vendors'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import VendorCard from '../components/vendors/VendorCard'
+import { useBadgesStore } from '../store/badgesStore'
 import type { VendorWithDeals } from '../lib/vendors'
 
 const CATEGORIES = ['All', 'Food', 'Fashion', 'Tech', 'Beauty', 'Books', 'Health', 'Services']
@@ -26,6 +28,13 @@ export default function VendorsScreen() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
   const [error, setError] = useState<string | null>(null)
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('vendors')
+    }, [markSeen])
+  )
 
   useEffect(() => { loadVendors() }, [])
 

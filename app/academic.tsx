@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import {
@@ -21,6 +22,7 @@ import type { Course, StudyGroup, AcademicResource } from '../lib/academic'
 import { getTimeAgo } from '../lib/matching'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
+import { useBadgesStore } from '../store/badgesStore'
 
 type Tab = 'courses' | 'groups' | 'resources'
 
@@ -159,6 +161,13 @@ function ResourceRow({ resource }: { resource: AcademicResource }) {
 export default function AcademicScreen() {
   const theme = useTheme()
   const [activeTab, setActiveTab] = useState<Tab>('courses')
+  const markSeen = useBadgesStore(s => s.markSeen)
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('academic')
+    }, [markSeen])
+  )
 
   const [courses, setCourses] = useState<Course[]>([])
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([])

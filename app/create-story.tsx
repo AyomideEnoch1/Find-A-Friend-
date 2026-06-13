@@ -93,15 +93,7 @@ export default function CreateStoryScreen() {
       {/* Preview */}
       {mediaUri ? (
         <View style={s.previewWrap}>
-          {mediaType === 'video' ? (
-            <View style={[s.preview, s.videoPlaceholder]}>
-              <Ionicons name="videocam" size={64} color="rgba(255,255,255,0.4)" />
-              <Text style={s.videoPlaceholderText}>Video selected</Text>
-              <Text style={s.videoPlaceholderSub}>Preview not available — tap Share to post</Text>
-            </View>
-          ) : (
-            <Image source={{ uri: mediaUri }} style={s.preview} resizeMode="cover" />
-          )}
+          <Image source={{ uri: mediaUri }} style={s.preview} resizeMode="cover" />
           <TouchableOpacity
             style={s.changeBtn}
             onPress={pickMedia}>

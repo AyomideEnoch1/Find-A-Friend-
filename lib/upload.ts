@@ -32,28 +32,44 @@ export async function uploadFile(
 
   const ext = mimeType.split('/')[1]?.split(';')[0] ?? uri.split('.').pop() ?? 'bin'
 
-  const formData = new FormData()
   if (Platform.OS === 'web') {
+    const formData = new FormData()
     const resBlob = await fetch(uri)
     const blob = await resBlob.blob()
     formData.append('file', blob, `upload.${ext}`)
+
+    const method = upsert ? 'PUT' : 'POST'
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'x-upsert': upsert ? 'true' : 'false',
+      },
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.status.toString())
+      throw new Error(`Upload to ${bucket} failed: ${text}`)
+    }
   } else {
-    formData.append('file', { uri, name: `upload.${ext}`, type: mimeType } as any)
-  }
+    // React Native: Read as base64 and upload using base64-arraybuffer
+    const { readAsStringAsync, EncodingType } = await import('expo-file-system/legacy')
+    const { decode } = await import('base64-arraybuffer')
 
-  const method = upsert ? 'PUT' : 'POST'
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'x-upsert': upsert ? 'true' : 'false',
-    },
-    body: formData,
-  })
+    const base64Str = await readAsStringAsync(uri, {
+      encoding: EncodingType.Base64,
+    })
+    
+    const arrayBuffer = decode(base64Str)
+    const { error } = await supabase.storage.from(bucket).upload(path, arrayBuffer, {
+      contentType: mimeType,
+      upsert,
+    })
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.status.toString())
-    throw new Error(`Upload to ${bucket} failed: ${text}`)
+    if (error) {
+      throw new Error(`Upload to ${bucket} failed: ${error.message}`)
+    }
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path)

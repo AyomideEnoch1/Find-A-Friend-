@@ -7,6 +7,7 @@
  */
 import { supabase } from './supabase'
 import { uploadFile } from './upload'
+import { scheduleEventReminders, cancelEventReminders } from './notifications'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +69,22 @@ export interface CreateEventPayload {
   title: string
   venue?: string
   startsAt: string
+  endsAt?: string
+  description?: string
+  category?: string
+  coverImageUrl?: string
+  capacity?: number
+  isPublic?: boolean
+  clubId?: string
+  mapLocationId?: string
+  mapPinX?: number
+  mapPinY?: number
+}
+
+export interface UpdateEventPayload {
+  title?: string
+  venue?: string
+  startsAt?: string
   endsAt?: string
   description?: string
   category?: string
@@ -208,6 +225,58 @@ export async function createEvent(payload: CreateEventPayload): Promise<{
       .upsert({ event_id: (data as any).id, user_id: user.id, status: 'going' },
                { onConflict: 'event_id,user_id' })
 
+    // Schedule local reminders
+    await scheduleEventReminders(data.id, data.title, data.starts_at)
+
+    return { data: data as Event, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Update event
+// ---------------------------------------------------------------------------
+
+export async function updateEvent(eventId: string, payload: UpdateEventPayload): Promise<{
+  data: Event | null
+  error: Error | null
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const updates: any = {}
+    if (payload.title !== undefined) updates.title = payload.title
+    if (payload.venue !== undefined) updates.venue = payload.venue
+    if (payload.startsAt !== undefined) updates.starts_at = payload.startsAt
+    if (payload.endsAt !== undefined) updates.ends_at = payload.endsAt
+    if (payload.description !== undefined) updates.description = payload.description
+    if (payload.category !== undefined) updates.category = payload.category
+    if (payload.coverImageUrl !== undefined) updates.cover_image_url = payload.coverImageUrl
+    if (payload.capacity !== undefined) updates.capacity = payload.capacity
+    if (payload.isPublic !== undefined) updates.is_public = payload.isPublic
+    if (payload.clubId !== undefined) updates.club_id = payload.clubId
+
+    const { data, error } = await supabase
+      .from('events')
+      .update(updates)
+      .eq('id', eventId)
+      .eq('organizer_id', user.id)
+      .select(`
+        *,
+        profiles!organizer_id(id, full_name, avatar_url)
+      `)
+      .single()
+
+    if (error) throw error
+    
+    // Reschedule reminders if time/title changed
+    if (payload.startsAt || payload.title) {
+      await cancelEventReminders(eventId)
+      await scheduleEventReminders(data.id, data.title, data.starts_at)
+    }
+
     return { data: data as Event, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -236,6 +305,16 @@ export async function rsvpEvent(
       .single()
 
     if (error) throw error
+
+    if (status === 'going') {
+      const { data: eventData } = await supabase.from('events').select('title, starts_at').eq('id', eventId).single()
+      if (eventData) {
+        await scheduleEventReminders(eventId, eventData.title, eventData.starts_at)
+      }
+    } else {
+      await cancelEventReminders(eventId)
+    }
+
     return { data: data as EventRsvp, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -257,6 +336,9 @@ export async function cancelRsvp(eventId: string): Promise<{
       .eq('user_id', user.id)
 
     if (error) throw error
+
+    await cancelEventReminders(eventId)
+
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -379,6 +461,9 @@ export async function deleteEvent(eventId: string): Promise<{
       .eq('id', eventId)
 
     if (error) throw error
+
+    await cancelEventReminders(eventId)
+
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
