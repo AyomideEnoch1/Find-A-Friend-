@@ -255,16 +255,23 @@ function CommentsSection({
   );
 
   const handleDelete = async (c: FeedbackComment) => {
-    if (c.author_id !== myId) return
-    const { error } = await supabase.from('feedback_comments').delete().eq('id', c.id)
+    if (c.author_id !== myId) return;
+    const { error } = await supabase
+      .from("feedback_comments")
+      .delete()
+      .eq("id", c.id);
     if (error) {
-      Toast.show({ type: 'error', text1: 'Could not delete', text2: error.message })
+      Toast.show({
+        type: "error",
+        text1: "Could not delete",
+        text2: error.message,
+      });
     } else {
-      setComments(prev => prev.filter(x => x.id !== c.id))
-      onCommentAdded() // Refresh count
-      Toast.show({ type: 'success', text1: 'Reply deleted' })
+      setComments((prev) => prev.filter((x) => x.id !== c.id));
+      onCommentAdded(); // Refresh count
+      Toast.show({ type: "success", text1: "Reply deleted" });
     }
-  }
+  };
 
   const handleSend = async () => {
     const text = newComment.trim();
@@ -370,7 +377,7 @@ function CommentsSection({
               onPress={() => handleDelete(c)}
             >
               <Ionicons name="trash-outline" size={12} color="#f87171" />
-              <Text style={[cs.chipText, { color: '#f87171' }]}>Delete</Text>
+              <Text style={[cs.chipText, { color: "#f87171" }]}>Delete</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1122,8 +1129,8 @@ const cb = StyleSheet.create({
     fontSize: 14,
     fontFamily: typography.fontRegular,
     lineHeight: 20,
-    minHeight: 20,
-    maxHeight: 20,
+    minHeight: 60,
+    maxHeight: 120,
     textAlignVertical: "top",
   },
   bottomRow: {
