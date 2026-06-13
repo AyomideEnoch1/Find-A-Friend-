@@ -54,11 +54,11 @@ export async function uploadFile(
     }
   } else {
     // React Native: Read as base64 and upload using base64-arraybuffer
-    const { readAsStringAsync, EncodingType } = await import('expo-file-system')
+    const FileSystem = await import('expo-file-system')
     const { decode } = await import('base64-arraybuffer')
 
-    const base64Str = await readAsStringAsync(uri, {
-      encoding: EncodingType.Base64,
+    const base64Str = await FileSystem.readAsStringAsync(uri, {
+      encoding: 'base64' as any,
     })
     
     const arrayBuffer = decode(base64Str)

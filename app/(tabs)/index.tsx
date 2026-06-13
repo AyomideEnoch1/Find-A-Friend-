@@ -10,6 +10,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Image,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -134,16 +135,18 @@ export default function HomeScreen() {
         </View>
       </View>
       <View style={s.headerRight}>
-        <TouchableOpacity
-          style={[s.iconBtn, { backgroundColor: theme.card }]}
-          onPress={handleRefresh}
-          disabled={refreshing}>
-          {refreshing ? (
-            <ActivityIndicator size="small" color={theme.accent} />
-          ) : (
-            <Ionicons name="refresh" size={20} color={theme.text} />
-          )}
-        </TouchableOpacity>
+        {Platform.OS !== 'android' && (
+          <TouchableOpacity
+            style={[s.iconBtn, { backgroundColor: theme.card }]}
+            onPress={handleRefresh}
+            disabled={refreshing}>
+            {refreshing ? (
+              <ActivityIndicator size="small" color={theme.accent} />
+            ) : (
+              <Ionicons name="refresh" size={20} color={theme.text} />
+            )}
+          </TouchableOpacity>
+        )}
 
         <View style={[s.streakBadge, { backgroundColor: 'rgba(249, 115, 22, 0.12)', height: 44, paddingHorizontal: 12, borderRadius: 22 }]}>
           <Ionicons name="flame" size={18} color="#f97316" />
