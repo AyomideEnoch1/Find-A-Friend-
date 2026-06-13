@@ -1053,8 +1053,6 @@ function ComposeBox({
       style={[
         cb.wrap,
         {
-          backgroundColor: theme.cardSolid,
-          borderTopColor: PURPLE_BORDER,
           paddingBottom: insetBottom + 12,
         },
       ]}
@@ -1072,9 +1070,17 @@ function ComposeBox({
           },
         ]}
       >
+        <Text
+          style={[
+            cb.counter,
+            { color: overLimit ? "#f87171" : theme.textFaint },
+          ]}
+        >
+          {remaining}
+        </Text>
         <TextInput
           style={[cb.input, { color: theme.text }]}
-          placeholder="Share your thoughts with the campussss..."
+          placeholder="Share your thoughts"
           placeholderTextColor={theme.textFaint}
           value={body}
           onChangeText={setBody}
@@ -1084,60 +1090,50 @@ function ComposeBox({
           onBlur={() => setFocused(false)}
           accessibilityLabel="Compose feedback"
         />
-        <View style={cb.bottomRow}>
-          <Text
+        <Animated.View style={animBtnStyle}>
+          <TouchableOpacity
             style={[
-              cb.counter,
-              { color: overLimit ? "#f87171" : theme.textFaint },
+              cb.sendBtn,
+              (overLimit || sending || !body.trim()) && { opacity: 0.45 },
             ]}
+            onPress={handleSend}
+            disabled={overLimit || sending || !body.trim()}
+            accessibilityLabel="Send feedback"
           >
-            {remaining}
-          </Text>
-          <Animated.View style={animBtnStyle}>
-            <TouchableOpacity
-              style={[
-                cb.sendBtn,
-                (overLimit || sending || !body.trim()) && { opacity: 0.45 },
-              ]}
-              onPress={handleSend}
-              disabled={overLimit || sending || !body.trim()}
-              accessibilityLabel="Send feedback"
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
     </View>
   );
 }
 
 const cb = StyleSheet.create({
-  wrap: { borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 12 },
+  wrap: { borderTopWidth: 1, paddingHorizontal: 10, paddingTop: 12 },
   inputWrap: {
     borderRadius: 18,
     borderWidth: 1.5,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
   },
   input: {
     fontSize: 14,
     fontFamily: typography.fontRegular,
     lineHeight: 20,
-    minHeight: 60,
+    minHeight: 40,
     maxHeight: 120,
+    width: "75%",
     textAlignVertical: "top",
-  },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
   },
   counter: { fontSize: 11, fontFamily: typography.fontRegular },
   sendBtn: {
