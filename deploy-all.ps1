@@ -4,7 +4,7 @@ param(
 
 Write-Host "Deploying to Android (EAS) and PWA (Vercel) sequentially to avoid locks..." -ForegroundColor Cyan
 
-Set-Location "c:\Users\Ayomide Enoch\Desktop\FAF\faf"
+Set-Location $PSScriptRoot
 
 # 1. Export the Web build (PWA)
 Write-Host "`n--- Exporting Web build ---" -ForegroundColor Yellow

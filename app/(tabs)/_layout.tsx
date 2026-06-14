@@ -65,7 +65,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.home > 0 ? (counts.home > 9 ? '9+' : counts.home) : undefined,
+          tabBarBadge: counts?.home > 0 ? (counts.home > 9 ? '9+' : counts.home) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -76,7 +76,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="search" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.discover > 0 ? (counts.discover > 9 ? '9+' : counts.discover) : undefined,
+          tabBarBadge: counts?.discover > 0 ? (counts.discover > 9 ? '9+' : counts.discover) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -87,7 +87,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="calendar" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.events > 0 ? (counts.events > 9 ? '9+' : counts.events) : undefined,
+          tabBarBadge: counts?.events > 0 ? (counts.events > 9 ? '9+' : counts.events) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -99,7 +99,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="chatbubbles" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.chat > 0 ? (counts.chat > 9 ? '9+' : counts.chat) : undefined,
+          tabBarBadge: counts?.chat > 0 ? (counts.chat > 9 ? '9+' : counts.chat) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />

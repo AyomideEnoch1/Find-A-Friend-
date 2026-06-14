@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import React, { useState, useEffect } from 'react'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { getCurrentProfile, getProfileStats } from '../../lib/profiles'
 import type { Profile, ProfileStats } from '../../lib/profiles'
@@ -42,11 +42,11 @@ export default function MoreScreen() {
   const counts = useBadgesStore(s => s.counts)
 
   const featureBadges: Record<string, number> = {
-    '/academic': counts.academic,
-    '/clubs': counts.clubs_feature,
-    '/games': counts.games,
-    '/anonymous': counts.anonymous,
-    '/vendors': counts.vendors,
+    '/academic': counts?.academic || 0,
+    '/clubs': counts?.clubs_feature || 0,
+    '/games': counts?.games || 0,
+    '/anonymous': counts?.anonymous || 0,
+    '/vendors': counts?.vendors || 0,
   }
 
   const loadData = React.useCallback(async () => {
@@ -71,10 +71,10 @@ export default function MoreScreen() {
   }, [loading])
 
   const statItems = [
-    { label: 'Posts',     value: stats.posts },
-    { label: 'Followers', value: stats.followers },
-    { label: 'Following', value: stats.following },
-    { label: 'Clubs',     value: stats.clubs },
+    { label: 'Posts',     value: stats?.posts ?? 0 },
+    { label: 'Followers', value: stats?.followers ?? 0 },
+    { label: 'Following', value: stats?.following ?? 0 },
+    { label: 'Clubs',     value: stats?.clubs ?? 0 },
   ]
 
   return (
