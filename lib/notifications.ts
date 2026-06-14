@@ -136,6 +136,27 @@ export async function markAllRead(): Promise<{
   }
 }
 
+export async function deleteAllNotifications(): Promise<{
+  data: null
+  error: Error | null
+}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    return { data: null, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+
 // ---------------------------------------------------------------------------
 // Create notification (for use in Edge Functions / server-side only)
 // Direct client INSERT will be blocked by RLS. This is provided as a
