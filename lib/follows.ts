@@ -6,71 +6,75 @@
  * Triggers on the `follows` table maintain follower_count / following_count
  * on profiles automatically — no manual updates needed here.
  */
-import { supabase } from './supabase'
+import { supabase } from "./supabase";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface FollowProfile {
-  id: string
-  full_name: string | null
-  department: string | null
-  level: string | null
-  avatar_url: string | null
-  follower_count: number
-  following_count: number
-  interests?: string[] | null
-  role?: string | null
-  badge_type?: string | null
-  badge_color?: string | null
+  id: string;
+  full_name: string | null;
+  department: string | null;
+  level: string | null;
+  avatar_url: string | null;
+  follower_count: number;
+  following_count: number;
+  interests?: string[] | null;
+  role?: string | null;
+  badge_type?: string | null;
+  badge_color?: string | null;
 }
 
-export type FollowStatus = 'following' | 'not_following'
+export type FollowStatus = "following" | "not_following";
 
 // ---------------------------------------------------------------------------
 // Follow / Unfollow
 // ---------------------------------------------------------------------------
 
 export async function followUser(targetUserId: string): Promise<{
-  data: null
-  error: Error | null
+  data: null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
-    if (user.id === targetUserId) throw new Error('Cannot follow yourself')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    if (user.id === targetUserId) throw new Error("Cannot follow yourself");
 
     const { error } = await supabase
-      .from('follows')
-      .insert({ follower_id: user.id, following_id: targetUserId })
+      .from("follows")
+      .insert({ follower_id: user.id, following_id: targetUserId });
 
     // Ignore duplicate follows gracefully
-    if (error && error.code !== '23505') throw error
-    return { data: null, error: null }
+    if (error && error.code !== "23505") throw error;
+    return { data: null, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function unfollowUser(targetUserId: string): Promise<{
-  data: null
-  error: Error | null
+  data: null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     const { error } = await supabase
-      .from('follows')
+      .from("follows")
       .delete()
-      .eq('follower_id', user.id)
-      .eq('following_id', targetUserId)
+      .eq("follower_id", user.id)
+      .eq("following_id", targetUserId);
 
-    if (error) throw error
-    return { data: null, error: null }
+    if (error) throw error;
+    return { data: null, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -82,24 +86,26 @@ export async function unfollowUser(targetUserId: string): Promise<{
  * Returns whether the current user follows `targetUserId`.
  */
 export async function getFollowStatus(targetUserId: string): Promise<{
-  data: FollowStatus | null
-  error: Error | null
+  data: FollowStatus | null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: 'not_following', error: null }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { data: "not_following", error: null };
 
     const { data, error } = await supabase
-      .from('follows')
-      .select('follower_id')
-      .eq('follower_id', user.id)
-      .eq('following_id', targetUserId)
-      .maybeSingle()
+      .from("follows")
+      .select("follower_id")
+      .eq("follower_id", user.id)
+      .eq("following_id", targetUserId)
+      .maybeSingle();
 
-    if (error) throw error
-    return { data: data ? 'following' : 'not_following', error: null }
+    if (error) throw error;
+    return { data: data ? "following" : "not_following", error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -108,20 +114,24 @@ export async function getFollowStatus(targetUserId: string): Promise<{
  * Returns a Set of IDs that the current user follows.
  */
 export async function getFollowStatusBulk(
-  targetUserIds: string[]
+  targetUserIds: string[],
 ): Promise<Set<string>> {
-  if (!targetUserIds.length) return new Set()
+  if (!targetUserIds.length) return new Set();
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Set()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return new Set();
 
   const { data } = await supabase
-    .from('follows')
-    .select('following_id')
-    .eq('follower_id', user.id)
-    .in('following_id', targetUserIds)
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", user.id)
+    .in("following_id", targetUserIds);
 
-  return new Set((data ?? []).map((r: { following_id: string }) => r.following_id))
+  return new Set(
+    (data ?? []).map((r: { following_id: string }) => r.following_id),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -129,44 +139,48 @@ export async function getFollowStatusBulk(
 // ---------------------------------------------------------------------------
 
 export async function getFollowers(userId: string): Promise<{
-  data: FollowProfile[] | null
-  error: Error | null
+  data: FollowProfile[] | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('follows')
-      .select('profiles!follows_follower_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)')
-      .eq('following_id', userId)
-      .order('created_at', { ascending: false })
+      .from("follows")
+      .select(
+        "profiles!follows_follower_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)",
+      )
+      .eq("following_id", userId)
+      .order("created_at", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
     const profiles = (data ?? [])
       .map((r: any) => r.profiles)
-      .filter(Boolean) as FollowProfile[]
-    return { data: profiles, error: null }
+      .filter(Boolean) as FollowProfile[];
+    return { data: profiles, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function getFollowing(userId: string): Promise<{
-  data: FollowProfile[] | null
-  error: Error | null
+  data: FollowProfile[] | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('follows')
-      .select('profiles!follows_following_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)')
-      .eq('follower_id', userId)
-      .order('created_at', { ascending: false })
+      .from("follows")
+      .select(
+        "profiles!follows_following_id_fkey(id, full_name, department, level, avatar_url, follower_count, following_count, badge_type, badge_color)",
+      )
+      .eq("follower_id", userId)
+      .order("created_at", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
     const profiles = (data ?? [])
       .map((r: any) => r.profiles)
-      .filter(Boolean) as FollowProfile[]
-    return { data: profiles, error: null }
+      .filter(Boolean) as FollowProfile[];
+    return { data: profiles, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -182,56 +196,72 @@ export async function getFollowing(userId: string): Promise<{
  * 3. Return top 20.
  */
 export async function getSuggestedUsers(): Promise<{
-  data: FollowProfile[] | null
-  error: Error | null
+  data: FollowProfile[] | null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     // Get IDs the current user already follows
     const { data: followingRows } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', user.id)
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
 
     const alreadyFollowingIds: string[] = (followingRows ?? []).map(
-      (r: { following_id: string }) => r.following_id
-    )
+      (r: { following_id: string }) => r.following_id,
+    );
     // Fetch candidates — always exclude at least the current user
-    const excludeIds = [user.id, ...alreadyFollowingIds]
+    const excludeIds = [user.id, ...alreadyFollowingIds];
 
     let candidateQuery = supabase
-      .from('profiles')
-      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests, role, badge_type, badge_color')
-      .limit(500)         // fetch up to 500 so all users are visible
-      .neq('id', user.id) // always exclude self
-      .neq('full_name', '')
-      .not('full_name', 'is', null)
+      .from("profiles")
+      .select(
+        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, role, badge_type, badge_color",
+      )
+      .limit(500) // fetch up to 500 so all users are visible
+      .neq("id", user.id) // always exclude self
+      .neq("full_name", "")
+      .not("full_name", "is", null);
 
     // Exclude already-followed users one-by-one
     for (const id of alreadyFollowingIds) {
-      candidateQuery = candidateQuery.neq('id', id)
+      candidateQuery = candidateQuery.neq("id", id);
     }
 
-    const { data, error } = await candidateQuery
+    const { data, error } = await candidateQuery;
     if (error) {
-      console.warn('[getSuggestedUsers] query error:', error.message, error.code, error.details)
-      throw error
+      console.warn(
+        "[getSuggestedUsers] query error:",
+        error.message,
+        error.code,
+        error.details,
+      );
+      throw error;
     }
 
-    console.log('[getSuggestedUsers] raw results:', data?.length, 'users found')
-    console.log('[getSuggestedUsers] current user:', user.id)
-    console.log('[getSuggestedUsers] already following:', alreadyFollowingIds.length)
+    console.log(
+      "[getSuggestedUsers] raw results:",
+      data?.length,
+      "users found",
+    );
+    console.log("[getSuggestedUsers] current user:", user.id);
+    console.log(
+      "[getSuggestedUsers] already following:",
+      alreadyFollowingIds.length,
+    );
 
     const sorted = (data ?? []).sort(
-      (a: any, b: any) => (b.follower_count ?? 0) - (a.follower_count ?? 0)
-    )
+      (a: any, b: any) => (b.follower_count ?? 0) - (a.follower_count ?? 0),
+    );
 
     // Return all users (no artificial 20-user cap) so everyone is visible on discover
-    return { data: sorted as FollowProfile[], error: null }
+    return { data: sorted as FollowProfile[], error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -240,19 +270,47 @@ export async function getSuggestedUsers(): Promise<{
 // ---------------------------------------------------------------------------
 
 export async function getUserProfile(userId: string): Promise<{
-  data: FollowProfile | null
-  error: Error | null
+  data: FollowProfile | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color')
-      .eq('id', userId)
-      .single()
+      .from("profiles")
+      .select(
+        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color",
+      )
+      .eq("id", userId)
+      .single();
 
-    if (error) throw error
-    return { data: data as FollowProfile, error: null }
+    if (error) throw error;
+    return { data: data as FollowProfile, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
+
+// =======================================
+// Get the top 10 folowers in the database
+// =======================================
+
+export const getMostFollowedUsers = async (): Promise<{
+  data: FollowProfile[] | null;
+  error: Error | null;
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color",
+      )
+      .order("follower_count", { ascending: false })
+      .limit(10);
+
+    console.log("Top 10 Influencers:", data);
+
+    if (error) throw error;
+    return { data: data as FollowProfile[], error: null };
+  } catch (err) {
+    return { data: null, error: err as Error };
+  }
+};
