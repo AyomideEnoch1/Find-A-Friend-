@@ -3,16 +3,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Map,
-  BookOpen,
-  Users,
-  Gamepad2,
-  Megaphone,
-  MessageSquare,
-  Tag,
-  User,
-} from "lucide-react-native";
-import {
   ActivityIndicator,
   Image,
   ScrollView,
@@ -32,55 +22,55 @@ import { useTabBarScroll } from "../../lib/useTabBarScroll";
 import { useAuthStore } from "../../store/authStore";
 import { useBadgesStore } from "../../store/badgesStore";
 const features: Array<{
-  icon: React.ComponentType<any>;
+  iconName: any;
   title: string;
   subtitle: string;
   route: string;
 }> = [
   {
-    icon: Map,
+    iconName: "map-outline",
     title: "Campus map",
     subtitle: "Events & friends nearby",
     route: "/map",
   },
   {
-    icon: BookOpen,
+    iconName: "book-outline",
     title: "Academic hub",
     subtitle: "Courses, study groups & notes",
     route: "/academic",
   },
   {
-    icon: Users,
+    iconName: "people-outline",
     title: "Clubs",
     subtitle: "Join clubs & announcements",
     route: "/clubs",
   },
   {
-    icon: Gamepad2,
+    iconName: "game-controller-outline",
     title: "Games",
     subtitle: "Pool · Trivia · Word Duel",
     route: "/games",
   },
   {
-    icon: Megaphone,
+    iconName: "megaphone-outline",
     title: "Confession board",
     subtitle: "Anonymous campus posts",
     route: "/anonymous",
   },
   {
-    icon: MessageSquare,
+    iconName: "chatbubble-ellipses-outline",
     title: "Feedback",
     subtitle: "Report issues & suggestions",
     route: "/feedback",
   },
   {
-    icon: Tag,
+    iconName: "pricetag-outline",
     title: "Campus deals",
     subtitle: "Student-only discounts",
     route: "/vendors",
   },
   {
-    icon: User,
+    iconName: "person-outline",
     title: "Edit profile",
     subtitle: "Bio, photo & interests",
     route: "/edit-profile",
@@ -239,7 +229,6 @@ export default function MoreScreen() {
         >
           {features.map((feature, i) => {
             const badgeCount = featureBadges[feature.route] || 0;
-            const IconComponent = feature.icon;
             return (
               <TouchableOpacity
                 key={i}
@@ -260,7 +249,8 @@ export default function MoreScreen() {
                     },
                   ]}
                 >
-                  <IconComponent
+                  <Ionicons
+                    name={feature.iconName}
                     size={20}
                     color={theme.text}
                   />
