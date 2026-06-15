@@ -219,7 +219,7 @@ export default function TopUserCard({
           </View>
 
           <View style={styles.c}>
-            <Text style={styles.d}>Follower: {followerCount}</Text>
+            <Text style={styles.d}>Followers: {followerCount}</Text>
             <Text style={{ color: "white" }}>•</Text>
             <Text style={styles.d}>Following: {user.following_count}</Text>
           </View>

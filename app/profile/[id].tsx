@@ -106,12 +106,15 @@ export default function ProfileScreen() {
   }, [activeTab, profile])
 
   const refreshCounts = useCallback(async () => {
-    const [followerRes, followingRes] = await Promise.all([
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id),
-    ])
-    if (followerRes.count !== null) setFollowerCount(followerRes.count)
-    if (followingRes.count !== null) setFollowingCount(followingRes.count)
+    const { data } = await supabase
+      .from('profiles')
+      .select('follower_count, following_count')
+      .eq('id', id)
+      .single()
+    if (data) {
+      setFollowerCount(data.follower_count ?? 0)
+      setFollowingCount(data.following_count ?? 0)
+    }
   }, [id])
 
   // Real-time: follower/following counts + new posts
@@ -152,17 +155,15 @@ export default function ProfileScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      const [profileRes, connStatus, followerRes, followingRes] = await Promise.all([
+      const [profileRes, connStatus] = await Promise.all([
         getProfileById(id),
         getConnectionStatus(id),
-        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
-        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id),
       ])
 
       const p = profileRes
       setProfile(p)
-      setFollowerCount(followerRes.count ?? p?.follower_count ?? 0)
-      setFollowingCount(followingRes.count ?? p?.following_count ?? 0)
+      setFollowerCount(p?.follower_count ?? 0)
+      setFollowingCount(p?.following_count ?? 0)
       setConnectionStatus(connStatus)
       setFollowing(connStatus === 'connected' || connStatus === 'requested_sent')
       const own = user?.id === id
