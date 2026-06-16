@@ -24,16 +24,10 @@ export function parseAttachment(body: string): Attachment | null {
   }
 }
 
+import { uploadFile } from './upload'
+
 async function uploadToStorage(uri: string, path: string, mimeType: string): Promise<string> {
-  const res = await fetch(uri)
-  const arrayBuffer = await res.arrayBuffer()
-  const { error } = await supabase.storage
-    .from('chat-files')
-    .upload(path, arrayBuffer, { contentType: mimeType, upsert: false })
-  if (error) throw new Error(error.message)
-  
-  const { data } = supabase.storage.from('chat-files').getPublicUrl(path)
-  return data.publicUrl
+  return await uploadFile('chat-files', path, uri, mimeType)
 }
 
 function storagePath(convId: string, filename: string): string {

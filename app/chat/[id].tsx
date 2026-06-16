@@ -1131,98 +1131,64 @@ export default function DirectMessageScreen() {
     initConversation();
   }, [initConversation]);
 
-  // ── Realtime subscriptions ──────────────────────────────────────────────────
+  // ── Realtime subscriptions fallback (HTTP Polling) ─────────────────────────
 
   useEffect(() => {
     if (!convId) return;
-    const channelName = `dm-chat:${convId}`;
-    const stale = supabase
-      .getChannels()
-      .find((c) => c.topic === `realtime:${channelName}`);
-    if (stale) supabase.removeChannel(stale);
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        async (payload: any) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .eq("id", payload.new.sender_id)
-            .single();
+    const syncMessages = async () => {
+      try {
+        const { data: msgs, error } = await supabase
+          .from("messages")
+          .select("*, profiles!sender_id(id, full_name, avatar_url)")
+          .eq("conversation_id", convId)
+          .order("created_at", { ascending: true });
 
-          // Mark as read immediately if message is from the other person
-          if (payload.new.sender_id !== myId) {
-            supabase
-              .from("messages")
-              .update({ is_read: true })
-              .eq("id", payload.new.id)
-              .then(() => {});
-          }
-
+        if (error) throw error;
+        if (msgs) {
           setMessages((prev) => {
-            const idx = prev.findIndex(
-              (m) =>
-                m._optimistic &&
-                m.body === payload.new.body &&
-                m.sender_id === payload.new.sender_id,
-            );
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = { ...payload.new, profiles: profile };
-              return updated;
+            // Check if there are any differences in the list to avoid redrawing/re-scrolling
+            const prevSignature = prev.map((m) => `${m.id}-${m.is_read}-${m.body}`).join(',');
+            const newSignature = msgs.map((m) => `${m.id}-${m.is_read || m.sender_id !== myId}-${m.body}`).join(',');
+            if (prevSignature === newSignature) return prev;
+
+            // Mark any unread messages from the other person as read in the DB
+            const unreadOtherIds = msgs
+              .filter((m) => m.sender_id !== myId && !m.is_read)
+              .map((m) => m.id);
+
+            if (unreadOtherIds.length > 0) {
+              supabase
+                .from("messages")
+                .update({ is_read: true })
+                .in("id", unreadOtherIds)
+                .then(() => {});
             }
-            const newMsg = { ...payload.new, profiles: profile };
-            if (payload.new.sender_id !== myId) newMsg.is_read = true;
-            return [...prev, newMsg];
+
+            const mapped = msgs.map((m) => {
+              if (m.sender_id !== myId) return { ...m, is_read: true };
+              return m;
+            });
+
+            // Scroll to end if a new message was received
+            if (msgs.length > prev.length) {
+              setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+            }
+
+            return mapped;
           });
-          setTimeout(
-            () => scrollRef.current?.scrollToEnd({ animated: true }),
-            80,
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        (payload: any) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === payload.new.id ? { ...m, ...payload.new } : m,
-            ),
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        (payload: any) => {
-          setMessages((prev) => prev.filter((m) => m.id !== payload.old?.id));
-        },
-      )
-      .subscribe();
+        }
+      } catch (err) {
+        console.warn("Error syncing messages:", err);
+      }
+    };
+
+    const intervalId = setInterval(syncMessages, 4000); // Poll every 4 seconds
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(intervalId);
     };
-  }, [convId]);
+  }, [convId, myId]);
 
   // ── Message actions ─────────────────────────────────────────────────────────
 

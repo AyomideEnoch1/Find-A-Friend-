@@ -83,7 +83,7 @@ export default function CreatePostScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsMultipleSelection: true,
       selectionLimit: 4 - imageUris.length,
       allowsEditing: false,
@@ -101,7 +101,8 @@ export default function CreatePostScreen() {
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg'
     const randomStr = Math.random().toString(36).substring(7)
     const path = `${session.user.id}/${Date.now()}-${randomStr}.${ext}`
-    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+    const isVideo = ['mp4', 'mov', 'm4v', '3gp'].includes(ext)
+    const mimeType = isVideo ? `video/${ext === 'mov' ? 'quicktime' : 'mp4'}` : `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
     return await uploadFile('posts-media', path, uri, mimeType)
   }
