@@ -1,0 +1,13 @@
+{
+  "name": "faf-cognito-lazy-migration",
+  "version": "1.0.0",
+  "description": "Cognito User Migration trigger to perform lazy migration from legacy Supabase user database",
+  "main": "cognito-lazy-migration.js",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.11.3"
+  },
+  "scripts": {
+    "zip": "zip -r ../terraform/migration_lambda_payload.zip cognito-lazy-migration.js node_modules package.json"
+  }
+}

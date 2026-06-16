@@ -67,7 +67,11 @@ export default function TopUserCard({
           "Disconnect",
           `Are you sure you want to disconnect from ${user.full_name ?? "this student"}?`,
           [
-            { text: "Cancel", style: "cancel", onPress: () => setLoading(false) },
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => setLoading(false),
+            },
             {
               text: "Disconnect",
               style: "destructive",
@@ -75,57 +79,57 @@ export default function TopUserCard({
                 setLoading(true);
                 try {
                   setStatus("none");
-                  setFollowerCount(c => Math.max(0, c - 1));
+                  setFollowerCount((c) => Math.max(0, c - 1));
                   await unlikeUser(user.id);
                   const { error } = await unfollowUser(user.id);
                   if (error) {
                     setStatus("connected");
-                    setFollowerCount(c => c + 1);
+                    setFollowerCount((c) => c + 1);
                   } else if (onConnectToggle) {
                     onConnectToggle(user.id, false);
                   }
                 } catch (e) {
                   console.warn(e);
                   setStatus("connected");
-                  setFollowerCount(c => c + 1);
+                  setFollowerCount((c) => c + 1);
                 } finally {
                   setLoading(false);
                 }
               },
             },
-          ]
+          ],
         );
         return;
       } else if (status === "requested_sent") {
         setStatus("none");
-        setFollowerCount(c => Math.max(0, c - 1));
+        setFollowerCount((c) => Math.max(0, c - 1));
         await unlikeUser(user.id);
         const { error } = await unfollowUser(user.id);
         if (error) {
           setStatus("requested_sent");
-          setFollowerCount(c => c + 1);
+          setFollowerCount((c) => c + 1);
         } else if (onConnectToggle) {
           onConnectToggle(user.id, false);
         }
       } else if (status === "requested_received") {
         setStatus("connected");
-        setFollowerCount(c => c + 1);
+        setFollowerCount((c) => c + 1);
         await likeUser(user.id);
         const { error } = await followUser(user.id);
         if (error) {
           setStatus("requested_received");
-          setFollowerCount(c => Math.max(0, c - 1));
+          setFollowerCount((c) => Math.max(0, c - 1));
         } else if (onConnectToggle) {
           onConnectToggle(user.id, true);
         }
       } else {
         setStatus("requested_sent");
-        setFollowerCount(c => c + 1);
+        setFollowerCount((c) => c + 1);
         await likeUser(user.id);
         const { error } = await followUser(user.id);
         if (error) {
           setStatus("none");
-          setFollowerCount(c => Math.max(0, c - 1));
+          setFollowerCount((c) => Math.max(0, c - 1));
         } else if (onConnectToggle) {
           onConnectToggle(user.id, true);
         }

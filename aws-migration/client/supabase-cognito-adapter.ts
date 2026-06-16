@@ -1,6 +1,24 @@
-import 'react-native-url-polyfill/auto';
+/**
+ * client/supabase-cognito-adapter.ts
+ *
+ * A compatibility adapter that wraps the Supabase client's auth methods
+ * and redirects them to AWS Cognito User Pools.
+ *
+ * This allows the React Native client to continue using:
+ *   - supabase.auth.signUp()
+ *   - supabase.auth.signInWithPassword()
+ *   - supabase.auth.signOut()
+ *   - supabase.auth.getUser()
+ *   - supabase.auth.getSession()
+ *   - supabase.auth.onAuthStateChange()
+ *
+ * While routing authentication to AWS Cognito, and storing/refreshing Cognito JWTs.
+ * The Cognito ID Token is automatically passed to the ECS PostgREST backend
+ * as the Bearer token, authorizing database queries.
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
 const AWS_REGION = process.env.EXPO_PUBLIC_AWS_REGION || 'us-east-1';
