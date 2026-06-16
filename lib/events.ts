@@ -79,6 +79,7 @@ export interface CreateEventPayload {
   mapLocationId?: string
   mapPinX?: number
   mapPinY?: number
+  isAnonymousLinked?: boolean
 }
 
 export interface UpdateEventPayload {
@@ -212,6 +213,7 @@ export async function createEvent(payload: CreateEventPayload): Promise<{
         map_location_id: payload.mapLocationId ?? null,
         map_pin_x: payload.mapPinX ?? null,
         map_pin_y: payload.mapPinY ?? null,
+        is_anonymous_linked: payload.isAnonymousLinked ?? false,
       })
       .select(`
         *,
