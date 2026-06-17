@@ -18,10 +18,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Platform,
-  Linking,
 } from "react-native";
-import { Video, ResizeMode } from 'expo-av';
 import Toast from "react-native-toast-message";
 import { getInitials, getTimeAgo } from "../../lib/matching";
 import { deleteStory } from "../../lib/stories";
@@ -51,14 +48,12 @@ export default function StoryViewer() {
   const { user } = useAuthStore();
   const story = useStoriesStore(selectCurrentStory);
   const group = useStoriesStore(selectCurrentGroup);
-  const visible = !!viewerGroupId;
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressRef = useRef<Animated.CompositeAnimation | null>(null);
   const currentProgress = useRef(0);
   const [paused, setPaused] = useState(false);
   const [mediaLoaded, setMediaLoaded] = useState(false);
-  const videoRef = useRef<any>(null);
 
   useEffect(() => {
     const id = progressAnim.addListener(({ value }) => {
@@ -69,39 +64,18 @@ export default function StoryViewer() {
 
   // Reset loading state when the story changes
   useEffect(() => {
-    if (story?.media_type === "video" && Platform.OS !== "web") {
-      setMediaLoaded(true);
-    } else {
-      setMediaLoaded(false);
-    }
+    setMediaLoaded(false);
     progressAnim.setValue(0);
     currentProgress.current = 0;
   }, [story?.id, progressAnim]);
-
-  // Control video playback (Web HTML5 and Native expo-av) when story is paused/resumed
-  useEffect(() => {
-    if (videoRef.current) {
-      if (Platform.OS === "web") {
-        if (paused) {
-          videoRef.current.pause();
-        } else if (visible && mediaLoaded) {
-          videoRef.current.play().catch(() => {});
-        }
-      } else {
-        if (paused) {
-          videoRef.current.pauseAsync().catch(() => {});
-        } else if (visible && mediaLoaded) {
-          videoRef.current.playAsync().catch(() => {});
-        }
-      }
-    }
-  }, [paused, visible, mediaLoaded]);
 
   // Reactions + comments
   const [myReaction, setMyReaction] = useState<string | null>(null);
   const [storyComment, setStoryComment] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
+
+  const visible = !!viewerGroupId;
 
   // Stable next handler — must be defined before startProgress
   const handleNext = useCallback(() => {
@@ -135,11 +109,7 @@ export default function StoryViewer() {
 
   useEffect(() => {
     if (visible && story?.id) {
-      if (story.media_type === "video" && Platform.OS !== "web") {
-        setMediaLoaded(true);
-      } else {
-        setMediaLoaded(false);
-      }
+      setMediaLoaded(false);
       progressAnim.setValue(0);
       currentProgress.current = 0;
       markViewed(story.id);
@@ -304,45 +274,13 @@ export default function StoryViewer() {
       <StatusBar hidden />
       <View style={s.container}>
         {/* Story media */}
-        {story.media_type === "video" ? (
-          Platform.OS === "web" ? (
-            <video
-              ref={videoRef}
-              src={story.media_url}
-              style={{ flex: 1, width: "100%", height: "100%", objectFit: "cover" }}
-              autoPlay
-              playsInline
-              controls={false}
-              onLoadedData={() => setMediaLoaded(true)}
-              onEnded={handleNext}
-            />
-          ) : (
-            <Video
-              ref={videoRef}
-              source={{ uri: story.media_url }}
-              style={s.media}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={!paused && visible && mediaLoaded}
-              isLooping={false}
-              useNativeControls={false}
-              onLoadStart={() => setMediaLoaded(false)}
-              onLoad={() => setMediaLoaded(true)}
-              onPlaybackStatusUpdate={(status) => {
-                if (status.isLoaded && status.didJustFinish) {
-                  handleNext();
-                }
-              }}
-            />
-          )
-        ) : (
-          <Image
-            source={{ uri: story.media_url }}
-            style={s.media}
-            resizeMode="cover"
-            onLoadStart={() => setMediaLoaded(false)}
-            onLoad={() => setMediaLoaded(true)}
-          />
-        )}
+        <Image
+          source={{ uri: story.media_url }}
+          style={s.media}
+          resizeMode="cover"
+          onLoadStart={() => setMediaLoaded(false)}
+          onLoad={() => setMediaLoaded(true)}
+        />
 
         {!mediaLoaded && (
           <View style={[StyleSheet.absoluteFill, s.loadingOverlay]}>
@@ -674,20 +612,5 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  nativeVideoWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#000",
-  },
-  playBtnCenter: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  playBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
 });
