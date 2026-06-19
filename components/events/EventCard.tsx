@@ -82,7 +82,7 @@ export default function EventCard({ event, onRsvpChange }: EventCardProps) {
   return (
     <Animated.View style={[cardAnim, s.wrapper]}>
       <TouchableOpacity
-        style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+        style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }, theme.cardShadow]}
         onPress={handlePress}
         activeOpacity={0.9}>
 

@@ -220,7 +220,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   return (
     <Pressable
-      style={[s.card, { borderColor: theme.border, backgroundColor: theme.card }]}
+      style={[s.card, { borderColor: theme.border, backgroundColor: theme.card }, theme.cardShadow]}
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: 'rgba(167,139,250,0.08)' }}
     >

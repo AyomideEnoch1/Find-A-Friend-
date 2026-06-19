@@ -46,7 +46,7 @@ export default function StudyGroupCard({ group }: StudyGroupCardProps) {
 
   return (
     <TouchableOpacity
-      style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }, theme.cardShadow]}
       onPress={() => router.push(`/study-group/${group.id}` as any)}
       activeOpacity={0.85}>
       <View style={s.body}>

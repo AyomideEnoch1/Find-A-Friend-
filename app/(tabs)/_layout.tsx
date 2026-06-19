@@ -76,10 +76,9 @@ export default function TabLayout() {
           elevation: 0,
           transform: [{ translateY: tabBarTranslateY }],
         },
-        // App is always dark — use 'dark' tint unconditionally
         tabBarBackground: () =>
           Platform.OS === 'ios' ? (
-            <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+            <BlurView tint={theme.dark ? 'dark' : 'light'} intensity={80} style={StyleSheet.absoluteFill} />
           ) : null,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textMuted,

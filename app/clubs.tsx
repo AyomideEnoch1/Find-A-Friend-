@@ -267,12 +267,13 @@ export default function ClubsScreen() {
             </View>
           )}
 
-          <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons
-              name="search-outline"
-              size={15}
-              color={theme.textMuted}
-            />
+          <View
+            style={[
+              s.searchBar,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="search-outline" size={15} color={theme.textMuted} />
             <TextInput
               style={[s.searchInput, { color: theme.text }]}
               placeholder="Search clubs..."
@@ -305,7 +306,13 @@ export default function ClubsScreen() {
                 style={[
                   s.catPill,
                   { backgroundColor: theme.card, borderColor: theme.border },
-                  category === cat && [s.catPillActive, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }],
+                  category === cat && [
+                    s.catPillActive,
+                    {
+                      backgroundColor: theme.accentBg,
+                      borderColor: theme.accentBorder,
+                    },
+                  ],
                 ]}
                 onPress={() => setCategory(cat)}
               >
@@ -313,7 +320,10 @@ export default function ClubsScreen() {
                   style={[
                     s.catText,
                     { color: theme.textMuted },
-                    category === cat && [s.catTextActive, { color: theme.accent }],
+                    category === cat && [
+                      s.catTextActive,
+                      { color: theme.accent },
+                    ],
                   ]}
                 >
                   {cat}
@@ -322,7 +332,9 @@ export default function ClubsScreen() {
             ))}
           </ScrollView>
 
-          <Text style={[s.sectionTitle, { color: theme.textMuted }]}>All Clubs ({filtered.length})</Text>
+          <Text style={[s.sectionTitle, { color: theme.textMuted }]}>
+            All Clubs ({filtered.length})
+          </Text>
 
           {filtered.length === 0 ? (
             <View style={s.empty}>
@@ -479,8 +491,17 @@ export default function ClubsScreen() {
                     key={cat}
                     style={[
                       s.catPill,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                      newCategory === cat && [s.catPillActive, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }],
+                      {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                      },
+                      newCategory === cat && [
+                        s.catPillActive,
+                        {
+                          backgroundColor: theme.accentBg,
+                          borderColor: theme.accentBorder,
+                        },
+                      ],
                       { marginLeft: 0, marginRight: 8 },
                     ]}
                     onPress={() => setNewCategory(cat)}
@@ -489,7 +510,10 @@ export default function ClubsScreen() {
                       style={[
                         s.catText,
                         { color: theme.textMuted },
-                        newCategory === cat && [s.catTextActive, { color: theme.accent }],
+                        newCategory === cat && [
+                          s.catTextActive,
+                          { color: theme.accent },
+                        ],
                       ]}
                     >
                       {cat}

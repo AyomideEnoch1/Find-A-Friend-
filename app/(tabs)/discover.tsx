@@ -441,131 +441,137 @@ export default function DiscoverScreen() {
         )}
       </View>
 
-      <ScrollView>
-        {/* Top 10 Most Followed Section */}
-        {topFollowed.length > 0 && !searchQuery && (
-          <View style={s.topFollowedSection}>
-            <Text style={[s.sectionTitle, { color: theme.text }]}>
-              Top Influencers 🔥
-            </Text>
-            <Animated.ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.topFollowedRow}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                { useNativeDriver: true },
-              )}
-              scrollEventThrottle={16}
-              decelerationRate="fast"
-              snapToInterval={210}
-            >
-              {topFollowed.map((item, index) => (
-                <TopUserCard
-                  key={item.id}
-                  user={item}
-                  index={index}
-                  scrollX={scrollX}
-                  initialStatus={statuses[item.id] || "none"}
-                  onConnectToggle={handleConnectToggle}
-                />
-              ))}
-            </Animated.ScrollView>
-          </View>
-        )}
-
-        {/* Category Tabs */}
-        <View style={{ height: 38 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.categoriesContainer}
-          >
-            {categories.map((cat) => {
-              const isActive = selectedCategory === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    s.categoryPill,
-                    isActive
-                      ? {
-                          backgroundColor: theme.accent,
-                          borderColor: theme.accent,
-                        }
-                      : {
-                          backgroundColor: theme.card,
-                          borderColor: theme.border,
-                        },
-                  ]}
-                  onPress={() => setSelectedCategory(cat.id as any)}
+      <FlatList
+        data={filteredDeck}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        key={`grid-2`}
+        ListHeaderComponent={
+          <View style={{ marginBottom: 4 }}>
+            {/* Top 10 Most Followed Section */}
+            {topFollowed.length > 0 && !searchQuery && (
+              <View style={s.topFollowedSection}>
+                <Text style={[s.sectionTitle, { color: theme.text }]}>
+                  Top Influencers 🔥
+                </Text>
+                <Animated.ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.topFollowedRow}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: true },
+                  )}
+                  scrollEventThrottle={16}
+                  decelerationRate="fast"
+                  snapToInterval={210}
                 >
-                  <Ionicons
-                    name={cat.icon as any}
-                    size={13}
-                    color={isActive ? "#fff" : theme.textMuted}
-                  />
-                  <Text
-                    style={[
-                      s.categoryText,
-                      { color: isActive ? "#fff" : theme.text },
-                    ]}
-                  >
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+                  {topFollowed.map((item, index) => (
+                    <TopUserCard
+                      key={item.id}
+                      user={item}
+                      index={index}
+                      scrollX={scrollX}
+                      initialStatus={statuses[item.id] || "none"}
+                      onConnectToggle={handleConnectToggle}
+                    />
+                  ))}
+                </Animated.ScrollView>
+              </View>
+            )}
 
-        {/* Trending chips */}
-        {trending.length > 0 &&
-          selectedCategory === "All" &&
-          !searchQuery &&
-          !loading && (
-            <View style={{ height: 42, marginTop: 4 }}>
+            {/* Category Tabs */}
+            <View style={{ height: 38, marginTop: 4 }}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.trendRow}
+                contentContainerStyle={s.categoriesContainer}
               >
-                {trending.slice(0, 10).map((item) => (
-                  <TouchableOpacity
-                    key={item.hashtag_id}
-                    style={[
-                      s.trendPill,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.accentBorder,
-                      },
-                    ]}
-                    onPress={() =>
-                      router.push(`/hashtag/${item.hashtags?.tag}` as any)
-                    }
-                  >
-                    <Text style={[s.trendText, { color: theme.accent }]}>
-                      #{item.hashtags?.tag}
-                    </Text>
-                    <Text
+                {categories.map((cat) => {
+                  const isActive = selectedCategory === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
                       style={[
-                        s.trendCount,
-                        {
-                          color: theme.textFaint,
-                          backgroundColor: theme.card2,
-                        },
+                        s.categoryPill,
+                        isActive
+                          ? {
+                              backgroundColor: theme.accent,
+                              borderColor: theme.accent,
+                            }
+                          : {
+                              backgroundColor: theme.card,
+                              borderColor: theme.border,
+                            },
                       ]}
+                      onPress={() => setSelectedCategory(cat.id as any)}
                     >
-                      {item.post_count}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Ionicons
+                        name={cat.icon as any}
+                        size={13}
+                        color={isActive ? "#fff" : theme.textMuted}
+                      />
+                      <Text
+                        style={[
+                          s.categoryText,
+                          { color: isActive ? "#fff" : theme.text },
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
-          )}
 
-        {/* Student Directory Grid */}
-        {remaining === 0 ? (
+            {/* Trending chips */}
+            {trending.length > 0 &&
+              selectedCategory === "All" &&
+              !searchQuery &&
+              !loading && (
+                <View style={{ height: 42, marginTop: 4 }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.trendRow}
+                  >
+                    {trending.slice(0, 10).map((item) => (
+                      <TouchableOpacity
+                        key={item.hashtag_id}
+                        style={[
+                          s.trendPill,
+                          {
+                            backgroundColor: theme.card,
+                            borderColor: theme.accentBorder,
+                          },
+                        ]}
+                        onPress={() =>
+                          router.push(`/hashtag/${item.hashtags?.tag}` as any)
+                        }
+                      >
+                        <Text style={[s.trendText, { color: theme.accent }]}>
+                          #{item.hashtags?.tag}
+                        </Text>
+                        <Text
+                          style={[
+                            s.trendCount,
+                            {
+                              color: theme.textFaint,
+                              backgroundColor: theme.card2,
+                            },
+                          ]}
+                        >
+                          {item.post_count}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+          </View>
+        }
+        ListEmptyComponent={
           <View style={s.center}>
             <Text style={s.doneEmoji}>🔍</Text>
             <Text style={[s.emptyTitle, { color: theme.text }]}>
@@ -587,24 +593,17 @@ export default function DiscoverScreen() {
               <Text style={s.reloadBtnText}>Reset search</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            data={filteredDeck}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            key={`grid-2`}
-            renderItem={({ item }) => (
-              <StudentCard
-                user={item}
-                initialStatus={statuses[item.id] || "none"}
-                onConnectToggle={handleConnectToggle}
-              />
-            )}
-            contentContainerStyle={s.listContent}
-            showsVerticalScrollIndicator={false}
+        }
+        renderItem={({ item }) => (
+          <StudentCard
+            user={item}
+            initialStatus={statuses[item.id] || "none"}
+            onConnectToggle={handleConnectToggle}
           />
         )}
-      </ScrollView>
+        contentContainerStyle={s.listContent}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }

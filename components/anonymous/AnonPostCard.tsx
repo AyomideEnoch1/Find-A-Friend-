@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics'
 import { likePost } from '../../lib/feed'
 import { getTimeAgo } from '../../lib/matching'
 import type { AnonymousPost } from '../../lib/anonymous'
+import { useTheme } from '../../lib/theme'
 
 interface AnonPostCardProps {
   post: AnonymousPost
@@ -79,7 +80,7 @@ export default function AnonPostCard({ post, onCommentPress }: AnonPostCardProps
   }
 
   return (
-    <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+    <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }, theme.cardShadow]}>
       {/* Header — always anonymous */}
       <View style={s.header}>
         <View style={s.anonAvatar}>
