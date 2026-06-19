@@ -10,16 +10,10 @@ export interface FeedMedia {
   type: FeedMediaType
 }
 
-async function uploadToStorage(uri: string, path: string, mimeType: string): Promise<string> {
-  const res = await fetch(uri)
-  const arrayBuffer = await res.arrayBuffer()
-  const { error } = await supabase.storage
-    .from('posts-media')
-    .upload(path, arrayBuffer, { contentType: mimeType, upsert: false })
-  if (error) throw new Error(error.message)
+import { uploadFile } from './upload'
 
-  const { data } = supabase.storage.from('posts-media').getPublicUrl(path)
-  return data.publicUrl
+async function uploadToStorage(uri: string, path: string, mimeType: string): Promise<string> {
+  return await uploadFile('posts-media', path, uri, mimeType)
 }
 
 function storagePath(filename: string): string {

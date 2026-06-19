@@ -2,7 +2,7 @@
  * app/create-post.tsx
  * Create post screen — text, image picker, hashtag detection, post type selector.
  */
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import { createPost } from '../lib/feed'
 import { getClubs } from '../lib/clubs'
@@ -27,8 +27,9 @@ import { uploadFile } from '../lib/upload'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
 import { useFeedStore } from '../store/feedStore'
+import { typography } from '../lib/typography'
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://vcbtvhociaioeyhhsczh.supabase.co'
+
 
 type PostType = 'feed' | 'club' | 'academic'
 
@@ -40,15 +41,30 @@ const POST_TYPES: { label: string; value: PostType; icon: string }[] = [
 
 export default function CreatePostScreen() {
   const theme = useTheme()
+  const { clubId } = useLocalSearchParams<{ clubId?: string }>()
   const [body, setBody] = useState('')
-  const [imageUri, setImageUri] = useState<string | null>(null)
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null)
+  const [imageUris, setImageUris] = useState<string[]>([])
   const [postType, setPostType] = useState<PostType>('feed')
   const [clubs, setClubs] = useState<Club[]>([])
   const [selectedClub, setSelectedClub] = useState<Club | null>(null)
   const [loadingClubs, setLoadingClubs] = useState(false)
   const [posting, setPosting] = useState(false)
   const inputRef = useRef<TextInput>(null)
+
+  useEffect(() => {
+    if (clubId) {
+      setPostType('club')
+      setLoadingClubs(true)
+      getClubs().then(({ data }) => {
+        if (data) {
+          setClubs(data)
+          const target = data.find(c => c.id === clubId)
+          if (target) setSelectedClub(target)
+        }
+        setLoadingClubs(false)
+      })
+    }
+  }, [clubId])
 
   const handleTypeChange = async (type: PostType) => {
     setPostType(type)
@@ -68,24 +84,25 @@ export default function CreatePostScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsMultipleSelection: true,
+      selectionLimit: 4 - imageUris.length,
       allowsEditing: false,
       quality: 0.75,
     })
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri)
-      setMediaType(result.assets[0].type === 'video' ? 'video' : 'image')
+      const selected = result.assets.map(asset => asset.uri)
+      setImageUris(prev => [...prev, ...selected].slice(0, 4))
     }
   }
 
   const uploadMedia = async (uri: string): Promise<string> => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Not authenticated')
-    const ext = uri.split('.').pop()?.toLowerCase() ?? (mediaType === 'video' ? 'mp4' : 'jpg')
-    const path = `${session.user.id}/${Date.now()}.${ext}`
-    let mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
-    if (mediaType === 'video' || ext === 'mp4') mimeType = 'video/mp4'
-    else if (ext === 'mov') mimeType = 'video/quicktime'
-    else if (ext === 'webm') mimeType = 'video/webm'
+    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg'
+    const randomStr = Math.random().toString(36).substring(7)
+    const path = `${session.user.id}/${Date.now()}-${randomStr}.${ext}`
+    const isVideo = ['mp4', 'mov', 'm4v', '3gp'].includes(ext)
+    const mimeType = isVideo ? `video/${ext === 'mov' ? 'quicktime' : 'mp4'}` : `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
     return await uploadFile('posts-media', path, uri, mimeType)
   }
@@ -103,7 +120,14 @@ export default function CreatePostScreen() {
     setPosting(true)
     try {
       let imageUrl: string | null = null
-      if (imageUri) imageUrl = await uploadMedia(imageUri)
+      if (imageUris.length > 0) {
+        if (imageUris.length === 1) {
+          imageUrl = await uploadMedia(imageUris[0])
+        } else {
+          const uploaded = await Promise.all(imageUris.map(uri => uploadMedia(uri)))
+          imageUrl = JSON.stringify(uploaded)
+        }
+      }
 
       const { error } = await createPost({
         body: trimmed,
@@ -239,34 +263,47 @@ export default function CreatePostScreen() {
           </View>
 
           {/* Media preview */}
-          {imageUri && (
-            <View style={s.imagePreview}>
-              {mediaType === 'video' ? (
-                <View style={[s.previewImg, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', borderRadius: 12 }]}>
-                  <Ionicons name="videocam-outline" size={48} color="#fff" />
-                  <Text style={{ color: '#fff', marginTop: 8, fontSize: 12, textAlign: 'center' }}>Video selected (Preview not supported)</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="cover" />
-              )}
-              <TouchableOpacity
-                style={s.removeImg}
-                onPress={() => {
-                  setImageUri(null)
-                  setMediaType(null)
-                }}>
-                <Ionicons name="close-circle" size={22} color="#fff" />
-              </TouchableOpacity>
+          {imageUris.length > 0 && (
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {imageUris.map((uri, index) => (
+                  <View key={index} style={{ position: 'relative', width: 90, height: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 0.5, borderColor: theme.border }}>
+                    <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
+                    <TouchableOpacity
+                      style={{
+                        position: 'absolute', top: 4, right: 4,
+                        backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
+                        width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
+                      }}
+                      onPress={() => setImageUris(prev => prev.filter((_, idx) => idx !== index))}>
+                      <Ionicons name="close" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {imageUris.length < 4 && (
+                  <TouchableOpacity
+                    onPress={pickImage}
+                    style={{
+                      width: 90, height: 90, borderRadius: 12,
+                      borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed',
+                      alignItems: 'center', justifyContent: 'center', backgroundColor: theme.card,
+                    }}
+                  >
+                    <Ionicons name="camera-outline" size={24} color={theme.textMuted} />
+                    <Text style={{ fontSize: 9, color: theme.textMuted, marginTop: 4, fontFamily: typography.fontMedium }}>Add {4 - imageUris.length} more</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
             </View>
           )}
 
           {/* Media button */}
-          <TouchableOpacity style={s.mediaBtn} onPress={pickImage}>
-            <Ionicons name="image-outline" size={18} color="rgba(240,240,255,0.5)" />
-            <Text style={s.mediaBtnText}>
-              {imageUri ? 'Change media' : 'Add photo/video'}
-            </Text>
-          </TouchableOpacity>
+          {imageUris.length === 0 && (
+            <TouchableOpacity style={s.mediaBtn} onPress={pickImage}>
+              <Ionicons name="image-outline" size={18} color="rgba(240,240,255,0.5)" />
+              <Text style={s.mediaBtnText}>Add photo (4 max)</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

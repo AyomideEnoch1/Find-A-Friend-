@@ -102,35 +102,35 @@ export default function SettingsScreen() {
 
   const menuItems = [
     {
-      icon: '🔖', label: 'Bookmarks', sub: 'Your saved posts',
+      icon: 'bookmark-outline', label: 'Bookmarks', sub: 'Your saved posts',
       onPress: () => router.push('/bookmarks' as any),
     },
     {
-      icon: '🔔', label: 'Notifications', sub: 'Manage your alerts',
+      icon: 'notifications-outline', label: 'Notifications', sub: 'Manage your alerts',
       onPress: () => router.push('/notifications' as any),
     },
     {
-      icon: '🔒', label: 'Privacy settings', sub: 'Profile visibility',
+      icon: 'lock-closed-outline', label: 'Privacy settings', sub: 'Profile visibility',
       onPress: () => router.push('/privacy-settings' as any),
     },
     {
-      icon: '🌙', label: 'Appearance', sub: 'Dark & darker mode',
+      icon: 'moon-outline', label: 'Appearance', sub: 'Dark & darker mode',
       onPress: () => router.push('/appearance' as any),
     },
     {
-      icon: '🎓', label: 'Verification', sub: 'University email verified',
+      icon: 'school-outline', label: 'Verification', sub: 'University email verified',
       onPress: () => router.push('/verification' as any),
     },
     {
-      icon: '🎖️', label: 'Badges Guide', sub: 'What each badge represents',
+      icon: 'help-circle-outline', label: 'Badges Guide', sub: 'What each badge represents',
       onPress: () => router.push('/badges-info' as any),
     },
     {
-      icon: '❓', label: 'Help & support', sub: 'FAQs and contact',
+      icon: 'help-circle-outline', label: 'Help & support', sub: 'FAQs and contact',
       onPress: () => router.push('/help' as any),
     },
     {
-      icon: '🗑️', label: 'Delete account', sub: 'Permanently remove your data',
+      icon: 'trash-outline', label: 'Delete account', sub: 'Permanently remove your data',
       onPress: handleDeleteAccount,
       danger: true,
     },
@@ -156,8 +156,8 @@ export default function SettingsScreen() {
               key={i}
               style={[s.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: theme.border2 }]}
               onPress={item.onPress}>
-              <View style={[s.menuIconWrap, { backgroundColor: theme.card2 }]}>
-                <Text style={s.menuIcon}>{item.icon}</Text>
+              <View style={[s.menuIconWrap, { backgroundColor: theme.border, borderColor: theme.border2, borderWidth: 0.5 }]}>
+                <Ionicons name={item.icon as any} size={20} color={item.danger ? '#ef4444' : theme.text} />
               </View>
               <View style={s.menuText}>
                 <Text style={[s.menuLabel, { color: item.danger ? '#ef4444' : theme.text }]}>{item.label}</Text>
@@ -254,7 +254,6 @@ const s = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
-  menuIcon: { fontSize: 16 },
   menuText: { flex: 1 },
   menuLabel: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
   menuSub: { fontSize: 11 },

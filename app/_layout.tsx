@@ -21,7 +21,9 @@ import { GAME_META, type GameType } from '../lib/games'
 import { 
   registerForPushNotifications, 
   savePushToken,
-  subscribeToWebPush
+  subscribeToWebPush,
+  getNotifications,
+  sendLocalNotification
 } from '../lib/notifications'
 import * as Notifications from 'expo-notifications'
 import {
@@ -82,68 +84,90 @@ function AppStack() {
 
     // Check streak
     useStreakStore.getState().recordDailyActivity();
+    // ── Presence & Active Users Fallback (Database-backed Heartbeat) ───────────
+    const updatePresence = async () => {
+      if (!session?.user?.id) return
+      try {
+        await supabase
+          .from('profiles')
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq('id', session.user.id)
+      } catch (err) {
+        console.warn('Failed to update presence heartbeat:', err)
+      }
+    }
 
-    // ── Presence channel ────────────────────────────────────────────────────
-    // Supabase Presence automatically removes users when they disconnect
-    // (app killed, network loss, crash) — far more reliable than writing to DB.
-    const presenceChannel = supabase.channel("online-users", {
-      config: { presence: { key: session.user.id } },
-    });
+    const fetchOnlineUsers = async () => {
+      if (!session?.user?.id) return
+      try {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .gt('last_seen_at', fiveMinutesAgo)
 
-    const syncOnlineUsers = () => {
-      const state = presenceChannel.presenceState();
-      setOnlineUsers(Object.keys(state));
-    };
-
-    presenceChannel
-      .on("presence", { event: "sync" }, syncOnlineUsers)
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await presenceChannel.track({
-            user_id: session.user.id,
-            online_at: Date.now(),
-          });
+        if (error) throw error
+        if (data) {
+          setOnlineUsers(data.map(d => d.id))
         }
-      });
+      } catch (err) {
+        console.warn('Failed to fetch online users presence:', err)
+      }
+    }
 
-    presenceChannelRef.current = presenceChannel;
+    updatePresence()
+    fetchOnlineUsers()
 
-    // ── AppState: re-track on foreground, untrack on background ────────────
+    const presenceHeartbeat = setInterval(updatePresence, 30000)
+    const presenceFetchInterval = setInterval(fetchOnlineUsers, 30000)
+
+    // ── AppState: re-track on foreground ─────────────────────────────────────
     const appStateSub = AppState.addEventListener('change', async (nextState) => {
-      if (!presenceChannelRef.current) return
       if (nextState === 'active') {
-        try {
-          await presenceChannelRef.current.track({ user_id: session.user.id, online_at: Date.now() })
-        } catch {}
+        updatePresence()
+        fetchOnlineUsers()
         // Re-register push token in case it was rotated by the OS
         registerForPushNotifications().then(token => { if (token) savePushToken(token) })
         // Pick up any OTA update that landed while the app was backgrounded
         checkForUpdate()
         // Check daily streak
         useStreakStore.getState().recordDailyActivity()
-      } else {
-        try {
-          await presenceChannelRef.current.untrack()
-        } catch {}
       }
     })
 
-    // ── In-app notification subscription ───────────────────────────────────
-    const notifChannel = supabase
-      .channel("user-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${session.user.id}`,
-        },
-        (payload: any) => {
-          addNotification(payload.new);
-        },
-      )
-      .subscribe();
+    // ── In-app notification polling subscription ───────────────────────────
+    // Load notifications initially
+    useNotificationsStore.getState().loadNotifications()
+
+    const pollInterval = setInterval(async () => {
+      if (!session?.user?.id) return
+      try {
+        const store = useNotificationsStore.getState()
+        const existingIds = new Set(store.notifications.map(n => n.id))
+
+        // Fetch the 5 most recent notifications
+        const { data, error } = await getNotifications(false, 5)
+        if (error || !data) return
+
+        // Find new notifications
+        const newNotifications = data.filter(n => !existingIds.has(n.id))
+
+        if (newNotifications.length > 0) {
+          // Add them (oldest first so store ordering is correct)
+          newNotifications.reverse().forEach(n => {
+            store.addNotification(n)
+
+            // Trigger local push notification
+            sendLocalNotification(
+              n.type === 'like' ? 'New Like! ❤️' : 'New Notification! 🔔',
+              n.body || 'You have new activity on your profile.'
+            )
+          })
+        }
+      } catch (err) {
+        console.warn('Failed to poll notifications:', err)
+      }
+    }, 15000)
 
     // ── Dashboard-triggered OTA updates + post deletions ──────────────────
     const updateChannel = supabase
@@ -216,9 +240,9 @@ function AppStack() {
       .subscribe()
 
     return () => {
-      presenceChannelRef.current?.untrack()
-      supabase.removeChannel(presenceChannel)
-      supabase.removeChannel(notifChannel)
+      clearInterval(presenceHeartbeat)
+      clearInterval(presenceFetchInterval)
+      clearInterval(pollInterval)
       supabase.removeChannel(updateChannel)
       supabase.removeChannel(gameChannel)
       appStateSub.remove()
@@ -266,6 +290,8 @@ function AppStack() {
       receivedSub.remove();
     };
   }, []);
+
+  if (!initialized) return null;
 
   return (
     <>
@@ -360,16 +386,18 @@ export default function RootLayout() {
     ...Ionicons.font,
   });
 
+  const authLoading = useAuthStore((s) => s.loading);
+
   useEffect(() => {
     hydrate();
     checkForUpdate();
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && !authLoading) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, authLoading]);
 
   if (!fontsLoaded) return null;
 

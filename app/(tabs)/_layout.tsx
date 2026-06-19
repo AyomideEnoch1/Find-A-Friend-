@@ -8,6 +8,7 @@ import { useNotificationsStore } from '../../store/notificationsStore'
 import { useBadgesStore } from '../../store/badgesStore'
 import { tabBarTranslateY, showTabBar } from '../../lib/tabBarAnim'
 import { useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 
 function TabIcon({ name, color, size, focused }: { name: any; color: string; size: number; focused: boolean }) {
   return (
@@ -28,9 +29,35 @@ export default function TabLayout() {
 
   useEffect(() => {
     syncCounts()
-    // Optional: sync periodically or when app comes to foreground, but calling once on mount is a good start.
-    const interval = setInterval(syncCounts, 30000) // Poll every 30s
-    return () => clearInterval(interval)
+
+    // Real-time subscriptions to trigger syncCounts on new inserts immediately
+    const tables = [
+      'posts',
+      'events',
+      'clubs',
+      'messages',
+      'study_groups',
+      'anonymous_posts',
+      'vendors',
+      'game_sessions'
+    ]
+
+    const channels = tables.map(table => {
+      return supabase
+        .channel(`realtime-badges-${table}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table },
+          () => {
+            syncCounts()
+          }
+        )
+        .subscribe()
+    })
+
+    return () => {
+      channels.forEach(ch => supabase.removeChannel(ch))
+    }
   }, [syncCounts])
 
   return (
@@ -65,7 +92,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.home > 0 ? (counts.home > 9 ? '9+' : counts.home) : undefined,
+          tabBarBadge: counts?.home > 0 ? (counts.home > 9 ? '9+' : counts.home) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -76,7 +103,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="search" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.discover > 0 ? (counts.discover > 9 ? '9+' : counts.discover) : undefined,
+          tabBarBadge: counts?.discover > 0 ? (counts.discover > 9 ? '9+' : counts.discover) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -87,7 +114,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="calendar" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.events > 0 ? (counts.events > 9 ? '9+' : counts.events) : undefined,
+          tabBarBadge: counts?.events > 0 ? (counts.events > 9 ? '9+' : counts.events) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />
@@ -95,11 +122,10 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="chatbubbles" color={color} size={size} focused={focused} />
           ),
-          tabBarBadge: counts.chat > 0 ? (counts.chat > 9 ? '9+' : counts.chat) : undefined,
+          tabBarBadge: counts?.chat > 0 ? (counts.chat > 9 ? '9+' : counts.chat) : undefined,
           tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 10 },
         }}
       />

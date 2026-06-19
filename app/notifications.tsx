@@ -30,6 +30,7 @@ function getNotificationIcon(type: NotificationType): { name: IconName; color: s
     case 'story_view':         return { name: 'eye',            color: '#c084fc' }
     case 'mention':            return { name: 'at',             color: '#60a5fa' }
     case 'new_message':        return { name: 'chatbubbles',    color: '#34d399' }
+    case 'comment_reply':      return { name: 'chatbubble-ellipses', color: '#60a5fa' }
     default:                   return { name: 'notifications',  color: '#a78bfa' }
   }
 }
@@ -48,6 +49,7 @@ function getNotificationBody(notif: AppNotification): string {
     case 'story_view':         return `${actor} viewed your story`
     case 'mention':            return `${actor} mentioned you in a post`
     case 'new_message':        return `${actor} sent you a message`
+    case 'comment_reply':      return `${actor} replied to your comment`
     default:                   return 'You have a new notification'
   }
 }
@@ -125,6 +127,7 @@ export default function NotificationsScreen() {
   const {
     notifications, loading, unreadCount,
     loadNotifications, markNotificationRead, markAllNotificationsRead,
+    clearAllNotifications,
   } = useNotificationsStore()
 
   useEffect(() => { loadNotifications() }, [])
@@ -151,15 +154,23 @@ export default function NotificationsScreen() {
           <Ionicons name="arrow-back" size={18} color={theme.text} />
         </TouchableOpacity>
         <Text style={[s.title, { color: theme.text }]}>Notifications</Text>
-        {unreadCount > 0 ? (
-          <TouchableOpacity
-            style={[s.markAllBtn, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }]}
-            onPress={markAllNotificationsRead}>
-            <Text style={[s.markAllText, { color: theme.accent }]}>Mark all read</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 88 }} />
-        )}
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)' }]}
+              onPress={clearAllNotifications}>
+              <Text style={[s.actionBtnText, { color: '#ef4444' }]}>Clear all</Text>
+            </TouchableOpacity>
+          )}
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={[s.actionBtn, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }]}
+              onPress={markAllNotificationsRead}>
+              <Text style={[s.actionBtnText, { color: theme.accent }]}>Mark all read</Text>
+            </TouchableOpacity>
+          )}
+          {notifications.length === 0 && unreadCount === 0 && <View style={{ width: 8 }} />}
+        </View>
       </View>
 
       {loading && !notifications.length ? (
@@ -212,6 +223,10 @@ const s = StyleSheet.create({
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 0.5,
   },
   markAllText: { fontSize: 11, fontFamily: typography.fontMedium },
+  actionBtn: {
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 0.5,
+  },
+  actionBtnText: { fontSize: 11, fontFamily: typography.fontMedium },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   /* Row */

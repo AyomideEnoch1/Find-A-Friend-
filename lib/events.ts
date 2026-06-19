@@ -79,6 +79,7 @@ export interface CreateEventPayload {
   mapLocationId?: string
   mapPinX?: number
   mapPinY?: number
+  isAnonymousLinked?: boolean
 }
 
 export interface UpdateEventPayload {
@@ -118,6 +119,7 @@ export async function getEvents(
       .from('events')
       .select(`
         *,
+        clubs(id, name, color),
         profiles!organizer_id(id, full_name, avatar_url)
       `)
       .eq('is_public', true)
@@ -169,6 +171,7 @@ export async function getEventDetail(eventId: string): Promise<{
       .from('events')
       .select(`
         *,
+        clubs(id, name, color),
         profiles!organizer_id(id, full_name, avatar_url)
       `)
       .eq('id', eventId)
@@ -210,6 +213,7 @@ export async function createEvent(payload: CreateEventPayload): Promise<{
         map_location_id: payload.mapLocationId ?? null,
         map_pin_x: payload.mapPinX ?? null,
         map_pin_y: payload.mapPinY ?? null,
+        is_anonymous_linked: payload.isAnonymousLinked ?? false,
       })
       .select(`
         *,

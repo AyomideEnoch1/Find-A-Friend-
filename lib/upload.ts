@@ -1,24 +1,16 @@
-/**
- * lib/upload.ts
- * Shared helper for uploading local file URIs to Supabase Storage.
- *
- * Uses FormData with a plain object { uri, name, type } so that React Native
- * can read the local file:// URI natively — bypassing the fetch(uri)+blob()
- * approach which throws "Network request failed" on Android.
- */
 import { Platform } from 'react-native'
-import { supabase } from './supabase'
+import * as FileSystem from 'expo-file-system'
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!
+const S3_BUCKET_URL = 'https://faf-infra-prod-v2-appstoragebucket-prasmiamuew2.s3.amazonaws.com'
 
 /**
- * Upload a local file URI to a Supabase Storage bucket.
+ * Upload a local file URI directly to AWS S3 Storage.
  * Returns the public URL on success.
- * @param bucket  - Storage bucket name
+ * @param bucket  - S3 virtual bucket name (folder prefix)
  * @param path    - Object path inside the bucket (e.g. "userId/timestamp.jpg")
  * @param uri     - Local file URI from expo-image-picker or expo-document-picker
- * @param mimeType - MIME type (e.g. "image/jpeg")
- * @param upsert  - Whether to overwrite an existing object at the same path
+ * @param mimeType - MIME type (e.g. "image/jpeg" or "video/mp4")
+ * @param upsert  - Unused in direct S3 upload
  */
 export async function uploadFile(
   bucket: string,
@@ -27,43 +19,41 @@ export async function uploadFile(
   mimeType: string,
   upsert = false,
 ): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not authenticated')
+  const s3Key = `${bucket}/${path}`
+  const s3Url = `${S3_BUCKET_URL}/${s3Key}`
 
-  const ext = mimeType.split('/')[1]?.split(';')[0] ?? uri.split('.').pop() ?? 'bin'
+  console.log(`[S3 Upload] Uploading ${uri} to ${s3Url} (${mimeType})`)
 
   if (Platform.OS === 'web') {
     const resBlob = await fetch(uri)
     const blob = await resBlob.blob()
 
-    const { error } = await supabase.storage.from(bucket).upload(path, blob, {
-      contentType: mimeType,
-      upsert,
+    const uploadRes = await fetch(s3Url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': mimeType,
+      },
+      body: blob,
     })
 
-    if (error) {
-      const msg = (error as any)?.message ?? String(error)
-      throw new Error(`Upload failed: ${msg}`)
+    if (!uploadRes.ok) {
+      throw new Error(`S3 upload failed with status ${uploadRes.status}`)
     }
   } else {
-    // Uses FormData to bypass fetch() Network request failed issues on RN Android
-    const formData = new FormData()
-    formData.append('file', {
-      uri,
-      name: path.split('/').pop() || 'upload',
-      type: mimeType,
-    } as any)
-
-    const { error } = await supabase.storage.from(bucket).upload(path, formData, {
-      upsert,
+    // Native (Android/iOS) direct S3 upload using expo-file-system
+    const uploadResult = await FileSystem.uploadAsync(s3Url, uri, {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {
+        'Content-Type': mimeType,
+      },
     })
 
-    if (error) {
-      const msg = (error as any)?.message ?? String(error)
-      throw new Error(`Upload failed: ${msg}`)
+    if (uploadResult.status < 200 || uploadResult.status >= 300) {
+      throw new Error(`S3 upload failed with status ${uploadResult.status}: ${uploadResult.body}`)
     }
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-  return data.publicUrl
+  return s3Url
 }
+

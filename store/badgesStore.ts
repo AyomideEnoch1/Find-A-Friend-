@@ -82,14 +82,14 @@ export const useBadgesStore = create<BadgesState>()(
             .from('posts')
             .select('*', { count: 'exact', head: true })
             .gt('created_at', lastSeen.home)
-            .neq('user_id', user.id)
+            .neq('author_id', user.id)
 
           // Count new clubs
           const p2 = supabase
             .from('clubs')
             .select('*', { count: 'exact', head: true })
             .gt('created_at', lastSeen.discover)
-            .neq('creator_id', user.id)
+            .neq('created_by', user.id)
 
           // Count new events
           const p3 = supabase

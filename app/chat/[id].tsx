@@ -165,607 +165,11 @@ function isSameDay(a: string, b: string): boolean {
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
-// ─── Challenge bubble ─────────────────────────────────────────────────────────
-
-function ChallengeBubble({
-  challenge,
-  mine,
-  convId,
-  myId,
-  otherUserId,
-  otherName,
-}: {
-  challenge: { gameType: string; emoji: string; label: string };
-  mine: boolean;
-  convId: string;
-  myId: string;
-  otherUserId: string;
-  otherName: string;
-}) {
-  const theme = useTheme();
-  const meta = GAME_META[challenge.gameType as GameType];
-
-  const handleAccept = async () => {
-    const gameType = challenge.gameType as GameType;
-
-    // Navigate to waiting room first
-    router.push({
-      pathname: "/play/waiting",
-      params: {
-        gameType,
-        opponentId: otherUserId,
-        opponentName: otherName,
-      },
-    } as any);
-
-    // Send acceptance message
-    await supabase.from("messages").insert({
-      conversation_id: convId,
-      sender_id: myId,
-      body: JSON.stringify({
-        _type: "challenge_accepted",
-        gameType: challenge.gameType,
-        emoji: challenge.emoji,
-        label: challenge.label,
-        sessionId: "", // Will be matched by opponentId in waiting room
-      }),
-    });
-  };
-
-  const handleDecline = async () => {
-    await supabase.from("messages").insert({
-      conversation_id: convId,
-      sender_id: myId,
-      body: `❌ Declined the ${challenge.emoji} ${challenge.label} challenge.`,
-    });
-  };
-
-  return (
-    <View
-      style={[
-        cb.card,
-        {
-          backgroundColor: meta?.bg ?? "rgba(167,139,250,0.1)",
-          borderColor: meta?.border ?? "rgba(167,139,250,0.3)",
-        },
-      ]}
-    >
-      <Text style={cb.emoji}>{challenge.emoji}</Text>
-      <Text style={[cb.tag, { color: theme.textFaint }]}>GAME CHALLENGE</Text>
-      <Text style={[cb.label, { color: meta?.color ?? theme.accent }]}>
-        {challenge.label}
-      </Text>
-      {mine ? (
-        <Text style={[cb.waiting, { color: theme.textFaint }]}>
-          Waiting for response…
-        </Text>
-      ) : (
-        <View style={cb.btns}>
-          <TouchableOpacity style={cb.declineBtn} onPress={handleDecline}>
-            <Text style={cb.declineText}>Decline</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              cb.acceptBtn,
-              { backgroundColor: meta?.color ?? theme.accent },
-            ]}
-            onPress={handleAccept}
-          >
-            <Text style={cb.acceptText}>Accept ⚡</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
-}
-
-const cb = StyleSheet.create({
-  card: {
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    alignItems: "center",
-    gap: 4,
-    minWidth: 210,
-  },
-  emoji: { fontSize: 44, marginBottom: 2 },
-  tag: { fontSize: 10, fontFamily: typography.fontMedium, letterSpacing: 1 },
-  label: { fontSize: 17, fontFamily: typography.fontBold, marginBottom: 2 },
-  waiting: { fontSize: 12, fontFamily: typography.fontRegular, marginTop: 8 },
-  btns: { flexDirection: "row", gap: 10, marginTop: 12 },
-  declineBtn: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
-  },
-  declineText: {
-    fontSize: 13,
-    fontFamily: typography.fontSemiBold,
-    color: "#f87171",
-  },
-  acceptBtn: { borderRadius: 20, paddingHorizontal: 20, paddingVertical: 9 },
-  acceptText: {
-    fontSize: 13,
-    fontFamily: typography.fontSemiBold,
-    color: "#fff",
-  },
-});
-
-// ─── Acceptance bubble ────────────────────────────────────────────────────────
-
-function AcceptanceBubble({
-  acceptance,
-  otherUserId,
-  otherName,
-}: {
-  acceptance: { gameType: string; emoji: string; label: string };
-  otherUserId: string;
-  otherName: string;
-}) {
-  const theme = useTheme();
-
-  const handleJoin = () => {
-    router.push({
-      pathname: "/play/waiting",
-      params: {
-        gameType: acceptance.gameType,
-        opponentId: otherUserId,
-        opponentName: otherName,
-      },
-    } as any);
-  };
-
-  return (
-    <View
-      style={[
-        ab.card,
-        {
-          backgroundColor: "rgba(74,222,128,0.08)",
-          borderColor: "rgba(74,222,128,0.25)",
-        },
-      ]}
-    >
-      <View style={ab.top}>
-        <Text style={ab.emoji}>{acceptance.emoji}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[ab.title, { color: theme.text }]}>
-            Challenge Accepted!
-          </Text>
-          <Text style={[ab.sub, { color: theme.textFaint }]}>
-            Let's play {acceptance.label}
-          </Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        style={[ab.btn, { backgroundColor: "#10b981" }]}
-        onPress={handleJoin}
-      >
-        <Text style={ab.btnText}>Join Game ⚡</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const ab = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    gap: 12,
-    minWidth: 210,
-  },
-  top: { flexDirection: "row", alignItems: "center", gap: 12 },
-  emoji: { fontSize: 34 },
-  title: { fontSize: 14, fontFamily: typography.fontBold },
-  sub: { fontSize: 11, fontFamily: typography.fontRegular },
-  btn: { borderRadius: 12, paddingVertical: 10, alignItems: "center" },
-  btnText: { fontSize: 13, fontFamily: typography.fontBold, color: "#fff" },
-});
-
-// ─── Story interaction bubble ─────────────────────────────────────────────────
-
-function StoryInteractionBubble({
-  interaction,
-  mine,
-}: {
-  interaction: {
-    _type: string;
-    emoji?: string;
-    body?: string;
-    caption: string;
-    mediaUrl: string;
-  };
-  mine: boolean;
-}) {
-  const theme = useTheme();
-  const isReaction = interaction._type === "story_reaction";
-
-  return (
-    <View
-      style={[
-        sib.card,
-        {
-          backgroundColor: mine
-            ? "rgba(167,139,250,0.15)"
-            : "rgba(255,255,255,0.06)",
-          borderColor: mine
-            ? "rgba(167,139,250,0.35)"
-            : "rgba(255,255,255,0.1)",
-        },
-      ]}
-    >
-      {/* Story thumbnail strip */}
-      {interaction.mediaUrl ? (
-        <Image
-          source={{ uri: interaction.mediaUrl }}
-          style={sib.thumb}
-          resizeMode="cover"
-        />
-      ) : (
-        <View
-          style={[
-            sib.thumbPlaceholder,
-            { backgroundColor: "rgba(167,139,250,0.1)" },
-          ]}
-        >
-          <Ionicons
-            name="image-outline"
-            size={18}
-            color="rgba(167,139,250,0.5)"
-          />
-        </View>
-      )}
-
-      <View style={sib.info}>
-        <Text style={sib.tag}>
-          {isReaction ? "Reacted to your story" : "Commented on your story"}
-        </Text>
-        {!!interaction.caption && (
-          <Text
-            style={[sib.caption, { color: theme.textFaint }]}
-            numberOfLines={1}
-          >
-            {interaction.caption}
-          </Text>
-        )}
-        {isReaction ? (
-          <Text style={sib.reactionEmoji}>{interaction.emoji}</Text>
-        ) : (
-          <Text
-            style={[sib.commentBody, { color: theme.text }]}
-            numberOfLines={3}
-          >
-            "{interaction.body}"
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-const sib = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-    maxWidth: 270,
-    minWidth: 190,
-  },
-  thumb: { width: 64, height: 86 },
-  thumbPlaceholder: {
-    width: 64,
-    height: 86,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  info: { flex: 1, padding: 10, justifyContent: "center", gap: 4 },
-  tag: {
-    fontSize: 9,
-    fontFamily: typography.fontSemiBold,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    color: "rgba(167,139,250,0.8)",
-  },
-  caption: { fontSize: 10, fontFamily: typography.fontRegular },
-  reactionEmoji: { fontSize: 28, marginTop: 2 },
-  commentBody: {
-    fontSize: 12,
-    fontFamily: typography.fontRegular,
-    fontStyle: "italic",
-    lineHeight: 17,
-  },
-});
-
-// ─── Message actions modal ────────────────────────────────────────────────────
-
-const REACTIONS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
-
-function MessageActionsModal({
-  msg,
-  mine,
-  onClose,
-  onEdit,
-  onDelete,
-  onReact,
-  onReply,
-  onSaveSticker,
-}: {
-  msg: any;
-  mine: boolean;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onReact: (emoji: string) => void;
-  onReply: () => void;
-  onSaveSticker?: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={ma.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      />
-      <View
-        style={[
-          ma.sheet,
-          { backgroundColor: theme.card2, borderColor: theme.accentBorder },
-        ]}
-      >
-        <View style={[ma.handle, { backgroundColor: theme.border2 }]} />
-
-        {/* Emoji reactions row */}
-        <View style={ma.reactRow}>
-          {REACTIONS.map((emoji) => (
-            <TouchableOpacity
-              key={emoji}
-              style={[
-                ma.reactBtn,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}
-              onPress={() => {
-                onReact(emoji);
-                onClose();
-              }}
-            >
-              <Text style={ma.reactEmoji}>{emoji}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={[ma.divider, { backgroundColor: theme.border }]} />
-
-        <TouchableOpacity
-          style={ma.actionRow}
-          onPress={() => {
-            onReply();
-            onClose();
-          }}
-        >
-          <Ionicons name="arrow-undo-outline" size={18} color={theme.accent} />
-          <Text style={[ma.actionLabel, { color: theme.text }]}>Reply</Text>
-        </TouchableOpacity>
-
-        {onSaveSticker && (
-          <TouchableOpacity
-            style={ma.actionRow}
-            onPress={() => {
-              onSaveSticker();
-              onClose();
-            }}
-          >
-            <Ionicons name="star-outline" size={18} color="#eab308" />
-            <Text style={[ma.actionLabel, { color: theme.text }]}>
-              ⭐ Save as Sticker
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {mine && (
-          <TouchableOpacity
-            style={ma.actionRow}
-            onPress={() => {
-              onEdit();
-              onClose();
-            }}
-          >
-            <Ionicons name="pencil-outline" size={18} color={theme.accent} />
-            <Text style={[ma.actionLabel, { color: theme.text }]}>
-              Edit message
-            </Text>
-          </TouchableOpacity>
-        )}
-        {mine && (
-          <TouchableOpacity
-            style={ma.actionRow}
-            onPress={() => {
-              onDelete();
-              onClose();
-            }}
-          >
-            <Ionicons name="trash-outline" size={18} color="#f87171" />
-            <Text style={[ma.actionLabel, { color: "#f87171" }]}>
-              Delete message
-            </Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={ma.cancelRow} onPress={onClose}>
-          <Text style={[ma.cancelLabel, { color: theme.textMuted }]}>
-            Cancel
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
-
-const ma = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
-  sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 34,
-    borderWidth: 0.5,
-    borderBottomWidth: 0,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  reactRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  reactBtn: { padding: 8, borderRadius: 14, borderWidth: 0.5 },
-  reactEmoji: { fontSize: 26 },
-  divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-  },
-  actionLabel: { fontSize: 15, fontFamily: typography.fontMedium },
-  cancelRow: { paddingVertical: 14, alignItems: "center", marginTop: 4 },
-  cancelLabel: { fontSize: 14, fontFamily: typography.fontMedium },
-});
-
-const att = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
-  sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 34,
-    borderWidth: 0.5,
-    borderBottomWidth: 0,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: typography.fontSemiBold,
-    marginBottom: 18,
-    textAlign: "center",
-  },
-  grid: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  option: {
-    flex: 1,
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 0.5,
-  },
-  iconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 0.5,
-  },
-  optionLabel: { fontSize: 11, fontFamily: typography.fontMedium },
-  cancelBtn: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 0.5,
-    alignItems: "center",
-  },
-  cancelText: { fontSize: 14, fontFamily: typography.fontMedium },
-  uploadingRow: { alignItems: "center", gap: 12, paddingVertical: 32 },
-  uploadingText: { fontSize: 13, fontFamily: typography.fontRegular },
-});
-
-// ─── Attachment bubble ────────────────────────────────────────────────────────
-
-const SCREEN_W = Dimensions.get("window").width;
-
-function AttachmentBubble({
-  attachment,
-  onLongPress,
-}: {
-  attachment: Attachment;
-  mine: boolean;
-  onLongPress?: () => void;
-}) {
-  const handleOpen = () => Linking.openURL(attachment.url).catch(() => {});
-
-  if (attachment._type === "image") {
-    const imgW = Math.min(SCREEN_W * 0.65, 260);
-    const aspectH =
-      attachment.width && attachment.height
-        ? imgW * (attachment.height / attachment.width)
-        : imgW;
-    return (
-      <TouchableOpacity onPress={handleOpen} onLongPress={onLongPress} activeOpacity={0.85}>
-        <Image
-          source={{ uri: attachment.url }}
-          style={{
-            width: imgW,
-            height: Math.min(aspectH, 320),
-            borderRadius: 12,
-          }}
-          resizeMode="cover"
-        />
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <TouchableOpacity
-      style={[attb.videoWrap, { backgroundColor: "rgba(0,0,0,0.4)" }]}
-      onPress={handleOpen}
-      onLongPress={onLongPress}
-      activeOpacity={0.85}
-    >
-      <View style={attb.playBtn}>
-        <Ionicons name="play" size={24} color="#fff" />
-      </View>
-      <View style={attb.videoInfo}>
-        <Ionicons name="videocam" size={14} color="rgba(255,255,255,0.8)" />
-        <Text style={attb.videoLabel}>{attachment.name ?? "Video"}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const attb = StyleSheet.create({
-  videoWrap: { width: 220, borderRadius: 14, padding: 12, gap: 10 },
-  playBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-  },
-  videoInfo: { flexDirection: "row", alignItems: "center", gap: 6 },
-  videoLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
-    fontFamily: typography.fontRegular,
-  },
-});
+import { ChallengeBubble } from "../../components/chat/ChallengeBubble";
+import { AcceptanceBubble } from "../../components/chat/AcceptanceBubble";
+import { StoryInteractionBubble } from "../../components/chat/StoryInteractionBubble";
+import { AttachmentBubble } from "../../components/chat/AttachmentBubble";
+import { MessageActionsModal } from "../../components/chat/MessageActionsModal";
 
 // ─── Animated online pulse dot (WhatsApp green) ───────────────────────────────
 
@@ -1045,7 +449,8 @@ export default function DirectMessageScreen() {
   const [replyingTo, setReplyingTo] = useState<ReplyPayload["replyTo"] | null>(
     null,
   );
-  const [reactions, setReactions] = useState<Record<string, string[]>>({});
+  const [reactions, setReactions] = useState<Record<string, string[]>>({})
+  const [chatStreak, setChatStreak] = useState({ streak_count: 0, at_risk: false, increased: false })
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const theme = useTheme();
@@ -1106,6 +511,20 @@ export default function DirectMessageScreen() {
         .eq("conversation_id", cid)
         .neq("sender_id", user.id)
         .eq("is_read", false);
+
+      // Load existing chat streak
+      if (otherUserId) {
+        const { data: streakData } = await supabase.rpc('get_chat_streak', {
+          other_user_id: otherUserId,
+        })
+        if (streakData) {
+          setChatStreak({
+            streak_count: streakData.streak_count ?? 0,
+            at_risk: streakData.at_risk ?? false,
+            increased: false,
+          })
+        }
+      }
     } catch (err) {
       console.error("Init error:", err);
       setLoading(false);
@@ -1116,98 +535,64 @@ export default function DirectMessageScreen() {
     initConversation();
   }, [initConversation]);
 
-  // ── Realtime subscriptions ──────────────────────────────────────────────────
+  // ── Realtime subscriptions fallback (HTTP Polling) ─────────────────────────
 
   useEffect(() => {
     if (!convId) return;
-    const channelName = `dm-chat:${convId}`;
-    const stale = supabase
-      .getChannels()
-      .find((c) => c.topic === `realtime:${channelName}`);
-    if (stale) supabase.removeChannel(stale);
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        async (payload: any) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .eq("id", payload.new.sender_id)
-            .single();
+    const syncMessages = async () => {
+      try {
+        const { data: msgs, error } = await supabase
+          .from("messages")
+          .select("*, profiles!sender_id(id, full_name, avatar_url)")
+          .eq("conversation_id", convId)
+          .order("created_at", { ascending: true });
 
-          // Mark as read immediately if message is from the other person
-          if (payload.new.sender_id !== myId) {
-            supabase
-              .from("messages")
-              .update({ is_read: true })
-              .eq("id", payload.new.id)
-              .then(() => {});
-          }
-
+        if (error) throw error;
+        if (msgs) {
           setMessages((prev) => {
-            const idx = prev.findIndex(
-              (m) =>
-                m._optimistic &&
-                m.body === payload.new.body &&
-                m.sender_id === payload.new.sender_id,
-            );
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = { ...payload.new, profiles: profile };
-              return updated;
+            // Check if there are any differences in the list to avoid redrawing/re-scrolling
+            const prevSignature = prev.map((m) => `${m.id}-${m.is_read}-${m.body}`).join(',');
+            const newSignature = msgs.map((m) => `${m.id}-${m.is_read || m.sender_id !== myId}-${m.body}`).join(',');
+            if (prevSignature === newSignature) return prev;
+
+            // Mark any unread messages from the other person as read in the DB
+            const unreadOtherIds = msgs
+              .filter((m) => m.sender_id !== myId && !m.is_read)
+              .map((m) => m.id);
+
+            if (unreadOtherIds.length > 0) {
+              supabase
+                .from("messages")
+                .update({ is_read: true })
+                .in("id", unreadOtherIds)
+                .then(() => {});
             }
-            const newMsg = { ...payload.new, profiles: profile };
-            if (payload.new.sender_id !== myId) newMsg.is_read = true;
-            return [...prev, newMsg];
+
+            const mapped = msgs.map((m) => {
+              if (m.sender_id !== myId) return { ...m, is_read: true };
+              return m;
+            });
+
+            // Scroll to end if a new message was received
+            if (msgs.length > prev.length) {
+              setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+            }
+
+            return mapped;
           });
-          setTimeout(
-            () => scrollRef.current?.scrollToEnd({ animated: true }),
-            80,
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        (payload: any) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === payload.new.id ? { ...m, ...payload.new } : m,
-            ),
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "messages",
-          filter: "conversation_id=eq." + convId,
-        },
-        (payload: any) => {
-          setMessages((prev) => prev.filter((m) => m.id !== payload.old?.id));
-        },
-      )
-      .subscribe();
+        }
+      } catch (err) {
+        console.warn("Error syncing messages:", err);
+      }
+    };
+
+    const intervalId = setInterval(syncMessages, 4000); // Poll every 4 seconds
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(intervalId);
     };
-  }, [convId]);
+  }, [convId, myId]);
 
   // ── Message actions ─────────────────────────────────────────────────────────
 
@@ -1333,6 +718,26 @@ export default function DirectMessageScreen() {
         text1: "Message not sent",
         text2: sendError.message,
       });
+    } else {
+      // Record for streak tracking
+      const today = new Date()
+      const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+        .toISOString().split('T')[0]
+      if (otherUserId) {
+        supabase.rpc('record_chat_message', {
+          other_user_id: otherUserId,
+          client_date: localDate,
+        }).then(({ data }) => {
+          if (data) {
+            const prev = chatStreak.streak_count
+            const next = data.streak_count ?? 0
+            setChatStreak({ streak_count: next, at_risk: data.at_risk ?? false, increased: next > prev })
+            if (next > prev && next > 1) {
+              Toast.show({ type: 'success', text1: `🔥 ${next} day streak!`, text2: 'Keep it going!' })
+            }
+          }
+        })
+      }
     }
   };
 
@@ -1437,7 +842,7 @@ export default function DirectMessageScreen() {
       <StickerPicker
         visible={showStickerPicker}
         onClose={() => setShowStickerPicker(false)}
-        onSelectSticker={(url, type) => {
+        onSelectSticker={async (url, type) => {
           setShowStickerPicker(false)
           const attach: Attachment = { _type: type, url, width: 800, height: 800 }
           const body = JSON.stringify(attach)
@@ -1455,9 +860,17 @@ export default function DirectMessageScreen() {
             () => scrollRef.current?.scrollToEnd({ animated: true }),
             80,
           );
-          supabase
+          const { error } = await supabase
             .from("messages")
             .insert({ conversation_id: convId, sender_id: myId, body });
+          if (error) {
+            setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+            Toast.show({
+              type: "error",
+              text1: "Failed to send sticker",
+              text2: error.message,
+            });
+          }
         }}
       />
 
@@ -1543,12 +956,26 @@ export default function DirectMessageScreen() {
 
             {/* Name + status text */}
             <View style={{ flex: 1 }}>
-              <Text
-                style={[s.headerName, { color: theme.text }]}
-                numberOfLines={1}
-              >
-                {otherName}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text
+                  style={[s.headerName, { color: theme.text }]}
+                  numberOfLines={1}
+                >
+                  {otherName}
+                </Text>
+                {chatStreak.streak_count > 0 && (
+                  <View style={[
+                    s.streakChip,
+                    chatStreak.at_risk
+                      ? { backgroundColor: 'rgba(251,191,36,0.15)', borderColor: 'rgba(251,191,36,0.35)' }
+                      : { backgroundColor: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.35)' },
+                  ]}>
+                    <Text style={s.streakChipText}>
+                      {chatStreak.at_risk ? '⌛' : '🔥'} {chatStreak.streak_count}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <Text
                 style={[
                   s.headerStatus,
@@ -1877,18 +1304,30 @@ export default function DirectMessageScreen() {
           >
             {/* Attach icon — hidden while editing to match WhatsApp behavior */}
             {!editingId && (
-              <TouchableOpacity
-                style={s.attachIconBtn}
-                onPress={() => setShowAttachSheet(true)}
-                hitSlop={8}
-              >
-                {/* Paperclip / attach icon */}
-                <Ionicons
-                  name="attach-outline"
-                  size={24}
-                  color={theme.textMuted}
-                />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  style={s.attachIconBtn}
+                  onPress={() => setShowAttachSheet(true)}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="attach-outline"
+                    size={24}
+                    color={theme.textMuted}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ padding: 6, marginRight: 2 }}
+                  onPress={() => setShowStickerPicker(true)}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="happy-outline"
+                    size={24}
+                    color={theme.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Pill-shaped text input */}
@@ -2034,6 +1473,16 @@ const s = StyleSheet.create({
     marginTop: 1,
     lineHeight: 14,
   },
+  streakChip: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: 10, borderWidth: 0.5,
+  },
+  streakChipText: {
+    fontSize: 11, fontFamily: typography.fontBold,
+    color: '#f97316',
+  },
+
   headerActions: {
     flexDirection: "row",
     alignItems: "center",

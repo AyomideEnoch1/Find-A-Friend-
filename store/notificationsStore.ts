@@ -28,6 +28,7 @@ import {
   getUnreadCount,
   markRead,
   markAllRead,
+  deleteAllNotifications,
 } from '../lib/notifications'
 import type { AppNotification } from '../lib/notifications'
 
@@ -60,6 +61,7 @@ interface NotificationsState {
   loadUnreadCount: () => Promise<void>
   markNotificationRead: (notificationId: string) => Promise<void>
   markAllNotificationsRead: () => Promise<void>
+  clearAllNotifications: () => Promise<void>
   /** Called by the realtime subscription when a new notification arrives */
   addNotification: (notification: AppNotification) => void
 }
@@ -156,6 +158,20 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     const { error } = await markAllRead()
     if (error) {
       // Reload from server on failure to restore correct state
+      get().loadNotifications()
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Clear all notifications
+  // -------------------------------------------------------------------------
+  clearAllNotifications: async () => {
+    // Optimistic update
+    set({ notifications: [], unreadCount: 0 })
+    updateAppBadge(0)
+    const { error } = await deleteAllNotifications()
+    if (error) {
+      // Reload from server on failure
       get().loadNotifications()
     }
   },

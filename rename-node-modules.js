@@ -25,3 +25,29 @@ if (fs.existsSync(swPath)) {
 } else {
   console.log('dist/sw.js not found. Skipping cache name injection.');
 }
+
+// Post-process JavaScript bundles to replace import.meta with a safe CJS equivalent
+const jsDir = path.join(__dirname, 'dist', '_expo', 'static', 'js', 'web');
+if (fs.existsSync(jsDir)) {
+  console.log('Post-processing JS bundles to resolve import.meta syntax errors...');
+  const files = fs.readdirSync(jsDir);
+  let processedCount = 0;
+  for (const file of files) {
+    if (file.startsWith('entry-') && file.endsWith('.js')) {
+      const filePath = path.join(jsDir, file);
+      let content = fs.readFileSync(filePath, 'utf8');
+      if (content.includes('import.meta')) {
+        content = content.replace(/import\.meta/g, '({env:{MODE:"production"}})');
+        fs.writeFileSync(filePath, content, 'utf8');
+        console.log(`Successfully patched import.meta in ${file}`);
+        processedCount++;
+      }
+    }
+  }
+  if (processedCount === 0) {
+    console.log('No import.meta references found in JS bundles.');
+  }
+} else {
+  console.log('Web JS directory not found. Skipping bundle post-processing.');
+}
+

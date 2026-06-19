@@ -28,6 +28,49 @@ export default function EventDetailScreen() {
     if (id) loadData()
   }, [id])
 
+  useEffect(() => {
+    if (!id) return;
+
+    const eventChannel = supabase
+      .channel(`event-detail-realtime-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "events",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Event;
+          setEvent((e) => (e ? { ...e, rsvp_count: updated.rsvp_count } : e));
+        }
+      )
+      .subscribe();
+
+    const rsvpsChannel = supabase
+      .channel(`event-rsvps-realtime-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "event_rsvps",
+          filter: `event_id=eq.${id}`,
+        },
+        async () => {
+          const attendeesRes = await getEventAttendees(id, "going");
+          setAttendees(attendeesRes.data ?? []);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(eventChannel);
+      supabase.removeChannel(rsvpsChannel);
+    };
+  }, [id]);
+
   const loadData = async () => {
     setLoading(true)
     try {
@@ -164,12 +207,23 @@ export default function EventDetailScreen() {
         </View>
 
         <View style={s.content}>
-          {/* Category */}
-          {event.category && (
-            <View style={s.categoryBadge}>
-              <Text style={s.categoryText}>{event.category}</Text>
-            </View>
-          )}
+          {/* Category & Club Badge Row */}
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+            {event.category && (
+              <View style={s.categoryBadge}>
+                <Text style={s.categoryText}>{event.category}</Text>
+              </View>
+            )}
+
+            {event.clubs && (
+              <TouchableOpacity
+                style={[s.clubBadgeRow, { backgroundColor: 'rgba(167,139,250,0.08)', borderColor: 'rgba(167,139,250,0.2)' }]}
+                onPress={() => router.push(`/club/${event.club_id}` as any)}>
+                <Ionicons name="people-outline" size={12} color="#a78bfa" style={{ marginRight: 4 }} />
+                <Text style={s.clubBadgeText}>Organized by {event.clubs.name}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <Text style={s.title}>{event.title}</Text>
 
@@ -338,4 +392,18 @@ const s = StyleSheet.create({
   rsvpBtnActive: { backgroundColor: '#a78bfa', borderColor: '#a78bfa' },
   rsvpText: { fontSize: 15, fontWeight: '600', color: '#a78bfa' },
   rsvpTextActive: { color: '#fff' },
+  clubBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 0.5,
+  },
+  clubBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#a78bfa',
+  },
 })

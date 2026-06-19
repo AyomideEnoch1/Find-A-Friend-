@@ -7,16 +7,17 @@ import Animated, {
   withTiming, withDelay, withRepeat, withSequence, withSpring, Easing,
 } from 'react-native-reanimated'
 import { typography } from '../../lib/typography'
+import { Ionicons } from '@expo/vector-icons'
 
 const { width, height } = Dimensions.get('window')
 
 const FEATURES = [
-  { icon: '🎓', text: 'Verified campus students only' },
-  { icon: '🧠', text: 'Smart interest-based matching' },
-  { icon: '📅', text: 'Live events & campus map' },
-  { icon: '💬', text: 'Real-time encrypted messaging' },
-  { icon: '🏛️', text: 'Clubs, societies & study groups' },
-  { icon: '🎮', text: 'Social games & challenges' },
+  { icon: 'school-outline', text: 'Verified campus students only' },
+  { icon: 'bulb-outline', text: 'Smart interest-based matching' },
+  { icon: 'calendar-outline', text: 'Live events & campus map' },
+  { icon: 'chatbubble-ellipses-outline', text: 'Real-time encrypted messaging' },
+  { icon: 'people-outline', text: 'Clubs, societies & study groups' },
+  { icon: 'game-controller-outline', text: 'Social games & challenges' },
 ]
 
 function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number; color: string; delay: number }) {
@@ -57,7 +58,7 @@ function FeatureRow({ icon, text, delay }: { icon: string; text: string; delay: 
   return (
     <Animated.View style={[s.featureRow, style]}>
       <View style={s.featureIconWrap}>
-        <Text style={s.featureIcon}>{icon}</Text>
+        <Ionicons name={icon as any} size={16} color="#c4b5fd" />
       </View>
       <Text style={s.featureText}>{text}</Text>
     </Animated.View>
@@ -280,7 +281,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(167,139,250,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  featureIcon: { fontSize: 16 },
   featureText: {
     fontSize: 13, fontFamily: typography.fontMedium,
     color: 'rgba(210,190,255,0.75)',

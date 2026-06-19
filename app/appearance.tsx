@@ -50,9 +50,9 @@ export default function AppearanceScreen() {
               { backgroundColor: theme.card, borderColor: t.active ? theme.accent : theme.border },
             ]}
             onPress={t.onPress}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: t.active }}
-            accessibilityLabel={t.label}>
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${t.label} theme`}>
             <View style={s.themeLeft}>
               <Text style={s.themeIcon}>{t.icon}</Text>
               <View style={{ flex: 1, gap: 2 }}>
@@ -71,6 +71,51 @@ export default function AppearanceScreen() {
             )}
           </TouchableOpacity>
         ))}
+
+        {/* Dynamic Theme Preview Widget */}
+        <Text style={[s.sectionLabel, { color: theme.textMuted, marginTop: 12 }]}>Preview</Text>
+        <View style={[s.previewWidget, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+          {/* Header */}
+          <View style={[s.previewHeader, { borderBottomColor: theme.border }]}>
+            <View style={s.previewUserRow}>
+              <View style={[s.previewAvatar, { backgroundColor: theme.accentBg }]}>
+                <Text style={[s.previewAvatarText, { color: theme.accent }]}>JD</Text>
+              </View>
+              <View>
+                <Text style={[s.previewUsername, { color: theme.text }]}>John Doe</Text>
+                <Text style={[s.previewUserStatus, { color: theme.success }]}>● Online</Text>
+              </View>
+            </View>
+            <Ionicons name="call" size={16} color={theme.accent} />
+          </View>
+
+          {/* Messages */}
+          <View style={s.previewChatBody}>
+            <View style={[s.previewBubbleFriend, { backgroundColor: theme.card }]}>
+              <Text style={[s.previewBubbleText, { color: theme.text }]}>
+                Hey! Are we still playing pool in the game lobby today? 🎱
+              </Text>
+              <Text style={[s.previewBubbleTime, { color: theme.textFaint }]}>11:32 AM</Text>
+            </View>
+
+            <View style={[s.previewBubbleSelf, { backgroundColor: theme.accent }]}>
+              <Text style={[s.previewBubbleText, { color: '#fff' }]}>
+                Definitely! Meet you there in 10 mins. 🚀
+              </Text>
+              <Text style={[s.previewBubbleTime, { color: 'rgba(255,255,255,0.7)' }]}>11:33 AM</Text>
+            </View>
+          </View>
+
+          {/* Input Area */}
+          <View style={[s.previewInputArea, { borderTopColor: theme.border }]}>
+            <View style={[s.previewInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={{ color: theme.textMuted, fontSize: 11 }}>Write a message...</Text>
+            </View>
+            <View style={[s.previewSendBtn, { backgroundColor: theme.accent }]}>
+              <Ionicons name="send" size={10} color="#fff" />
+            </View>
+          </View>
+        </View>
 
         <Text style={[s.note, { color: theme.textFaint }]}>
           Both themes use a dark background optimised for night use. Darker uses near-black AMOLED colours for maximum contrast on OLED screens.
@@ -103,5 +148,99 @@ const s = StyleSheet.create({
   note: {
     fontSize: 12, fontFamily: typography.fontRegular, lineHeight: 18,
     marginTop: 4,
+  },
+  previewWidget: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 0.5,
+    paddingBottom: 8,
+  },
+  previewUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  previewAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewAvatarText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  previewUsername: {
+    fontSize: 11,
+    fontFamily: typography.fontSemiBold,
+  },
+  previewUserStatus: {
+    fontSize: 8,
+    fontWeight: '600',
+  },
+  previewChatBody: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  previewBubbleFriend: {
+    alignSelf: 'flex-start',
+    maxWidth: '85%',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderTopLeftRadius: 2,
+  },
+  previewBubbleSelf: {
+    alignSelf: 'flex-end',
+    maxWidth: '85%',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderTopRightRadius: 2,
+  },
+  previewBubbleText: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  previewBubbleTime: {
+    fontSize: 8,
+    alignSelf: 'flex-end',
+    marginTop: 2,
+  },
+  previewInputArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderTopWidth: 0.5,
+    paddingTop: 8,
+  },
+  previewInput: {
+    flex: 1,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    paddingLeft: 10,
+    justifyContent: 'center',
+  },
+  previewSendBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
