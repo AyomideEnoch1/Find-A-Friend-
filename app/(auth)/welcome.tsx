@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { typography } from '../../lib/typography'
 import { Ionicons } from '@expo/vector-icons'
+import { useTheme } from '../../lib/theme'
 
 const { width, height } = Dimensions.get('window')
 
@@ -48,6 +49,7 @@ function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number;
 }
 
 function FeatureRow({ icon, text, delay }: { icon: string; text: string; delay: number }) {
+  const theme = useTheme()
   const opacity = useSharedValue(0)
   const tx = useSharedValue(-24)
   useEffect(() => {
@@ -57,15 +59,16 @@ function FeatureRow({ icon, text, delay }: { icon: string; text: string; delay: 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ translateX: tx.value }] }))
   return (
     <Animated.View style={[s.featureRow, style]}>
-      <View style={s.featureIconWrap}>
-        <Ionicons name={icon as any} size={16} color="#c4b5fd" />
+      <View style={[s.featureIconWrap, { backgroundColor: theme.card2 }]}>
+        <Ionicons name={icon as any} size={16} color={theme.accent} />
       </View>
-      <Text style={s.featureText}>{text}</Text>
+      <Text style={[s.featureText, { color: theme.text }]}>{text}</Text>
     </Animated.View>
   )
 }
 
 export default function WelcomeScreen() {
+  const theme = useTheme()
   const logoScale = useSharedValue(0.4)
   const logoOpacity = useSharedValue(0)
   const glowOp = useSharedValue(0.4)
@@ -125,20 +128,17 @@ export default function WelcomeScreen() {
   }))
 
   return (
-    <View style={s.container}>
-      {/* Background */}
-      <View style={s.bg} />
-
+    <View style={[s.container, { backgroundColor: theme.bg }]}>
       {/* Ambient orbs */}
-      <Orb x={width * 0.15} y={height * 0.18} size={220} color="rgba(167,139,250,0.11)" delay={0} />
-      <Orb x={width * 0.88} y={height * 0.32} size={160} color="rgba(96,165,250,0.09)" delay={700} />
-      <Orb x={width * 0.4}  y={height * 0.65} size={240} color="rgba(244,114,182,0.07)" delay={1400} />
-      <Orb x={width * 0.8}  y={height * 0.75} size={130} color="rgba(52,211,153,0.08)" delay={400} />
+      <Orb x={width * 0.15} y={height * 0.18} size={220} color={theme.dark ? "rgba(167,139,250,0.11)" : "rgba(167,139,250,0.06)"} delay={0} />
+      <Orb x={width * 0.88} y={height * 0.32} size={160} color={theme.dark ? "rgba(96,165,250,0.09)" : "rgba(96,165,250,0.05)"} delay={700} />
+      <Orb x={width * 0.4}  y={height * 0.65} size={240} color={theme.dark ? "rgba(244,114,182,0.07)" : "rgba(244,114,182,0.04)"} delay={1400} />
+      <Orb x={width * 0.8}  y={height * 0.75} size={130} color={theme.dark ? "rgba(52,211,153,0.08)" : "rgba(52,211,153,0.04)"} delay={400} />
 
       {/* Grid lines overlay */}
       <View style={s.grid} pointerEvents="none">
         {Array.from({ length: 8 }).map((_, i) => (
-          <View key={i} style={[s.gridLine, { top: `${i * 14}%` as any }]} />
+          <View key={i} style={[s.gridLine, { top: `${i * 14}%` as any, backgroundColor: theme.border }]} />
         ))}
       </View>
 
@@ -148,52 +148,56 @@ export default function WelcomeScreen() {
           {/* Logo section */}
           <View style={s.logoSection}>
             <View style={s.logoOuter}>
-              {/* Pulsing glow behind logo */}
-              <Animated.View style={[s.glowRing, glowStyle]} />
-              <Animated.View style={[s.logoWrap, logoStyle]}>
-                {/* Scan line inside logo */}
-                <Animated.View style={[s.scanLine, scanStyle]} />
-                <Text style={s.logoText}>FAF</Text>
+              <Animated.View style={[s.glowRing, { backgroundColor: theme.accentGlow }, glowStyle]} />
+              <Animated.View style={[s.logoWrap, { backgroundColor: theme.card, borderColor: theme.borderAccent }, logoStyle]}>
+                <Animated.View style={[s.scanLine, { backgroundColor: theme.accent }, scanStyle]} />
+                <Text style={[s.logoText, { color: theme.accent }]}>FAF</Text>
                 <View style={s.logoDot} />
               </Animated.View>
             </View>
-
-            <Animated.View style={[{ alignItems: 'center', marginTop: 20 }, titleStyle]}>
-              <Text style={s.tagline}>Find A Friend</Text>
-              <View style={s.taglineLine} />
-              <Text style={s.sub}>Your campus social universe</Text>
-            </Animated.View>
           </View>
 
-          {/* Feature card */}
-          <View style={s.featureCard}>
+          {/* Tagline & Subtitle */}
+          <Animated.View style={titleStyle}>
+            <Text style={[s.tagline, { color: theme.text }]}>Find A Friend</Text>
+            <View style={[s.taglineLine, { backgroundColor: theme.accent }]} />
+            <Text style={[s.sub, { color: theme.textMuted }]}>
+              The ultimate college community. Discover events, share stories, join study rooms, and connect with your coursemates.
+            </Text>
+          </Animated.View>
+
+          {/* Key Features Quick Glance */}
+          <Animated.View style={[s.featureCard, { backgroundColor: theme.card, borderColor: theme.border }, titleStyle]}>
             <View style={s.featureCardHeader}>
-              <View style={s.featureCardDot} />
-              <Text style={s.featureCardLabel}>PLATFORM FEATURES</Text>
-              <View style={[s.featureCardDot, { backgroundColor: '#60a5fa' }]} />
+              <View style={[s.featureCardDot, { backgroundColor: theme.accent }]} />
+              <Text style={[s.featureCardLabel, { color: theme.textMuted }]}>CAMPUS FEATURES</Text>
             </View>
-            {FEATURES.map((f, i) => (
-              <FeatureRow key={i} icon={f.icon} text={f.text} delay={600 + i * 90} />
+            {FEATURES.slice(0, 3).map((item, idx) => (
+              <FeatureRow key={idx} icon={item.icon} text={item.text} delay={400 + idx * 100} />
             ))}
-          </View>
+          </Animated.View>
 
-          {/* CTA */}
+          {/* Actions */}
           <Animated.View style={[s.actions, btnStyle]}>
             <TouchableOpacity
               style={s.btnPrimary}
-              activeOpacity={0.85}
-              onPress={() => router.push('/(auth)/verify')}>
-              <View style={s.btnGlow} />
-              <Text style={s.btnText}>Get started →</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.btnSecondary}
+              onPress={() => router.push('/(auth)/onboarding' as any)}
               activeOpacity={0.8}
-              onPress={() => router.push('/(auth)/verify')}>
-              <Text style={s.btnSecondaryText}>Sign in to my account</Text>
+            >
+              <View style={s.btnGlow} />
+              <Text style={s.btnText}>Get Started</Text>
             </TouchableOpacity>
-            <Text style={s.disclaimer}>
-              University email required · Students only
+
+            <TouchableOpacity
+              style={[s.btnSecondary, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => router.push('/(auth)/verify' as any)}
+              activeOpacity={0.85}
+            >
+              <Text style={[s.btnSecondaryText, { color: theme.accent }]}>Sign In</Text>
+            </TouchableOpacity>
+
+            <Text style={[s.disclaimer, { color: theme.textFaint }]}>
+              By signing in, you agree to our Terms of Service.
             </Text>
           </Animated.View>
 

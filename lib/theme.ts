@@ -139,7 +139,7 @@ export type ThemeColors = {
   };
 };
 
-const ThemeContext = createContext<ThemeColors>(DARK);
+const ThemeContext = createContext<ThemeColors>(LIGHT);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeStore();

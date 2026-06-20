@@ -58,7 +58,7 @@ export default function EditProfileScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     })
@@ -72,7 +72,7 @@ export default function EditProfileScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     })

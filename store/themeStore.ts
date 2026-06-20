@@ -13,7 +13,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: 'dark',
+  mode: 'light',
   isDarker: false,
   hydrated: false,
 
@@ -22,7 +22,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     const stored = await AsyncStorage.getItem('themeMode').catch(() => null)
     // Support legacy 'isDark' key — if present, both modes are dark variants
     const legacyDark = await AsyncStorage.getItem('isDark').catch(() => null)
-    let mode: ThemeMode = 'dark'
+    let mode: ThemeMode = 'light'
     if (stored === 'light') mode = 'light'
     else if (stored === 'darker') mode = 'darker'
     else if (stored === 'dark') mode = 'dark'

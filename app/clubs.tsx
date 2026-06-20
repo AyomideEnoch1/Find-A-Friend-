@@ -110,7 +110,7 @@ export default function ClubsScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.8,
     });

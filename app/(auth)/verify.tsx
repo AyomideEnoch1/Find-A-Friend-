@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { typography } from '../../lib/typography'
 import { Ionicons } from '@expo/vector-icons'
+import { useTheme } from '../../lib/theme'
 
 const { width } = Dimensions.get('window')
 
@@ -41,6 +42,7 @@ function AnimatedInput({
   autoCapitalize?: any
   isPassword?: boolean
 }) {
+  const theme = useTheme()
   const [focused, setFocused] = useState(false)
   const [hidden, setHidden] = useState(true)
   const borderOp = useSharedValue(0)
@@ -56,12 +58,12 @@ function AnimatedInput({
 
   return (
     <View style={iv.wrap}>
-      <Animated.Text style={[iv.label, labelStyle]}>{label}</Animated.Text>
-      <View style={iv.inputOuter}>
+      <Animated.Text style={[iv.label, { color: theme.accent }, labelStyle]}>{label}</Animated.Text>
+      <View style={[iv.inputOuter, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <TextInput
-          style={[iv.input, isPassword && { paddingRight: 50 }]}
+          style={[iv.input, { color: theme.text }, isPassword && { paddingRight: 50 }]}
           placeholder={placeholder}
-          placeholderTextColor="rgba(167,139,250,0.25)"
+          placeholderTextColor={theme.textFaint}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={isPassword ? hidden : secureTextEntry}
@@ -77,10 +79,10 @@ function AnimatedInput({
             onPress={() => setHidden(!hidden)}
             activeOpacity={0.7}
           >
-            <Ionicons name={hidden ? "eye-off-outline" : "eye-outline"} size={20} color="rgba(196,181,253,0.6)" />
+            <Ionicons name={hidden ? "eye-off-outline" : "eye-outline"} size={20} color={theme.textMuted} />
           </TouchableOpacity>
         )}
-        <Animated.View style={[iv.focusLine, borderStyle]} />
+        <Animated.View style={[iv.focusLine, { backgroundColor: theme.accent }, borderStyle]} />
       </View>
     </View>
   )
@@ -141,6 +143,7 @@ function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number;
 }
 
 export default function VerifyScreen() {
+  const theme = useTheme()
   const insets = useSafeAreaInsets()
   const [mode, setMode] = useState<Mode>('signup')
   const [email, setEmail] = useState('')
@@ -240,21 +243,21 @@ export default function VerifyScreen() {
   }
 
   return (
-    <View style={s.root}>
-      {/* Dark background */}
-      <View style={s.bg} />
+    <View style={[s.root, { backgroundColor: theme.bg }]}>
+      {/* Background */}
+      <View style={[s.bg, { backgroundColor: theme.bg }]} />
 
       {/* Grid */}
       <View style={s.grid} pointerEvents="none">
         {Array.from({ length: 10 }).map((_, i) => (
-          <View key={i} style={[s.gridLine, { top: `${i * 11}%` as any }]} />
+          <View key={i} style={[s.gridLine, { top: `${i * 11}%` as any, backgroundColor: theme.border }]} />
         ))}
       </View>
 
       {/* Ambient orbs */}
-      <Orb x={width * 0.1}  y={120} size={200} color="rgba(167,139,250,0.09)" delay={0} />
-      <Orb x={width * 0.9}  y={300} size={160} color="rgba(96,165,250,0.07)"  delay={800} />
-      <Orb x={width * 0.5}  y={600} size={220} color="rgba(244,114,182,0.06)" delay={1200} />
+      <Orb x={width * 0.1}  y={120} size={200} color={theme.dark ? "rgba(167,139,250,0.09)" : "rgba(167,139,250,0.04)"} delay={0} />
+      <Orb x={width * 0.9}  y={300} size={160} color={theme.dark ? "rgba(96,165,250,0.07)" : "rgba(96,165,250,0.03)"}  delay={800} />
+      <Orb x={width * 0.5}  y={600} size={220} color={theme.dark ? "rgba(244,114,182,0.06)" : "rgba(244,114,182,0.03)"} delay={1200} />
 
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
@@ -269,36 +272,36 @@ export default function VerifyScreen() {
           >
             {/* Back */}
             <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-              <Text style={s.backText}>← Back</Text>
+              <Text style={[s.backText, { color: theme.accent }]}>← Back</Text>
             </TouchableOpacity>
 
             {/* Logo */}
             <View style={s.logoRow}>
-              <View style={s.logoWrap}>
-                <View style={s.logoGlow} />
-                <Text style={s.logoText}>FAF</Text>
+              <View style={[s.logoWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={[s.logoGlow, { backgroundColor: theme.accentGlow }]} />
+                <Text style={[s.logoText, { color: theme.accent }]}>FAF</Text>
                 <View style={s.logoDot} />
               </View>
               <View>
-                <Text style={s.appName}>Find A Friend</Text>
-                <Text style={s.appSub}>Campus social universe</Text>
+                <Text style={[s.appName, { color: theme.text }]}>Find A Friend</Text>
+                <Text style={[s.appSub, { color: theme.textMuted }]}>Campus social universe</Text>
               </View>
             </View>
 
             {/* Card */}
-            <Animated.View style={[s.card, cardStyle]}>
+            <Animated.View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }, cardStyle]}>
               {/* Tab switcher */}
-              <View style={s.tabBar}>
-                <Animated.View style={[s.tabIndicator, tabIndicatorStyle]} />
+              <View style={[s.tabBar, { borderColor: theme.border }]}>
+                <Animated.View style={[s.tabIndicator, { backgroundColor: theme.accent }, tabIndicatorStyle]} />
                 <TouchableOpacity
                   style={s.tabBtn}
                   onPress={() => { setMode('signup'); setPassword(''); setConfirmPassword('') }}>
-                  <Text style={[s.tabLabel, mode === 'signup' && s.tabLabelActive]}>Sign Up</Text>
+                  <Text style={[s.tabLabel, { color: theme.textMuted }, mode === 'signup' && { color: theme.accent }]}>Sign Up</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.tabBtn}
                   onPress={() => { setMode('signin'); setPassword(''); setConfirmPassword('') }}>
-                  <Text style={[s.tabLabel, mode === 'signin' && s.tabLabelActive]}>Sign In</Text>
+                  <Text style={[s.tabLabel, { color: theme.textMuted }, mode === 'signin' && { color: theme.accent }]}>Sign In</Text>
                 </TouchableOpacity>
               </View>
 
@@ -328,16 +331,16 @@ export default function VerifyScreen() {
                 )}
 
                 {mode === 'signup' && (
-                  <View style={s.infoCard}>
-                    <View style={s.infoDot} />
-                    <Text style={s.infoText}>
+                  <View style={[s.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[s.infoDot, { backgroundColor: theme.accent }]} />
+                    <Text style={[s.infoText, { color: theme.textMuted }]}>
                       University email required — verified students only
                     </Text>
                   </View>
                 )}
 
                 <TouchableOpacity
-                  style={[s.btnPrimary, loading && s.btnDisabled]}
+                  style={[s.btnPrimary, { backgroundColor: theme.accent }, loading && s.btnDisabled]}
                   onPress={handleSubmit}
                   activeOpacity={0.85}
                   disabled={loading}
@@ -346,16 +349,16 @@ export default function VerifyScreen() {
                   {loading
                     ? <ActivityIndicator color="#fff" />
                     : <Text style={s.btnText}>
-                        {mode === 'signup' ? 'Create Account →' : 'Sign In →'}
+                        {mode === 'signup' ? 'Create Account' : 'Sign In'}
                       </Text>
                   }
                 </TouchableOpacity>
 
-                <Text style={s.termsText}>
+                <Text style={[s.termsText, { color: theme.textFaint }]}>
                   By continuing you agree to our{' '}
-                  <Text style={s.termsLink}>Terms</Text>
+                  <Text style={[s.termsLink, { color: theme.accent }]}>Terms</Text>
                   {' '}and{' '}
-                  <Text style={s.termsLink}>Privacy Policy</Text>
+                  <Text style={[s.termsLink, { color: theme.accent }]}>Privacy Policy</Text>
                 </Text>
               </View>
             </Animated.View>

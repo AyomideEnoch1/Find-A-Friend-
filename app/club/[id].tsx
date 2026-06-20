@@ -206,7 +206,7 @@ export default function ClubDetailScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images', allowsEditing: false, quality: 0.8,
+      mediaTypes: ['images'], allowsEditing: false, quality: 0.8,
     })
     if (!result.canceled) setEditCoverUri(result.assets[0].uri)
   }

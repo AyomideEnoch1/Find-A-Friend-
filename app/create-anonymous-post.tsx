@@ -55,11 +55,11 @@ export default function CreateAnonPostScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.closeBtn}>
-            <Ionicons name="close" size={22} color="rgba(240,240,255,0.6)" />
+        <View style={[s.header, { borderBottomColor: theme.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[s.closeBtn, { backgroundColor: theme.card }]}>
+            <Ionicons name="close" size={22} color={theme.text} />
           </TouchableOpacity>
-          <Text style={s.title}>Post Anonymously</Text>
+          <Text style={[s.title, { color: theme.text }]}>Post Anonymously</Text>
           <TouchableOpacity
             style={[s.postBtn, !canPost && s.postBtnDisabled]}
             onPress={handlePost}
@@ -78,7 +78,7 @@ export default function CreateAnonPostScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Ghost header */}
-          <View style={s.anonHeader}>
+          <View style={[s.anonHeader, { backgroundColor: theme.dark ? "rgba(244,114,182,0.08)" : "rgba(244,114,182,0.04)", borderColor: theme.border }]}>
             <View style={s.anonAvatar}>
               <Ionicons
                 name="eye-off-outline"
@@ -87,8 +87,8 @@ export default function CreateAnonPostScreen() {
               />
             </View>
             <View>
-              <Text style={s.anonName}>Anonymous</Text>
-              <Text style={s.anonSub}>
+              <Text style={[s.anonName, { color: theme.text }]}>Anonymous</Text>
+              <Text style={[s.anonSub, { color: theme.textMuted }]}>
                 Your identity is hidden from other students
               </Text>
             </View>
@@ -96,9 +96,9 @@ export default function CreateAnonPostScreen() {
 
           {/* Text input */}
           <TextInput
-            style={s.input}
+            style={[s.input, { color: theme.text }]}
             placeholder="Share something anonymously with campus..."
-            placeholderTextColor="rgba(240,240,255,0.25)"
+            placeholderTextColor={theme.textFaint}
             value={body}
             onChangeText={setBody}
             multiline
@@ -106,7 +106,7 @@ export default function CreateAnonPostScreen() {
             autoFocus
             textAlignVertical="top"
           />
-          <Text style={s.charCount}>{body.length}/500</Text>
+          <Text style={[s.charCount, { color: theme.textFaint }]}>{body.length}/500</Text>
 
           {/* Disclaimer checkbox */}
           {/* <TouchableOpacity
