@@ -10,7 +10,7 @@ import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useFeedStore } from '../../store/feedStore'
-import { supabase } from '../../lib/supabase'
+import { client } from '../../lib/aws'
 import { reportPost } from '../../lib/feed'
 import { useTheme, glowShadow } from '../../lib/theme'
 import { typography } from '../../lib/typography'
@@ -36,7 +36,8 @@ export default function PostCard({ post }: PostCardProps) {
   const theme = useTheme()
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null))
+    // TODO: AWS Auth
+    (client as any).auth.getUser().then(({ data }: any) => setMyUserId(data.user?.id ?? null))
   }, [])
 
   const handleScroll = (event: any) => {
