@@ -125,10 +125,16 @@ export class CognitoAuthAdapter {
       const emailAttr = userRes.UserAttributes.find((a: any) => a.Name === 'email')?.Value;
       const nameAttr = userRes.UserAttributes.find((a: any) => a.Name === 'name')?.Value;
       const legacyIdAttr = userRes.UserAttributes.find((a: any) => a.Name === 'custom:legacy_id')?.Value;
+      const emailVerifiedAttr = userRes.UserAttributes.find((a: any) => a.Name === 'email_verified')?.Value;
+
+      if (emailVerifiedAttr !== 'true') {
+        throw new Error('UserNotConfirmedException: Email is not verified.');
+      }
 
       const user = {
         id: legacyIdAttr || userRes.Username, // Map back to original DB ID if migrated, else cognito sub
         email: emailAttr || formattedEmail,
+        email_verified: emailVerifiedAttr === 'true',
         user_metadata: {
           full_name: nameAttr || '',
         },
