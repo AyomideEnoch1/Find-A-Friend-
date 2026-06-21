@@ -26,8 +26,7 @@ import type { TrendingHashtag } from "../../lib/feed";
 import { getTrending } from "../../lib/feed";
 import type { FollowProfile } from "../../lib/follows";
 import { getMostFollowedUsers, getSuggestedUsers } from "../../lib/follows";
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth';
+import { supabase } from "../../lib/supabase";
 import { showTabBar } from "../../lib/tabBarAnim";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
@@ -143,7 +142,7 @@ export default function DiscoverScreen() {
     loadData();
     getLikesCounts().then(setLikesCount);
 
-    getCurrentUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
 
       supabase
@@ -210,7 +209,7 @@ export default function DiscoverScreen() {
       .subscribe();
 
     return () => {
-      // supabase.removeChannel(followsChannel);
+      supabase.removeChannel(followsChannel);
     };
   }, []);
 
@@ -351,18 +350,6 @@ export default function DiscoverScreen() {
     { id: "Newbies", label: "Newbies", icon: "sparkles-outline" },
   ];
 
-  if (loading) {
-    return (
-      <SafeAreaView
-        style={[s.container, { backgroundColor: theme.bg }]}
-        edges={["top"]}
-      >
-        <NeuralBackground intensity="light" />
-        <ScreenLoader message="Loading campus directory..." />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView
       style={[s.container, { backgroundColor: theme.bg }]}
@@ -442,137 +429,127 @@ export default function DiscoverScreen() {
         )}
       </View>
 
-      <FlatList
-        data={filteredDeck}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        key={`grid-2`}
-        ListHeaderComponent={
-          <View style={{ marginBottom: 4 }}>
-            {/* Top 10 Most Followed Section */}
-            {topFollowed.length > 0 && !searchQuery && (
-              <View style={s.topFollowedSection}>
-                <Text style={[s.sectionTitle, { color: theme.text }]}>
-                  Top Influencers 🔥
-                </Text>
-                <Animated.ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={s.topFollowedRow}
-                  onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: true },
-                  )}
-                  scrollEventThrottle={16}
-                  decelerationRate="fast"
-                  snapToInterval={210}
-                >
-                  {topFollowed.map((item, index) => (
-                    <TopUserCard
-                      key={item.id}
-                      user={item}
-                      index={index}
-                      scrollX={scrollX}
-                      initialStatus={statuses[item.id] || "none"}
-                      onConnectToggle={handleConnectToggle}
-                    />
-                  ))}
-                </Animated.ScrollView>
-              </View>
-            )}
-
-            {/* Category Tabs */}
-            <View style={{ height: 38, marginTop: 4 }}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.categoriesContainer}
-              >
-                {categories.map((cat) => {
-                  const isActive = selectedCategory === cat.id;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        s.categoryPill,
-                        isActive
-                          ? {
-                              backgroundColor: theme.accent,
-                              borderColor: theme.accent,
-                            }
-                          : {
-                              backgroundColor: theme.card,
-                              borderColor: theme.border,
-                            },
-                      ]}
-                      onPress={() => setSelectedCategory(cat.id as any)}
-                    >
-                      <Ionicons
-                        name={cat.icon as any}
-                        size={13}
-                        color={isActive ? "#fff" : theme.textMuted}
-                      />
-                      <Text
-                        style={[
-                          s.categoryText,
-                          { color: isActive ? "#fff" : theme.text },
-                        ]}
-                      >
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Trending chips */}
-            {trending.length > 0 &&
-              selectedCategory === "All" &&
-              !searchQuery &&
-              !loading && (
-                <View style={{ height: 42, marginTop: 4 }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={s.trendRow}
-                  >
-                    {trending.slice(0, 10).map((item) => (
-                      <TouchableOpacity
-                        key={item.hashtag_id}
-                        style={[
-                          s.trendPill,
-                          {
-                            backgroundColor: theme.card,
-                            borderColor: theme.accentBorder,
-                          },
-                        ]}
-                        onPress={() =>
-                          router.push(`/hashtag/${item.hashtags?.tag}` as any)
-                        }
-                      >
-                        <Text style={[s.trendText, { color: theme.accent }]}>
-                          #{item.hashtags?.tag}
-                        </Text>
-                        <Text
-                          style={[
-                            s.trendCount,
-                            {
-                              color: theme.textFaint,
-                              backgroundColor: theme.card2,
-                            },
-                          ]}
-                        >
-                          {item.post_count}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
+      <ScrollView>
+        {/* Top 10 Most Followed Section */}
+        {topFollowed.length > 0 && !searchQuery && (
+          <View style={s.topFollowedSection}>
+            <Text style={[s.sectionTitle, { color: theme.text }]}>
+              Top Influencers 🔥
+            </Text>
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.topFollowedRow}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: true },
               )}
+              scrollEventThrottle={16}
+              decelerationRate="fast"
+              snapToInterval={210}
+            >
+              {topFollowed.map((item, index) => (
+                <TopUserCard
+                  key={item.id}
+                  user={item}
+                  index={index}
+                  scrollX={scrollX}
+                  initialStatus={statuses[item.id] || "none"}
+                  onConnectToggle={handleConnectToggle}
+                />
+              ))}
+            </Animated.ScrollView>
           </View>
-        }
-        ListEmptyComponent={
+        )}
+
+        {/* Category Tabs */}
+        <View style={{ height: 38 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.categoriesContainer}
+          >
+            {categories.map((cat) => {
+              const isActive = selectedCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    s.categoryPill,
+                    isActive
+                      ? {
+                          backgroundColor: theme.accent,
+                          borderColor: theme.accent,
+                        }
+                      : {
+                          backgroundColor: theme.card,
+                          borderColor: theme.border,
+                        },
+                  ]}
+                  onPress={() => setSelectedCategory(cat.id as any)}
+                >
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={13}
+                    color={isActive ? "#fff" : theme.textMuted}
+                  />
+                  <Text
+                    style={[
+                      s.categoryText,
+                      { color: isActive ? "#fff" : theme.text },
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Trending chips */}
+        {trending.length > 0 && selectedCategory === "All" && !searchQuery && (
+          <View style={{ height: 42, marginTop: 4 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.trendRow}
+            >
+              {trending.slice(0, 10).map((item) => (
+                <TouchableOpacity
+                  key={item.hashtag_id}
+                  style={[
+                    s.trendPill,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.accentBorder,
+                    },
+                  ]}
+                  onPress={() =>
+                    router.push(`/hashtag/${item.hashtags?.tag}` as any)
+                  }
+                >
+                  <Text style={[s.trendText, { color: theme.accent }]}>
+                    #{item.hashtags?.tag}
+                  </Text>
+                  <Text
+                    style={[
+                      s.trendCount,
+                      { color: theme.textFaint, backgroundColor: theme.card2 },
+                    ]}
+                  >
+                    {item.post_count}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Student Directory Grid */}
+        {loading ? (
+          <ScreenLoader message="Loading campus directory..." />
+        ) : remaining === 0 ? (
           <View style={s.center}>
             <Text style={s.doneEmoji}>🔍</Text>
             <Text style={[s.emptyTitle, { color: theme.text }]}>
@@ -594,17 +571,24 @@ export default function DiscoverScreen() {
               <Text style={s.reloadBtnText}>Reset search</Text>
             </TouchableOpacity>
           </View>
-        }
-        renderItem={({ item }) => (
-          <StudentCard
-            user={item}
-            initialStatus={statuses[item.id] || "none"}
-            onConnectToggle={handleConnectToggle}
+        ) : (
+          <FlatList
+            data={filteredDeck}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            key={`grid-2`}
+            renderItem={({ item }) => (
+              <StudentCard
+                user={item}
+                initialStatus={statuses[item.id] || "none"}
+                onConnectToggle={handleConnectToggle}
+              />
+            )}
+            contentContainerStyle={s.listContent}
+            showsVerticalScrollIndicator={false}
           />
         )}
-        contentContainerStyle={s.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -742,8 +726,5 @@ const s = StyleSheet.create({
   },
   sectionTitle: {
     paddingHorizontal: 12,
-    fontSize: 30,
-    fontFamily: typography.fontBold,
-    marginHorizontal: 6,
   },
 });

@@ -12,12 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getVendorDetail, toggleSaveDeal, getMySavedDealIds, createVendorOrder, getVendorOrders, updateOrderStatus, getDealReviews, createDealReview, getMyOrders } from '../../lib/vendors'
-// import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import type { VendorWithDeals, VendorDeal } from '../../lib/vendors'
 import { getTimeAgo } from '../../lib/matching'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 const CATEGORY_COLORS: Record<string, string> = {
   Food: '#fbbf24',
@@ -42,7 +41,6 @@ interface DealCardProps {
 }
 
 function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: DealCardProps) {
-  const theme = useTheme()
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -59,18 +57,18 @@ function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: D
   const isExpired = deal.valid_until ? new Date(deal.valid_until) < new Date() : false
 
   return (
-    <View style={[s.dealCard, { backgroundColor: theme.card, borderColor: theme.border }, isExpired && s.dealCardExpired]}>
+    <View style={[s.dealCard, isExpired && s.dealCardExpired]}>
       <View style={s.discountBadge}>
         <Text style={s.discountText}>{deal.discount}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[s.dealTitle, { color: theme.text }]}>{deal.title}</Text>
+        <Text style={s.dealTitle}>{deal.title}</Text>
         {deal.description && (
-          <Text style={[s.dealDesc, { color: theme.textMuted }]} numberOfLines={2}>{deal.description}</Text>
+          <Text style={s.dealDesc} numberOfLines={2}>{deal.description}</Text>
         )}
         <View style={s.dealMeta}>
-          <Ionicons name="information-circle-outline" size={11} color={theme.textFaint} />
-          <Text style={[s.redeemText, { color: theme.textMuted }]}>{deal.how_to_redeem}</Text>
+          <Ionicons name="information-circle-outline" size={11} color="rgba(240,240,255,0.35)" />
+          <Text style={s.redeemText}>{deal.how_to_redeem}</Text>
         </View>
 
         <TouchableOpacity style={s.reviewsTrigger} onPress={() => onReviewsPress(deal)}>
@@ -79,7 +77,7 @@ function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: D
         </TouchableOpacity>
 
         {deal.valid_until && (
-          <Text style={[s.validUntil, isExpired && s.expired, { marginTop: 6, color: theme.textFaint }]}>
+          <Text style={[s.validUntil, isExpired && s.expired, { marginTop: 6 }]}>
             {isExpired ? 'Expired' : `Valid until ${new Date(deal.valid_until).toLocaleDateString()}`}
           </Text>
         )}
@@ -90,19 +88,19 @@ function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: D
           onPress={handleSave}
           disabled={saving}>
           {saving
-            ? <ActivityIndicator size="small" color={theme.accent} />
+            ? <ActivityIndicator size="small" color="#fbbf24" />
             : <Ionicons
                 name={saved ? 'bookmark' : 'bookmark-outline'}
                 size={20}
-                color={saved ? theme.accent : theme.textMuted}
+                color={saved ? '#fbbf24' : 'rgba(240,240,255,0.4)'}
               />}
         </TouchableOpacity>
 
         {!isExpired && (
           <TouchableOpacity
-            style={[s.orderBtn, { backgroundColor: theme.accent }]}
+            style={s.orderBtn}
             onPress={() => onOrderPress(deal)}>
-            <Ionicons name="cart-outline" size={18} color="#fff" />
+            <Ionicons name="cart-outline" size={18} color="#000" />
           </TouchableOpacity>
         )}
       </View>
@@ -150,16 +148,15 @@ export default function VendorDetailScreen() {
   const loadVendor = async () => {
     setLoading(true)
     try {
-      let authUser;
-      try { authUser = await getCurrentUser() } catch {}
-      const [vendorRes, savedIds] = await Promise.all([
+      const [vendorRes, savedIds, authUserRes] = await Promise.all([
         getVendorDetail(id),
-        getMySavedDealIds()
+        getMySavedDealIds(),
+        supabase.auth.getUser(),
       ])
       setVendor(vendorRes.data)
       setSavedDealIds(savedIds)
-      if (authUser) {
-        setMyUserId(authUser.userId)
+      if (authUserRes.data?.user) {
+        setMyUserId(authUserRes.data.user.id)
       }
     } catch {
       // Non-fatal
@@ -285,7 +282,7 @@ export default function VendorDetailScreen() {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
         <View style={s.centeredWrap}>
-          <ActivityIndicator size="large" color={theme.accent} />
+          <ActivityIndicator size="large" color="#fbbf24" />
         </View>
       </SafeAreaView>
     )
@@ -295,9 +292,9 @@ export default function VendorDetailScreen() {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
         <View style={s.centeredWrap}>
-          <Text style={[s.errorText, { color: theme.textMuted }]}>Vendor not found</Text>
-          <TouchableOpacity style={[s.retryBtn, { backgroundColor: theme.accent }]} onPress={() => router.back()}>
-            <Text style={[s.retryText, { color: '#fff' }]}>Go back</Text>
+          <Text style={s.errorText}>Vendor not found</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => router.back()}>
+            <Text style={s.retryText}>Go back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -324,8 +321,8 @@ export default function VendorDetailScreen() {
         ListHeaderComponent={
           <>
             {/* Back button */}
-            <TouchableOpacity style={[s.backBtn, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color={theme.text} />
+            <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
 
             {/* Vendor hero */}
@@ -337,7 +334,7 @@ export default function VendorDetailScreen() {
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
               )}
               {vendor.logo_url ? (
-                <Image source={{ uri: vendor.logo_url }} style={[s.heroLogo, vendor.cover_url ? { borderWidth: 2, borderColor: theme.border } : {}]} resizeMode="contain" />
+                <Image source={{ uri: vendor.logo_url }} style={[s.heroLogo, vendor.cover_url ? { borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' } : {}]} resizeMode="contain" />
               ) : (
                 <Text style={s.heroEmoji}>{vendor.icon ?? '🏪'}</Text>
               )}
@@ -347,12 +344,12 @@ export default function VendorDetailScreen() {
             <View style={s.infoSection}>
               <View style={s.infoHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.vendorName, { color: theme.text }]}>{vendor.name}</Text>
+                  <Text style={s.vendorName}>{vendor.name}</Text>
                   <View style={s.metaRow}>
                     <Text style={[s.categoryBadge, { color: accentColor }]}>{vendor.category}</Text>
-                    <Text style={[s.sep, { color: theme.textFaint }]}>·</Text>
-                    <Ionicons name="location-outline" size={12} color={theme.textMuted} />
-                    <Text style={[s.location, { color: theme.textMuted }]}>{vendor.location_text}</Text>
+                    <Text style={s.sep}>·</Text>
+                    <Ionicons name="location-outline" size={12} color="rgba(240,240,255,0.4)" />
+                    <Text style={s.location}>{vendor.location_text}</Text>
                   </View>
                 </View>
                 <View style={[s.dealCountBadge, { backgroundColor: accentColor + '22' }]}>
@@ -364,7 +361,7 @@ export default function VendorDetailScreen() {
               </View>
 
               {vendor.description && (
-                <Text style={[s.description, { color: theme.textMuted }]}>{vendor.description}</Text>
+                <Text style={s.description}>{vendor.description}</Text>
               )}
 
               {/* Interaction Buttons Row */}
@@ -399,14 +396,14 @@ export default function VendorDetailScreen() {
               </View>
             </View>
 
-            <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Active Deals</Text>
+            <Text style={s.sectionTitle}>Active Deals</Text>
           </>
         }
         ListEmptyComponent={
           <View style={s.empty}>
-            <Ionicons name="pricetag-outline" size={36} color={theme.textFaint} />
-            <Text style={[s.emptyText, { color: theme.textMuted }]}>No active deals right now</Text>
-            <Text style={[s.emptySub, { color: theme.textFaint }]}>Check back soon for student discounts</Text>
+            <Ionicons name="pricetag-outline" size={36} color="rgba(240,240,255,0.1)" />
+            <Text style={s.emptyText}>No active deals right now</Text>
+            <Text style={s.emptySub}>Check back soon for student discounts</Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -641,43 +638,43 @@ export default function VendorDetailScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   centeredWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText: { fontSize: 14 },
-  retryBtn: { borderRadius: 20, paddingHorizontal: 20, paddingVertical: 8 },
-  retryText: { fontSize: 13, fontFamily: typography.fontSemiBold },
+  errorText: { fontSize: 14, color: 'rgba(240,240,255,0.4)' },
+  retryBtn: { backgroundColor: '#fbbf24', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 8 },
+  retryText: { fontSize: 13, fontFamily: typography.fontSemiBold, color: '#000' },
   backBtn: {
     position: 'absolute', top: 48, left: 16, zIndex: 10,
     width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5,
   },
   hero: { width: '100%', height: 200, alignItems: 'center', justifyContent: 'center' },
   heroLogo: { width: 120, height: 120, borderRadius: 20 },
   heroEmoji: { fontSize: 64 },
   infoSection: { paddingHorizontal: 16, paddingVertical: 16 },
   infoHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
-  vendorName: { fontSize: 22, fontFamily: typography.fontBold, marginBottom: 6 },
+  vendorName: { fontSize: 22, fontFamily: typography.fontBold, color: '#f0f0ff', marginBottom: 6 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   categoryBadge: { fontSize: 12, fontFamily: typography.fontSemiBold },
-  sep: { fontSize: 12 },
-  location: { fontSize: 12, fontFamily: typography.fontRegular },
+  sep: { fontSize: 12, color: 'rgba(240,240,255,0.2)' },
+  location: { fontSize: 12, color: 'rgba(240,240,255,0.4)', fontFamily: typography.fontRegular },
   dealCountBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
   },
   dealCountText: { fontSize: 12, fontFamily: typography.fontSemiBold },
   description: {
-    fontSize: 13, lineHeight: 20, fontFamily: typography.fontRegular,
+    fontSize: 13, color: 'rgba(240,240,255,0.6)', lineHeight: 20, fontFamily: typography.fontRegular,
   },
   sectionTitle: {
-    fontSize: 13, fontFamily: typography.fontSemiBold,
+    fontSize: 13, fontFamily: typography.fontSemiBold, color: 'rgba(240,240,255,0.5)',
     paddingHorizontal: 16, marginBottom: 10,
   },
   // Deal card
   dealCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     marginHorizontal: 16, marginBottom: 10,
-    borderRadius: 14, padding: 14,
-    borderWidth: 0.5,
+    backgroundColor: '#1c1c2e', borderRadius: 14, padding: 14,
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
   },
   dealCardExpired: { opacity: 0.5 },
   discountBadge: {
@@ -687,11 +684,11 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   discountText: { fontSize: 13, fontFamily: typography.fontBold, color: '#fbbf24' },
-  dealTitle: { fontSize: 14, fontFamily: typography.fontSemiBold, marginBottom: 4 },
-  dealDesc: { fontSize: 12, lineHeight: 17, marginBottom: 6, fontFamily: typography.fontRegular },
+  dealTitle: { fontSize: 14, fontFamily: typography.fontSemiBold, color: '#f0f0ff', marginBottom: 4 },
+  dealDesc: { fontSize: 12, color: 'rgba(240,240,255,0.5)', lineHeight: 17, marginBottom: 6, fontFamily: typography.fontRegular },
   dealMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  redeemText: { fontSize: 11, flex: 1, fontFamily: typography.fontMedium },
-  validUntil: { fontSize: 10, fontFamily: typography.fontRegular },
+  redeemText: { fontSize: 11, color: 'rgba(240,240,255,0.4)', flex: 1, fontFamily: typography.fontMedium },
+  validUntil: { fontSize: 10, color: 'rgba(240,240,255,0.35)', fontFamily: typography.fontRegular },
   expired: { color: 'rgba(239,68,68,0.6)' },
   saveBtn: {
     width: 44, height: 44, borderRadius: 22,
@@ -699,8 +696,8 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { fontSize: 14, fontFamily: typography.fontRegular },
-  emptySub: { fontSize: 12, fontFamily: typography.fontRegular },
+  emptyText: { fontSize: 14, color: 'rgba(240,240,255,0.4)', fontFamily: typography.fontRegular },
+  emptySub: { fontSize: 12, color: 'rgba(240,240,255,0.25)', fontFamily: typography.fontRegular },
   reviewsTrigger: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -136,11 +136,7 @@ export default function WelcomeScreen() {
       <Orb x={width * 0.8}  y={height * 0.75} size={130} color={theme.dark ? "rgba(52,211,153,0.08)" : "rgba(52,211,153,0.04)"} delay={400} />
 
       {/* Grid lines overlay */}
-      <View style={s.grid} pointerEvents="none">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <View key={i} style={[s.gridLine, { top: `${i * 14}%` as any, backgroundColor: theme.border }]} />
-        ))}
-      </View>
+      
 
       <SafeAreaView style={{ flex: 1 }}>
         <View style={s.content}>

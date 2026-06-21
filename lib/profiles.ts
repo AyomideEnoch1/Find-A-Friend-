@@ -6,8 +6,7 @@
  * Backwards-compatible: existing callers of getCurrentProfile, updateProfile,
  * getAllProfiles, getProfileStats, and setOnlineStatus continue to work.
  */
-import { client } from './aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from './supabase'
 import { uploadFile } from './upload'
 
 // ---------------------------------------------------------------------------
@@ -50,16 +49,20 @@ export interface ProfileStats {
 // ---------------------------------------------------------------------------
 
 export async function getCurrentProfile(): Promise<Profile | null> {
-  let user;
-  try { user = await getCurrentUser(); } catch { return null; }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
-  const { data: profile, errors } = await client.models.Profile.get({ id: user.userId })
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
 
-  if (errors || !profile) {
-    console.log('Profile error:', errors)
+  if (error) {
+    console.log('Profile error:', error)
     return null
   }
-  return profile as unknown as Profile
+  return data as Profile
 }
 
 export async function updateProfile(updates: {
@@ -71,12 +74,15 @@ export async function updateProfile(updates: {
   avatar_url?: string
   cover_url?: string | null
 }) {
-  let user;
-  try { user = await getCurrentUser(); } catch { return { error: 'Not logged in' }; }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not logged in' }
 
-  const { data, errors } = await client.models.Profile.update({ id: user.userId, ...updates })
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id)
 
-  return { error: errors?.[0] }
+  return { error }
 }
 
 // ---------------------------------------------------------------------------
@@ -84,22 +90,27 @@ export async function updateProfile(updates: {
 // ---------------------------------------------------------------------------
 
 export async function getAllProfiles() {
-  let user;
-  try { user = await getCurrentUser(); } catch {}
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const { data, errors } = await client.models.Profile.list({
-    limit: 20
-  })
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, department, level, interests, avatar_url, follower_count, following_count, badge_type, badge_color')
+    .neq('id', user?.id ?? '')
+    .limit(20)
 
-  if (errors) return []
-  return data?.filter(p => p.id !== user?.userId) ?? []
+  if (error) return []
+  return data ?? []
 }
 
 export async function getProfileById(userId: string): Promise<Profile | null> {
-  const { data, errors } = await client.models.Profile.get({ id: userId })
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
 
-  if (errors || !data) return null
-  return data as unknown as Profile
+  if (error) return null
+  return data as Profile
 }
 
 // ---------------------------------------------------------------------------
@@ -107,27 +118,40 @@ export async function getProfileById(userId: string): Promise<Profile | null> {
 // ---------------------------------------------------------------------------
 
 export async function getProfileStats(): Promise<ProfileStats> {
-  let user;
-  try { user = await getCurrentUser(); } catch { return { posts: 0, friends: 0, followers: 0, following: 0, clubs: 0 } }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { posts: 0, friends: 0, followers: 0, following: 0, clubs: 0 }
 
-  // AWS AppSync Gen 2 client doesn't have a direct "count" query by default without custom resolvers.
-  // We'll list IDs and count the array length for now. In production, this should use a custom resolver or GSI count.
-  const [postsResult, connections1, connections2, followerRes, followingRes, clubsResult] =
+  const [postsResult, connectionsResult, followerRes, followingRes, clubsResult] =
     await Promise.all([
-      client.models.Post.list({ filter: { author_id: { eq: user.userId } }, limit: 10000 }),
-      client.models.Connection.list({ filter: { requester_id: { eq: user.userId }, status: { eq: 'accepted' } }, limit: 10000 }),
-      client.models.Connection.list({ filter: { receiver_id: { eq: user.userId }, status: { eq: 'accepted' } }, limit: 10000 }),
-      client.models.Follow.list({ filter: { following_id: { eq: user.userId } }, limit: 10000 }),
-      client.models.Follow.list({ filter: { follower_id: { eq: user.userId } }, limit: 10000 }),
-      client.models.ClubMember.list({ filter: { user_id: { eq: user.userId } }, limit: 10000 }),
+      supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('author_id', user.id),
+      supabase
+        .from('connections')
+        .select('id', { count: 'exact', head: true })
+        .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .eq('status', 'accepted'),
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', user.id),
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id),
+      supabase
+        .from('club_members')
+        .select('club_id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
     ])
 
   return {
-    posts: postsResult.data?.length ?? 0,
-    friends: (connections1.data?.length ?? 0) + (connections2.data?.length ?? 0),
-    followers: followerRes.data?.length ?? 0,
-    following: followingRes.data?.length ?? 0,
-    clubs: clubsResult.data?.length ?? 0,
+    posts: postsResult.count ?? 0,
+    friends: connectionsResult.count ?? 0,
+    followers: followerRes.count ?? 0,
+    following: followingRes.count ?? 0,
+    clubs: clubsResult.count ?? 0,
   }
 }
 
@@ -136,10 +160,13 @@ export async function getProfileStats(): Promise<ProfileStats> {
 // ---------------------------------------------------------------------------
 
 export async function setOnlineStatus(isOnline: boolean) {
-  let user;
-  try { user = await getCurrentUser(); } catch { return; }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
 
-  await client.models.Profile.update({ id: user.userId, is_online: isOnline })
+  await supabase
+    .from('profiles')
+    .update({ is_online: isOnline })
+    .eq('id', user.id)
 }
 
 // ---------------------------------------------------------------------------
@@ -151,20 +178,24 @@ export async function uploadAvatar(uri: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser();
-    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const cleanUri = uri.split('?')[0].split('#')[0]
     let ext = cleanUri.split('.').pop()?.toLowerCase() ?? 'jpg'
     if (!['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
       ext = 'jpg'
     }
-    const path = `${user.userId}/${user.userId}.${ext}`
+    const path = `${user.id}/${user.id}.${ext}`
     const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
     const publicUrl = await uploadFile('avatars', path, uri, mimeType, true)
 
     // Persist the URL to the profile
-    await client.models.Profile.update({ id: user.userId, avatar_url: publicUrl })
+    await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', user.id)
 
     return { data: publicUrl, error: null }
   } catch (err) {
@@ -177,20 +208,24 @@ export async function uploadCover(uri: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
     const cleanUri = uri.split('?')[0].split('#')[0]
     let ext = cleanUri.split('.').pop()?.toLowerCase() ?? 'jpg'
     if (!['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
       ext = 'jpg'
     }
-    const path = `${user.userId}/cover-${Date.now()}.${ext}`
+    const path = `${user.id}/cover-${Date.now()}.${ext}`
     const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
     const publicUrl = await uploadFile('avatars', path, uri, mimeType, true)
 
     // Persist the URL to the profile
-    await client.models.Profile.update({ id: user.userId, cover_url: publicUrl })
+    await supabase
+      .from('profiles')
+      .update({ cover_url: publicUrl })
+      .eq('id', user.id)
 
     return { data: publicUrl, error: null }
   } catch (err) {
@@ -203,14 +238,14 @@ export async function uploadCover(uri: string): Promise<{
 // ---------------------------------------------------------------------------
 
 export async function getUserPosts(userId: string, limit = 20) {
-  const { data, errors } = await client.models.Post.list({
-    filter: {
-      author_id: { eq: userId },
-      is_anonymous: { eq: false }
-    },
-    limit
-  })
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, body, tags, image_url, is_anonymous, likes_count, comments_count, created_at')
+    .eq('author_id', userId)
+    .eq('is_anonymous', false)
+    .order('created_at', { ascending: false })
+    .limit(limit)
 
-  if (errors) return []
+  if (error) return []
   return data ?? []
 }

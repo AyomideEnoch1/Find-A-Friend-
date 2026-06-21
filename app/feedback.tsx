@@ -33,12 +33,10 @@ import {
 } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { getInitials, getTimeAgo } from "../lib/matching";
-// supabase removed
+import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { useAuthStore } from "../store/authStore";
-import { client } from "../lib/aws";
-import { getCurrentUser } from "aws-amplify/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,9 +130,11 @@ function CommentsSection({
 
   const fetchComments = useCallback(async () => {
     try {
-      const { data: cData } = await client.models.feedback_comments.list({
-        filter: { feedback_id: { eq: feedbackId } }
-      });
+      const { data: cData } = await supabase
+        .from("feedback_comments")
+        .select("*")
+        .eq("feedback_id", feedbackId)
+        .order("created_at", { ascending: true });
 
       if (!cData || cData.length === 0) {
         setComments([]);
@@ -142,11 +142,19 @@ function CommentsSection({
       }
 
       const uids = [...new Set(cData.map((c: any) => c.author_id))];
-      const { data: pData } = await client.models.profiles.list(); // TODO: filter by in
+      const { data: pData } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", uids);
       const likedRes = myId
-        ? await client.models.feedback_comment_likes.list({
-            filter: { user_id: { eq: myId } }
-          })
+        ? await supabase
+            .from("feedback_comment_likes")
+            .select("comment_id")
+            .eq("user_id", myId)
+            .in(
+              "comment_id",
+              cData.map((c: any) => c.id),
+            )
         : { data: [] };
       const pMap = new Map(pData?.map((p: any) => [p.id, p]) ?? []);
       const likedSet = new Set(
@@ -173,10 +181,44 @@ function CommentsSection({
     let active = true;
     fetchComments();
 
-    // TODO: Complex realtime channel
+    const channel = supabase
+      .channel(`comments-${feedbackId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "feedback_comments",
+          filter: `feedback_id=eq.${feedbackId}`,
+        },
+        async (payload) => {
+          if (!active) return;
+          const newC = payload.new as any;
+          const { data: pData } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("id", newC.author_id)
+            .single();
+          setComments((prev) => {
+            if (prev.find((c) => c.id === newC.id)) return prev;
+            return [
+              ...prev,
+              {
+                ...newC,
+                parent_id: newC.parent_id ?? null,
+                likes_count: 0,
+                profiles: pData ?? null,
+                myLike: false,
+              },
+            ];
+          });
+        },
+      )
+      .subscribe();
 
     return () => {
       active = false;
+      supabase.removeChannel(channel);
     };
   }, [feedbackId, fetchComments]);
 
@@ -198,9 +240,15 @@ function CommentsSection({
         ),
       );
       if (wasLiked) {
-        // await client.models.feedback_comment_likes.delete() // TODO: Composite key
+        await supabase
+          .from("feedback_comment_likes")
+          .delete()
+          .eq("comment_id", c.id)
+          .eq("user_id", myId);
       } else {
-        await client.models.feedback_comment_likes.create({ user_id: myId, comment_id: c.id });
+        await supabase
+          .from("feedback_comment_likes")
+          .insert({ user_id: myId, comment_id: c.id });
       }
     },
     [myId],
@@ -208,7 +256,10 @@ function CommentsSection({
 
   const handleDelete = async (c: FeedbackComment) => {
     if (c.author_id !== myId) return;
-    const { error } = await client.models.feedback_comments.delete({ id: c.id });
+    const { error } = await supabase
+      .from("feedback_comments")
+      .delete()
+      .eq("id", c.id);
     if (error) {
       Toast.show({
         type: "error",
@@ -232,7 +283,7 @@ function CommentsSection({
       body: text,
     };
     if (replyTo) payload.parent_id = replyTo.id;
-    const { error } = await client.models.feedback_comments.create(payload);
+    const { error } = await supabase.from("feedback_comments").insert(payload);
     setSending(false);
     if (error) {
       Toast.show({
@@ -559,7 +610,10 @@ const FeedbackCard = React.memo(function FeedbackCard({
       return;
     }
     setSaving(true);
-    const { error } = await client.models.feedbacks.update({ id: item.id, body: text });
+    const { error } = await supabase
+      .from("feedbacks")
+      .update({ body: text })
+      .eq("id", item.id);
     setSaving(false);
     if (error) {
       Toast.show({
@@ -683,7 +737,6 @@ const FeedbackCard = React.memo(function FeedbackCard({
                 <TouchableOpacity
                   style={[
                     fc.voteBtn,
-                    { borderColor: theme.border },
                     item.myVote === 1 && {
                       backgroundColor: GREEN_DIM,
                       borderColor: "rgba(52,211,153,0.35)",
@@ -718,7 +771,6 @@ const FeedbackCard = React.memo(function FeedbackCard({
                 <TouchableOpacity
                   style={[
                     fc.voteBtn,
-                    { borderColor: theme.border },
                     item.myVote === -1 && {
                       backgroundColor: RED_DIM,
                       borderColor: "rgba(248,113,113,0.35)",
@@ -738,7 +790,6 @@ const FeedbackCard = React.memo(function FeedbackCard({
               <Pressable
                 style={[
                   fc.commentPill,
-                  { borderColor: theme.border },
                   expanded && {
                     backgroundColor: PURPLE_DIM,
                     borderColor: PURPLE_BORDER,
@@ -971,7 +1022,9 @@ function ComposeBox({
       true,
     );
 
-    const { error } = await client.models.feedbacks.create({ author_id: myId, body: text });
+    const { error } = await supabase
+      .from("feedbacks")
+      .insert({ author_id: myId, body: text });
 
     btnScale.value = withSpring(1);
     setSending(false);
@@ -1167,9 +1220,15 @@ export default function FeedbackScreen() {
   const load = useCallback(async () => {
     setTableError(false);
     try {
-      const authUser = await getCurrentUser().catch(() => null);
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
 
-      const { data: fData, error } = await client.models.feedbacks.list();
+      const { data: fData, error } = await supabase
+        .from("feedbacks")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(60);
 
       if (error) {
         if (error.code === "42P01") setTableError(true);
@@ -1185,7 +1244,10 @@ export default function FeedbackScreen() {
       let hydrated = fData ?? [];
       if (hydrated.length > 0) {
         const uids = [...new Set(hydrated.map((f) => f.author_id))];
-        const { data: pData } = await client.models.profiles.list(); // TODO
+        const { data: pData } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url")
+          .in("id", uids);
         const pMap = new Map(pData?.map((p) => [p.id, p]) ?? []);
         hydrated = hydrated.map((f) => ({
           ...f,
@@ -1195,7 +1257,14 @@ export default function FeedbackScreen() {
 
       let myVotes: Record<string, 1 | -1> = {};
       if (authUser && hydrated.length > 0) {
-        const { data: votes } = await client.models.feedback_votes.list({ filter: { user_id: { eq: authUser.userId } } });
+        const { data: votes } = await supabase
+          .from("feedback_votes")
+          .select("feedback_id, vote")
+          .eq("user_id", authUser.id)
+          .in(
+            "feedback_id",
+            hydrated.map((f: any) => f.id),
+          );
         for (const v of votes ?? []) myVotes[v.feedback_id] = v.vote;
       }
 
@@ -1216,9 +1285,36 @@ export default function FeedbackScreen() {
     load();
 
     // Real-time subscription for new feedback posts
-    // TODO: Complex realtime channel
+    const stale = supabase
+      .getChannels()
+      .find((c) => c.topic === "realtime:feedback-feed");
+    if (stale) supabase.removeChannel(stale);
+    const channel = supabase
+      .channel("feedback-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "feedbacks" },
+        async (payload) => {
+          const newItem = payload.new as FeedbackItem;
+          if (newItem.author_id === myId) return; // already added optimistically via onPosted->load
+          const { data: pData } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url")
+            .eq("id", newItem.author_id)
+            .single();
+          setItems((prev) => {
+            if (prev.find((f) => f.id === newItem.id)) return prev;
+            return [
+              { ...newItem, profiles: pData ?? null, myVote: null },
+              ...prev,
+            ];
+          });
+        },
+      )
+      .subscribe();
 
     return () => {
+      supabase.removeChannel(channel);
     };
   }, [load, myId]);
 
@@ -1251,9 +1347,18 @@ export default function FeedbackScreen() {
       );
 
       if (isSame) {
-        // await client.models.feedback_votes.delete() // TODO
+        await supabase
+          .from("feedback_votes")
+          .delete()
+          .eq("feedback_id", feedbackId)
+          .eq("user_id", myId);
       } else {
-        // await client.models.feedback_votes.create() // TODO
+        await supabase
+          .from("feedback_votes")
+          .upsert(
+            { user_id: myId, feedback_id: feedbackId, vote },
+            { onConflict: "user_id,feedback_id" },
+          );
       }
     },
     [myId],

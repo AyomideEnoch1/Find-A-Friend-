@@ -271,6 +271,12 @@ const schema = a.schema({
     body: a.string(),
   }).authorization(allow => [allow.publicApiKey(), allow.authenticated()]),
 
+  user_stickers: a.model({
+    id: a.id(),
+    user_id: a.string().required(),
+    media_url: a.string().required(),
+  }).authorization(allow => [allow.publicApiKey(), allow.authenticated()]),
+
   // ==========================================
   // REAL-TIME BROADCAST ENGINE
   // ==========================================

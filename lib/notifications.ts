@@ -10,8 +10,8 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
-import { client } from './aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from './supabase'
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -60,40 +60,39 @@ export async function getNotifications(
   limit = 50
 ): Promise<{ data: AppNotification[] | null; error: Error | null }> {
   try {
-    const currentUser = await getCurrentUser()
-    const user = { id: currentUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    let filter: any = { user_id: { eq: user.id } }
+    let query = supabase
+      .from('notifications')
+      .select('*, actor:profiles!notifications_actor_id_fkey(id, full_name, avatar_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
     if (onlyUnread) {
-      filter.is_read = { eq: false }
+      query = query.eq('is_read', false)
     }
 
-    const { data, errors } = await client.models.Notification.list({
-      filter,
-      limit
-    })
-    if (errors) throw errors[0]
-    return { data: data as unknown as AppNotification[], error: null }
+    const { data, error } = await query
+    if (error) throw error
+    return { data: data as AppNotification[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
 }
 
 export async function getUnreadCount(): Promise<number> {
-  let user;
-  try {
-    const currentUser = await getCurrentUser()
-    user = { id: currentUser.userId }
-  } catch (e) {
-    return 0
-  }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
 
-  const { data } = await client.models.Notification.list({
-    filter: { user_id: { eq: user.id }, is_read: { eq: false } }
-  })
+  const { count } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
 
-  return data.length
+  return count ?? 0
 }
 
 // ---------------------------------------------------------------------------
@@ -105,8 +104,10 @@ export async function markRead(notificationId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { errors } = await client.models.Notification.update({ id: notificationId, is_read: true })
-    const error = errors ? errors[0] : null
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
 
     if (error) throw error
     return { data: null, error: null }
@@ -120,17 +121,14 @@ export async function markAllRead(): Promise<{
   error: Error | null
 }> {
   try {
-    const currentUser = await getCurrentUser()
-    const user = { id: currentUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data: toUpdate } = await client.models.Notification.list({
-      filter: { user_id: { eq: user.id }, is_read: { eq: false } }
-    })
-    for (const item of toUpdate) {
-      await client.models.Notification.update({ id: item.id, is_read: true })
-    }
-    const error = null
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
 
     if (error) throw error
     return { data: null, error: null }
@@ -144,17 +142,13 @@ export async function deleteAllNotifications(): Promise<{
   error: Error | null
 }> {
   try {
-    const currentUser = await getCurrentUser()
-    const user = { id: currentUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data: toDelete } = await client.models.Notification.list({
-      filter: { user_id: { eq: user.id } }
-    })
-    for (const item of toDelete) {
-      await client.models.Notification.delete({ id: item.id })
-    }
-    const error = null
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id)
 
     if (error) throw error
     return { data: null, error: null }
@@ -188,15 +182,18 @@ export async function createNotification(
   payload: CreateNotificationPayload
 ): Promise<{ data: AppNotification | null; error: Error | null }> {
   try {
-    const { data, errors } = await client.models.Notification.create({
-      user_id: payload.userId,
-      type: payload.type,
-      actor_id: payload.actorId ?? null,
-      entity_type: payload.entityType ?? null,
-      entity_id: payload.entityId ?? null,
-      body: payload.body ?? null,
-    })
-    const error = errors ? errors[0] : null
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: payload.userId,
+        type: payload.type,
+        actor_id: payload.actorId ?? null,
+        entity_type: payload.entityType ?? null,
+        entity_id: payload.entityId ?? null,
+        body: payload.body ?? null,
+      })
+      .select()
+      .single()
 
     if (error) throw error
     return { data: data as AppNotification, error: null }
@@ -267,16 +264,15 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
 export async function savePushToken(token: string): Promise<void> {
   try {
-    let user;
-    try {
-      const currentUser = await getCurrentUser()
-      user = { id: currentUser.userId }
-    } catch (e) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       console.log('[Push] savePushToken: no auth user')
       return
     }
-    const { errors } = await client.models.Profile.update({ id: user.id, push_token: token })
-    const error = errors ? errors[0] : null
+    const { error } = await supabase
+      .from('profiles')
+      .update({ push_token: token })
+      .eq('id', user.id)
     if (error) console.error('[Push] savePushToken DB error:', error)
     else console.log('[Push] Token saved successfully for user:', user.id)
   } catch (error) {
@@ -436,26 +432,13 @@ export async function subscribeToWebPush(userId: string) {
 
     console.log('[WebPush] Saving subscription for user:', userId, 'endpoint:', sub.endpoint.slice(0, 60) + '...')
 
-    const { client } = await import('./aws')
-    const { data: existing } = await client.models.WebPushSubscription.list({ filter: { user_id: { eq: userId } } })
-    let error = null
-    if (existing.length > 0) {
-      const { errors } = await client.models.WebPushSubscription.update({
-        id: existing[0].id,
-        endpoint: sub.endpoint,
-        p256dh,
-        auth,
-      })
-      error = errors ? errors[0] : null
-    } else {
-      const { errors } = await client.models.WebPushSubscription.create({
-        user_id: userId,
-        endpoint: sub.endpoint,
-        p256dh,
-        auth,
-      })
-      error = errors ? errors[0] : null
-    }
+    const { supabase } = await import('./supabase')
+    const { error } = await supabase.from('web_push_subscriptions').upsert({
+      user_id: userId,
+      endpoint: sub.endpoint,
+      p256dh,
+      auth,
+    }, { onConflict: 'user_id' })
     if (error) {
       console.error('[WebPush] Failed to save subscription:', error.message)
     } else {

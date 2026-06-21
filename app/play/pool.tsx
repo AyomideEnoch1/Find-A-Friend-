@@ -30,13 +30,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-// supabase removed
+import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { recordGameResult } from '../../lib/games'
-import { client, broadcastEvent, subscribeToChannel } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 // ─── Table geometry ───────────────────────────────────────────────────────────
 
@@ -215,12 +213,16 @@ export default function PoolScreen() {
       loadSession()
       subscribe()
     }
-    return () => { channelRef.current && channelRef.current.unsubscribe() }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
   }, [sessionId])
 
   const loadSession = async () => {
     try {
-      const { data: sess } = await client.models.live_game_sessions.get({ id: sessionId as string })
+      const { data: sess } = await supabase
+        .from('live_game_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single()
 
       if (sess) {
         // Deterministic turn: host goes first
@@ -238,8 +240,12 @@ export default function PoolScreen() {
   }
 
   const subscribe = () => {
-    channelRef.current = subscribeToChannel(`game_room:${sessionId}`, (event, payload) => {
-      if (event === 'move') {
+    // Remove any stale channel from a previous mount cycle
+    const stale = supabase.getChannels().find(c => c.topic === `realtime:game_room:${sessionId}`)
+    if (stale) supabase.removeChannel(stale)
+
+    channelRef.current = supabase.channel(`game_room:${sessionId}`)
+      .on('broadcast', { event: 'move' }, ({ payload }) => {
         if (payload.type === 'AIM') {
           setOppAimLine({ fx: cueBallRef.current.x, fy: cueBallRef.current.y, tx: payload.x, ty: payload.y })
         } else if (payload.type === 'SHOT') {
@@ -253,8 +259,8 @@ export default function PoolScreen() {
             })
           })
         }
-      }
-    })
+      })
+      .subscribe()
   }
 
   // Keep refs in sync
@@ -480,7 +486,7 @@ export default function PoolScreen() {
         if (sessionId && opponentId && opponentId !== 'faf-bot' && myId) {
           const winnerId = w === 'me' ? myId : opponentId
           recordGameResult('pool', opponentId, winnerId, { reason: 'early_eight' }).catch(() => {})
-          client.models.LiveGameSession.update({ id: sessionId, status: 'finished', winner_id: winnerId }).then(() => {})
+          supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId).then(() => {})
         }
       } else {
         const w = isBot ? 'bot' : 'me'
@@ -490,7 +496,7 @@ export default function PoolScreen() {
         if (sessionId && opponentId && opponentId !== 'faf-bot' && myId) {
           const winnerId = w === 'me' ? myId : opponentId
           recordGameResult('pool', opponentId, winnerId, { reason: 'eight_ball' }).catch(() => {})
-          client.models.LiveGameSession.update({ id: sessionId, status: 'finished', winner_id: winnerId }).then(() => {})
+          supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId).then(() => {})
         }
       }
       return
@@ -637,7 +643,11 @@ export default function PoolScreen() {
 
     // Broadcast aim
     if (channelRef.current) {
-      broadcastEvent('game_room:' + sessionId, 'move', { type: 'AIM', x: locationX, y: locationY })
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'move',
+        payload: { type: 'AIM', x: locationX, y: locationY }
+      })
     }
   }, [myTurn, turnStage])
 

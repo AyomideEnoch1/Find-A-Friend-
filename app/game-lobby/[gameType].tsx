@@ -7,8 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import Toast from 'react-native-toast-message'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { GAME_META, getMyStats, type GameType, type UserGameStats } from '../../lib/games'
@@ -63,10 +62,10 @@ export default function GameLobbyScreen() {
 
   const load = async () => {
     try {
-      const user = await getCurrentUser().catch(() => null)
+      const { data: { user } } = await supabase.auth.getUser()
 
       const [followRes, statsRes] = await Promise.all([
-        user ? getFollowing(user.userId) : Promise.resolve({ data: null, error: null }),
+        user ? getFollowing(user.id) : Promise.resolve({ data: null, error: null }),
         getMyStats(),
       ])
 
@@ -92,25 +91,27 @@ export default function GameLobbyScreen() {
     }
 
 
-    const user = await getCurrentUser().catch(() => null)
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: cid, error } = { data: null, error: new Error('TODO: Complex RPC get_or_create_conversation') } // TODO: Complex RPC
+    const { data: cid, error } = await supabase.rpc('get_or_create_conversation', {
+      p_other_user_id: friend.id,
+    })
 
     if (error || !cid) {
       Toast.show({ type: 'error', text1: 'Could not send challenge', text2: error?.message })
       return
     }
 
-    await client.models.messages.create({
+    await supabase.from('messages').insert({
       conversation_id: cid,
-      sender_id: user.userId,
+      sender_id: user.id,
       body: JSON.stringify({
         _type: 'game_challenge',
         gameType: gt,
         emoji: meta.emoji,
         label: meta.label,
-        challengerId: user.userId,
+        challengerId: user.id,
       }),
     })
 
@@ -123,7 +124,7 @@ export default function GameLobbyScreen() {
   }
 
   const handleRandomMatch = async () => {
-    const user = await getCurrentUser().catch(() => null)
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       Toast.show({ type: 'error', text1: 'Not logged in' })
       return
@@ -133,9 +134,14 @@ export default function GameLobbyScreen() {
 
     try {
       // Look for an open waiting session for this game type with no guest yet
-      const { data: openSessions } = await client.models.live_game_sessions.list({
-        // TODO: filter game_type, status, guest_id, neq host_id, limit
-      })
+      const { data: openSessions } = await supabase
+        .from('live_game_sessions')
+        .select('id, host_id')
+        .eq('game_type', gt)
+        .eq('status', 'waiting')
+        .is('guest_id', null)
+        .neq('host_id', user.id)
+        .limit(1)
 
       if (openSessions && openSessions.length > 0) {
         // Join an existing open session as guest
@@ -151,13 +157,17 @@ export default function GameLobbyScreen() {
         })
       } else {
         // No open sessions — create one and wait for someone to join
-        const { data: newSession, error } = await client.models.live_game_sessions.create({
+        const { data: newSession, error } = await supabase
+          .from('live_game_sessions')
+          .insert({
             game_type: gt,
-            host_id: user.userId,
+            host_id: user.id,
             guest_id: null,
             status: 'waiting',
-            state: '{}',
-          }) // TODO: check error handling
+            state: {},
+          })
+          .select('id')
+          .single()
 
         if (error || !newSession) {
           Toast.show({ type: 'error', text1: 'Could not create session', text2: error?.message })
@@ -256,7 +266,7 @@ export default function GameLobbyScreen() {
                       <Avatar url={friend.avatar_url} name={friend.full_name} size={42} theme={theme} />
                       <View style={[
                         s.onlineDot,
-                        { backgroundColor: online ? '#4ade80' : theme.textFaint, borderColor: theme.card },
+                        { backgroundColor: online ? '#4ade80' : theme.textFaint },
                       ]} />
                     </View>
                     <View style={s.friendInfo}>

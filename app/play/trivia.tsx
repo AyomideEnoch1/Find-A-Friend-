@@ -13,11 +13,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { pickQuestions, getQuestionsByIndices, type TriviaQuestion } from '../../lib/triviaQuestions'
-// import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
 import { recordGameResult } from '../../lib/games'
-import { client, broadcastEvent, subscribeToChannel } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 const TIMER_SECS = 10
 const TOTAL_QUESTIONS = 10
@@ -74,11 +72,15 @@ export default function TriviaScreen() {
       setQuestions(pickQuestions(TOTAL_QUESTIONS))
       setLoading(false)
     }
-    return () => { channelRef.current && channelRef.current.unsubscribe() }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
   }, [sessionId])
 
   const loadSession = async () => {
-    const { data: sess } = await client.models.LiveGameSession.get({ id: sessionId })
+    const { data: sess } = await supabase
+      .from('live_game_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
     
     if (sess?.state?.q_indices) {
       setQuestions(getQuestionsByIndices(sess.state.q_indices))
@@ -89,16 +91,20 @@ export default function TriviaScreen() {
   }
 
   const subscribe = () => {
-    channelRef.current = subscribeToChannel(`game_room:${sessionId}`, (event, payload) => {
-      if (event === 'move') {
+    // Remove stale channel before re-subscribing
+    const stale = supabase.getChannels().find(c => c.topic === `realtime:game_room:${sessionId}`)
+    if (stale) supabase.removeChannel(stale)
+
+    channelRef.current = supabase.channel(`game_room:${sessionId}`)
+      .on('broadcast', { event: 'move' }, ({ payload }) => {
         // Use qIndexRef (not the closed-over qIndex) so we always compare
         // against the current question, not the question at subscribe time.
         if (payload.type === 'ANSWER' && payload.qIndex === qIndexRef.current) {
           setOppAnswer(payload.answerIndex)
           setOppScore(payload.totalScore ?? 0)
         }
-      }
-    })
+      })
+      .subscribe()
   }
 
   // Keep qIndexRef in sync with state so the broadcast handler sees current question
@@ -162,7 +168,11 @@ export default function TriviaScreen() {
 
     // Broadcast if multiplayer
     if (channelRef.current) {
-      broadcastEvent('game_room:' + sessionId, 'move', { type: 'ANSWER', qIndex, answerIndex: idx, totalScore: newScore })
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'move',
+        payload: { type: 'ANSWER', qIndex, answerIndex: idx, totalScore: newScore }
+      })
     }
 
     // Small delay to show bot answer if not yet chosen
@@ -199,7 +209,7 @@ export default function TriviaScreen() {
           const winnerId = finalMyScore > oppScore ? myId : opponentId
           await recordGameResult('trivia', opponentId, winnerId, { me: finalMyScore, opp: oppScore })
           // Mark session as finished
-          await client.models.LiveGameSession.update({ id: sessionId, status: 'finished', winner_id: winnerId })
+          await supabase.from('live_game_sessions').update({ status: 'finished', winner_id: winnerId }).eq('id', sessionId)
         }
       } else {
         setQIndex(next)

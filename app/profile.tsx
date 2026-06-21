@@ -16,12 +16,11 @@ import { getInitials } from '../lib/matching'
 import { useAuthStore } from '../store/authStore'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
-// import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import NeuralBackground from '../components/NeuralBackground'
 import ScreenLoader from '../components/ScreenLoader'
 import PostCard from '../components/feed/PostCard'
 import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name']
 type ProfileTab = 'posts' | 'bookmarks'
@@ -94,17 +93,15 @@ export default function ProfileScreen() {
   useEffect(() => {
 
     // Subscribe to follower_count / following_count changes on our own profile row
-    getCurrentUser().then((user) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      // TODO: AWS Amplify Realtime
-      /*
       channelRef.current = supabase
-        .channel(`profile-counts-${user.userId}`)
+        .channel(`profile-counts-${user.id}`)
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'profiles',
-          filter: `id=eq.${user.userId}`,
+          filter: `id=eq.${user.id}`,
         }, (payload: any) => {
           // Update both for safety, though stats is the primary source now
           setProfile(prev => prev
@@ -118,11 +115,10 @@ export default function ProfileScreen() {
           }))
         })
         .subscribe()
-      */
-    }).catch(()=>{})
+    })
 
     return () => {
-      // if (channelRef.current) supabase.removeChannel(channelRef.current)
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
   }, [])
 

@@ -50,8 +50,7 @@ import {
 } from "../../lib/chatAttachments";
 import { GAME_META, type GameType } from "../../lib/games";
 import { getInitials } from "../../lib/matching";
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth';
+import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { usePresenceStore } from "../../store/presenceStore";
@@ -462,7 +461,7 @@ export default function DirectMessageScreen() {
     try {
       const {
         data: { user },
-      } = await getCurrentUser();
+      } = await supabase.auth.getUser();
       if (!user || !otherUserId) {
         setLoading(false);
         return;
@@ -704,7 +703,7 @@ export default function DirectMessageScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
 
     setSending(true);
-    const { error: sendError } = await client.models.messages.create({
+    const { error: sendError } = await supabase.from("messages").insert({
       conversation_id: convId,
       sender_id: myId,
       body: payload,
@@ -1152,12 +1151,10 @@ export default function DirectMessageScreen() {
                                   s.bubbleMine,
                                   {
                                     // Sent: purple tint matching app theme
-                                    backgroundColor: theme.accentBg,
-                                    borderColor: theme.accentBorder,
-                                    borderWidth: 0.5,
-                                    shadowColor: theme.accent,
+                                    backgroundColor: "rgba(167,139,250,0.25)",
+                                    shadowColor: "#a78bfa",
                                     shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: m._optimistic ? 0.1 : 0.2,
+                                    shadowOpacity: m._optimistic ? 0.1 : 0.35,
                                     shadowRadius: 8,
                                     elevation: m._optimistic ? 1 : 4,
                                     ...(parsed ? { padding: 4 } : {}),
@@ -1166,10 +1163,9 @@ export default function DirectMessageScreen() {
                               : [
                                   s.bubbleTheirs,
                                   {
-                                    // Received: card background matching theme
-                                    backgroundColor: theme.card2,
-                                    borderColor: theme.border,
-                                    borderWidth: 0.5,
+                                    // Received: dark card background
+                                    backgroundColor: "rgba(255,255,255,0.07)",
+                                    borderColor: "rgba(167,139,250,0.12)",
                                   },
                                 ],
                             m._optimistic && { opacity: 0.6 },
@@ -1265,8 +1261,8 @@ export default function DirectMessageScreen() {
           style={[
             s.inputOuter,
             {
-              backgroundColor: theme.cardSolid,
-              borderTopColor: theme.border,
+              backgroundColor: "rgba(13,13,20,0.97)",
+              borderTopColor: "rgba(167,139,250,0.2)",
             },
           ]}
         >
@@ -1340,12 +1336,12 @@ export default function DirectMessageScreen() {
               style={[
                 s.input,
                 {
-                  backgroundColor: theme.card2,
+                  backgroundColor: "rgba(255,255,255,0.06)",
                   borderColor: inputFocused
-                    ? theme.accent
-                    : theme.border,
+                    ? "rgba(167,139,250,0.5)"
+                    : "rgba(167,139,250,0.15)",
                   color: theme.text,
-                  shadowColor: inputFocused ? theme.accent : "transparent",
+                  shadowColor: inputFocused ? "#a78bfa" : "transparent",
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: inputFocused ? 0.3 : 0,
                   shadowRadius: 6,

@@ -16,8 +16,7 @@ import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import { showTabBar } from '../../lib/tabBarAnim'
 import { useBadgesStore } from '../../store/badgesStore'
 import type { Event } from '../../lib/events'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 
 type Tab = 'upcoming' | 'rsvps' | 'past'
 
@@ -112,7 +111,7 @@ export default function EventsScreen() {
       .subscribe();
 
     let rsvpChannel: any;
-    getCurrentUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       rsvpChannel = supabase
         .channel("my-rsvps-realtime")
@@ -150,8 +149,8 @@ export default function EventsScreen() {
     });
 
     return () => {
-      // supabase.removeChannel(eventChannel);
-      // if (rsvpChannel) supabase.removeChannel(rsvpChannel);
+      supabase.removeChannel(eventChannel);
+      if (rsvpChannel) supabase.removeChannel(rsvpChannel);
     };
   }, []);
 
@@ -241,6 +240,16 @@ export default function EventsScreen() {
         ))}
       </View>
 
+      {activeTab === 'upcoming' && (
+        <CalendarGrid
+          events={events}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
+          month={viewMonth}
+          onMonthChange={(m) => { setViewMonth(m); setSelectedDay(null) }}
+        />
+      )}
+
       {loading && !refreshing ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={theme.accent} />
@@ -250,17 +259,6 @@ export default function EventsScreen() {
           data={listData}
           keyExtractor={(item) => item.type === 'event' ? item.event.id : `section-${item.date}`}
           renderItem={renderItem}
-          ListHeaderComponent={
-            activeTab === 'upcoming' ? (
-              <CalendarGrid
-                events={events}
-                selectedDay={selectedDay}
-                onSelectDay={setSelectedDay}
-                month={viewMonth}
-                onMonthChange={(m) => { setViewMonth(m); setSelectedDay(null) }}
-              />
-            ) : null
-          }
           onScroll={onScroll}
           scrollEventThrottle={scrollEventThrottle}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}

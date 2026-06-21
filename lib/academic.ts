@@ -7,8 +7,7 @@
  * Resources in the `academic-resources` bucket are private — accessed via
  * 1-hour signed URLs. The download count is incremented atomically via RPC.
  */
-import { client } from './aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from './supabase'
 import { uploadFile } from './upload'
 
 // ---------------------------------------------------------------------------
@@ -115,28 +114,28 @@ export async function getCourses(filters?: {
   department?: string
   level?: string
   search?: string
-  nextToken?: string
-}): Promise<{ data: Course[] | null; nextToken?: string | null; error: Error | null }> {
+}): Promise<{ data: Course[] | null; error: Error | null }> {
   try {
-    let filter: any = {}
-    if (filters?.department) filter.department = { eq: filters.department }
-    if (filters?.level) filter.level = { eq: filters.level }
-    if (filters?.search) {
-      filter.or = [
-        { code: { contains: filters.search } },
-        { name: { contains: filters.search } }
-      ]
+    let query = supabase
+      .from('courses')
+      .select('*')
+      .order('code', { ascending: true })
+
+    if (filters?.department) {
+      query = query.eq('department', filters.department)
     }
-    const hasFilter = Object.keys(filter).length > 0
-    const { data, nextToken, errors } = await client.models.Course.list({
-      ...(hasFilter ? { filter } : {}),
-      nextToken: filters?.nextToken,
-      limit: 20
-    })
-    if (errors) throw new Error(errors[0].message)
-    
-    const sorted = data.sort((a, b) => a.code.localeCompare(b.code))
-    return { data: sorted as unknown as Course[], nextToken, error: null }
+    if (filters?.level) {
+      query = query.eq('level', filters.level)
+    }
+    if (filters?.search) {
+      query = query.or(
+        `code.ilike.%${filters.search}%,name.ilike.%${filters.search}%`
+      )
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return { data: data as Course[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -147,17 +146,18 @@ export async function getMyEnrolledCourses(): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.CourseEnrollment.list({
-      filter: { user_id: { eq: user.userId } }
-    })
+    const { data, error } = await supabase
+      .from('course_enrollments')
+      .select('courses(*)')
+      .eq('user_id', user.id)
 
-    if (errors) throw new Error(errors[0].message)
+    if (error) throw error
     const courses = (data ?? [])
       .map((r: any) => r.courses)
-      .filter(Boolean) as unknown as Course[]
+      .filter(Boolean) as Course[]
     return { data: courses, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -169,15 +169,14 @@ export async function enrollInCourse(courseId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { errors } = await client.models.CourseEnrollment.create({
-      course_id: courseId,
-      user_id: user.userId
-    })
+    const { error } = await supabase
+      .from('course_enrollments')
+      .insert({ course_id: courseId, user_id: user.id })
 
-    if (errors) throw new Error(errors[0].message)
+    if (error && error.code !== '23505') throw error
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -189,18 +188,16 @@ export async function unenrollFromCourse(courseId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    // Find first to delete
-    const { data } = await client.models.CourseEnrollment.list({
-      filter: { course_id: { eq: courseId }, user_id: { eq: user.userId } }
-    })
-    if (data && data.length > 0) {
-      const { errors } = await client.models.CourseEnrollment.delete({ id: data[0].id })
-      if (errors) throw new Error(errors[0].message)
-    }
+    const { error } = await supabase
+      .from('course_enrollments')
+      .delete()
+      .eq('course_id', courseId)
+      .eq('user_id', user.id)
 
+    if (error) throw error
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -211,38 +208,43 @@ export async function unenrollFromCourse(courseId: string): Promise<{
 // Study Groups
 // ---------------------------------------------------------------------------
 
-export async function getStudyGroups(courseId?: string, nextToken?: string): Promise<{
+export async function getStudyGroups(courseId?: string): Promise<{
   data: StudyGroup[] | null
-  nextToken?: string | null
   error: Error | null
 }> {
   try {
-    const options: any = { limit: 20 }
-    if (courseId) options.filter = { course_id: { eq: courseId } }
-    if (nextToken) options.nextToken = nextToken
+    let query = supabase
+      .from('study_groups')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    const { data: sgData, nextToken: newNextToken, errors } = await client.models.StudyGroup.list(options)
-    if (errors) throw new Error(errors[0].message)
+    if (courseId) {
+      query = query.eq('course_id', courseId)
+    }
 
-    let hydrated = (sgData as unknown as StudyGroup[]) ?? []
+    const { data: sgData, error } = await query
+    if (error) throw error
+
+    let hydrated = (sgData as StudyGroup[]) ?? []
     if (hydrated.length > 0) {
       const uids = [...new Set(hydrated.map(sg => sg.created_by))]
       const cids = [...new Set(hydrated.map(sg => sg.course_id).filter(Boolean))] as string[]
       
-      const pRes = await Promise.all(uids.map(id => client.models.Profile.get({ id })))
-      const cRes = await Promise.all(cids.map(id => client.models.Course.get({ id })))
+      const [pRes, cRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids),
+        cids.length > 0 ? supabase.from('courses').select('id, code, name').in('id', cids) : { data: [] }
+      ])
       
-      const pMap = new Map(pRes.map(p => [p.data?.id, p.data]))
-      const cMap = new Map(cRes.map(c => [c.data?.id, c.data]))
+      const pMap = new Map(pRes.data?.map(p => [p.id, p]) ?? [])
+      const cMap = new Map(cRes.data?.map(c => [c.id, c]) ?? [])
       
       hydrated = hydrated.map(sg => ({
         ...sg,
-        profiles: (pMap.get(sg.created_by) as any) ?? null,
-        courses: (sg.course_id ? cMap.get(sg.course_id) : null) as any
+        profiles: pMap.get(sg.created_by) ?? null,
+        courses: sg.course_id ? cMap.get(sg.course_id) ?? null : null
       }))
     }
-    hydrated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    return { data: hydrated, nextToken: newNextToken, error: null }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -253,38 +255,32 @@ export async function createStudyGroup(payload: CreateStudyGroupPayload): Promis
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.StudyGroup.create({
-      created_by: user.userId,
-      course_id: payload.courseId ?? null,
-      name: payload.name,
-      description: payload.description ?? null,
-      venue: payload.venue ?? null,
-      meet_time: payload.meetTime ?? null,
-      is_recurring: payload.isRecurring ?? false,
-      max_members: payload.maxMembers ?? null,
-      member_count: 1
-    })
+    const { data, error } = await supabase
+      .from('study_groups')
+      .insert({
+        created_by: user.id,
+        course_id: payload.courseId ?? null,
+        name: payload.name,
+        description: payload.description ?? null,
+        venue: payload.venue ?? null,
+        meet_time: payload.meetTime ?? null,
+        is_recurring: payload.isRecurring ?? false,
+        max_members: payload.maxMembers ?? null,
+      })
+      .select('*, courses(id, code, name), profiles!created_by(id, full_name, avatar_url)')
+      .single()
 
-    if (errors) throw new Error(errors[0].message)
+    if (error) throw error
 
-    await client.models.StudyGroupMember.create({ group_id: data.id, user_id: user.userId })
+    // Auto-join the creator
+    await supabase
+      .from('study_group_members')
+      .insert({ group_id: data.id, user_id: user.id })
 
-    // hydrate
-    const [pData, cData] = await Promise.all([
-      client.models.Profile.get({ id: user.userId }),
-      payload.courseId ? client.models.Course.get({ id: payload.courseId }) : { data: null }
-    ])
-
-    const hydrated = {
-      ...data,
-      profiles: pData.data as any,
-      courses: cData.data as any
-    }
-
-    return { data: hydrated as unknown as StudyGroup, error: null }
+    return { data: data as StudyGroup, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -295,18 +291,25 @@ export async function joinStudyGroup(groupId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data: group } = await client.models.StudyGroup.get({ id: groupId })
+    // Check max_members constraint
+    const { data: group } = await supabase
+      .from('study_groups')
+      .select('max_members, member_count')
+      .eq('id', groupId)
+      .single()
 
-    if (group?.max_members && (group.member_count ?? 0) >= group.max_members) {
+    if (group?.max_members && group.member_count >= group.max_members) {
       throw new Error('This study group is full')
     }
 
-    const { errors } = await client.models.StudyGroupMember.create({ group_id: groupId, user_id: user.userId })
-    if (errors) throw new Error(errors[0].message)
+    const { error } = await supabase
+      .from('study_group_members')
+      .insert({ group_id: groupId, user_id: user.id })
 
+    if (error && error.code !== '23505') throw error
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -318,18 +321,16 @@ export async function leaveStudyGroup(groupId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data } = await client.models.StudyGroupMember.list({
-      filter: { group_id: { eq: groupId }, user_id: { eq: user.userId } }
-    })
-    
-    if (data && data.length > 0) {
-      const { errors } = await client.models.StudyGroupMember.delete({ id: data[0].id })
-      if (errors) throw new Error(errors[0].message)
-    }
+    const { error } = await supabase
+      .from('study_group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', user.id)
 
+    if (error) throw error
     return { data: null, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -344,103 +345,129 @@ export async function getResources(filters?: {
   courseId?: string
   resourceType?: ResourceType
   search?: string
-  nextToken?: string
-}): Promise<{ data: AcademicResource[] | null; nextToken?: string | null; error: Error | null }> {
+}): Promise<{ data: AcademicResource[] | null; error: Error | null }> {
   try {
-    let filter: any = {}
-    if (filters?.courseId) filter.course_id = { eq: filters.courseId }
-    if (filters?.resourceType) filter.resource_type = { eq: filters.resourceType }
-    if (filters?.search) filter.title = { contains: filters.search }
-    
-    const hasFilter = Object.keys(filter).length > 0
-    const { data: rData, nextToken, errors } = await client.models.AcademicResource.list({
-      ...(hasFilter ? { filter } : {}),
-      nextToken: filters?.nextToken,
-      limit: 20
-    })
-    if (errors) throw new Error(errors[0].message)
+    let query = supabase
+      .from('academic_resources')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    let hydrated = (rData as unknown as AcademicResource[]) ?? []
+    if (filters?.courseId) {
+      query = query.eq('course_id', filters.courseId)
+    }
+    if (filters?.resourceType) {
+      query = query.eq('resource_type', filters.resourceType)
+    }
+    if (filters?.search) {
+      query = query.ilike('title', `%${filters.search}%`)
+    }
+
+    const { data: rData, error } = await query
+    if (error) throw error
+
+    let hydrated = (rData as AcademicResource[]) ?? []
     if (hydrated.length > 0) {
       const uids = [...new Set(hydrated.map(r => r.uploader_id))]
       const cids = [...new Set(hydrated.map(r => r.course_id).filter(Boolean))] as string[]
       
-      const pRes = await Promise.all(uids.map(id => client.models.Profile.get({ id })))
-      const cRes = await Promise.all(cids.map(id => client.models.Course.get({ id })))
+      const [pRes, cRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids),
+        cids.length > 0 ? supabase.from('courses').select('id, code, name').in('id', cids) : { data: [] }
+      ])
       
-      const pMap = new Map(pRes.map(p => [p.data?.id, p.data]))
-      const cMap = new Map(cRes.map(c => [c.data?.id, c.data]))
+      const pMap = new Map(pRes.data?.map(p => [p.id, p]) ?? [])
+      const cMap = new Map(cRes.data?.map(c => [c.id, c]) ?? [])
       
       hydrated = hydrated.map(r => ({
         ...r,
-        profiles: (pMap.get(r.uploader_id) as any) ?? null,
-        courses: (r.course_id ? cMap.get(r.course_id) : null) as any
+        profiles: pMap.get(r.uploader_id) ?? null,
+        courses: r.course_id ? cMap.get(r.course_id) ?? null : null
       }))
     }
-    hydrated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    return { data: hydrated, nextToken, error: null }
+    return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
 }
 
 /**
- * Uploads a file and inserts
- * a metadata row.
+ * Uploads a file to the `academic-resources` private bucket and inserts
+ * a metadata row in `academic_resources`.
  */
 export async function uploadResource(payload: UploadResourcePayload): Promise<{
   data: AcademicResource | null
   error: Error | null
 }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
     const ext = payload.fileName.split('.').pop() ?? 'pdf'
-    const storagePath = `${user.userId}/${Date.now()}_${payload.fileName}`
+    const storagePath = `${user.id}/${Date.now()}_${payload.fileName}`
 
-    // Assuming uploadFile handles the S3 upload via amplify/storage
-    await uploadFile(payload.fileUri, storagePath, payload.mimeType)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.AcademicResource.create({
-      uploader_id: user.userId,
-      course_id: payload.courseId ?? null,
-      title: payload.title,
-      description: payload.description ?? null,
-      file_url: storagePath,
-      file_type: ext,
-      file_size_kb: payload.fileSizeKb ?? null,
-      resource_type: payload.resourceType ?? 'note',
-      download_count: 0
-    })
+    const formData = new FormData()
+    formData.append('file', { uri: payload.fileUri, name: payload.fileName, type: payload.mimeType } as any)
 
-    if (errors) throw new Error(errors[0].message)
-    return { data: data as unknown as AcademicResource, error: null }
+    const uploadRes = await fetch(
+      `https://vcbtvhociaioeyhhsczh.supabase.co/storage/v1/object/academic-resources/${storagePath}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
+        body: formData,
+      }
+    )
+    if (!uploadRes.ok) {
+      const msg = await uploadRes.text().catch(() => uploadRes.status.toString())
+      throw new Error(`Upload failed: ${msg}`)
+    }
+
+    // For private bucket, store the storage path (signed URLs generated on demand)
+    const { data, error: insertError } = await supabase
+      .from('academic_resources')
+      .insert({
+        uploader_id: user.id,
+        course_id: payload.courseId ?? null,
+        title: payload.title,
+        description: payload.description ?? null,
+        file_url: storagePath,
+        file_type: ext,
+        file_size_kb: payload.fileSizeKb ?? null,
+        resource_type: payload.resourceType ?? 'note',
+      })
+      .select('*')
+      .single()
+
+    if (insertError) throw insertError
+    return { data: data as AcademicResource, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
 }
 
 /**
- * Returns a signed URL.
+ * Returns a 1-hour signed URL for a private academic resource.
+ * Also increments the download count via RPC.
  */
 export async function getResourceSignedUrl(
   resource: AcademicResource,
   expiresInSeconds = 3600
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    // S3 getUrl via Amplify would be used here, but keeping simple placeholder logic
-    // or using a generic approach:
-    const { getUrl } = await import('aws-amplify/storage')
-    const { url } = await getUrl({ path: resource.file_url, options: { expiresIn: expiresInSeconds } })
+    const { data, error } = await supabase.storage
+      .from('academic-resources')
+      .createSignedUrl(resource.file_url, expiresInSeconds)
 
-    // Increment download counter (fire-and-forget)
-    client.models.AcademicResource.update({
-      id: resource.id,
-      download_count: (resource.download_count ?? 0) + 1
-    }).catch(() => {})
+    if (error) throw error
 
-    return { data: url.toString(), error: null }
+    // Increment download counter (fire-and-forget, non-blocking)
+    supabase.rpc('increment_resource_download', {
+      p_resource_id: resource.id,
+    }).then(() => {})
+
+    return { data: data.signedUrl, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -455,21 +482,22 @@ export async function getCourseDiscussions(courseId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { data: dData, errors } = await client.models.CourseDiscussion.list({
-      filter: { course_id: { eq: courseId } }
-    })
-    if (errors) throw new Error(errors[0].message)
+    const { data: dData, error } = await supabase
+      .from('course_discussions')
+      .select('*')
+      .eq('course_id', courseId)
+      .is('parent_id', null)       // top-level only
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
     
-    // Filter top-level only
-    let hydrated = (dData as unknown as CourseDiscussion[]).filter(d => !d.parent_id)
-    
+    let hydrated = (dData as CourseDiscussion[]) ?? []
     if (hydrated.length > 0) {
       const uids = [...new Set(hydrated.map(d => d.author_id))]
-      const pRes = await Promise.all(uids.map(id => client.models.Profile.get({ id })))
-      const pMap = new Map(pRes.map(p => [p.data?.id, p.data]))
-      hydrated = hydrated.map(d => ({ ...d, profiles: (pMap.get(d.author_id) as any) ?? null }))
+      const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      hydrated = hydrated.map(d => ({ ...d, profiles: pMap.get(d.author_id) ?? null }))
     }
-    hydrated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -481,19 +509,21 @@ export async function getDiscussionReplies(parentId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { data: dData, errors } = await client.models.CourseDiscussion.list({
-      filter: { parent_id: { eq: parentId } }
-    })
-    if (errors) throw new Error(errors[0].message)
+    const { data: dData, error } = await supabase
+      .from('course_discussions')
+      .select('*')
+      .eq('parent_id', parentId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
     
-    let hydrated = (dData as unknown as CourseDiscussion[]) ?? []
+    let hydrated = (dData as CourseDiscussion[]) ?? []
     if (hydrated.length > 0) {
       const uids = [...new Set(hydrated.map(d => d.author_id))]
-      const pRes = await Promise.all(uids.map(id => client.models.Profile.get({ id })))
-      const pMap = new Map(pRes.map(p => [p.data?.id, p.data]))
-      hydrated = hydrated.map(d => ({ ...d, profiles: (pMap.get(d.author_id) as any) ?? null }))
+      const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', uids)
+      const pMap = new Map(pData?.map(p => [p.id, p]) ?? [])
+      hydrated = hydrated.map(d => ({ ...d, profiles: pMap.get(d.author_id) ?? null }))
     }
-    hydrated.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     return { data: hydrated, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -506,21 +536,27 @@ export async function createAcademicPost(
   parentId?: string
 ): Promise<{ data: CourseDiscussion | null; error: Error | null }> {
   try {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.CourseDiscussion.create({
-      course_id: courseId,
-      author_id: user.userId,
-      body,
-      parent_id: parentId ?? null,
-    })
-    if (errors) throw new Error(errors[0].message)
+    const { data, error } = await supabase
+      .from('course_discussions')
+      .insert({
+        course_id: courseId,
+        author_id: user.id,
+        body,
+        parent_id: parentId ?? null,
+      })
+      .select('*')
+      .single()
+
+    if (error) throw error
     
-    const { data: pData } = await client.models.Profile.get({ id: data.author_id })
-    const hydrated = { ...data, profiles: pData as any }
+    // Fetch profile for the new post
+    const { data: pData } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('id', data.author_id).single()
+    const hydrated = { ...data, profiles: pData ?? null }
     
-    return { data: hydrated as unknown as CourseDiscussion, error: null }
+    return { data: hydrated as CourseDiscussion, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

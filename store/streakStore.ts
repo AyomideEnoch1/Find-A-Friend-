@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { client } from '../lib/aws'
+import { supabase } from '../lib/supabase'
 
 interface StreakState {
   currentStreak: number
@@ -25,8 +25,9 @@ export const useStreakStore = create<StreakState>((set, get) => ({
         .toISOString()
         .split('T')[0]
 
-      // TODO: Complex RPC
-      const { data, error } = { data: null, error: null } as any;
+      const { data, error } = await supabase.rpc('record_daily_activity', {
+        client_date: localDate,
+      })
 
       if (error) {
         console.error('Streak update error:', error)

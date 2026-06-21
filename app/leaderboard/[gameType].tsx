@@ -11,8 +11,7 @@ import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { getLeaderboard, GAME_META, type GameType, type LeaderboardEntry } from '../../lib/games'
 import { getInitials } from '../../lib/matching'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 import NeuralBackground from '../../components/NeuralBackground'
 import ScreenLoader from '../../components/ScreenLoader'
 
@@ -52,7 +51,7 @@ export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [myEntry, setMyEntry] = useState<{ rank: number; entry: LeaderboardEntry } | null>(null)
   const [loading, setLoading] = useState(true)
-  const channelRef = useRef<any>(null)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const currentUserRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -60,8 +59,27 @@ export default function LeaderboardScreen() {
 
     // Realtime: refresh whenever a game_session is inserted or updated
     // (covers both new results and score corrections)
-    // TODO: Complex realtime channel
+    channelRef.current = supabase
+      .channel(`leaderboard-${gt}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'game_sessions',
+        filter: `game_type=eq.${gt}`,
+      }, () => { refresh() })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'game_sessions',
+        filter: `game_type=eq.${gt}`,
+      }, () => { refresh() })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'live_game_sessions',
+        filter: `game_type=eq.${gt}`,
+      }, (payload: any) => {
+        // Refresh leaderboard when a live session finishes
+        if (payload.new?.status === 'finished') refresh()
+      })
+      .subscribe()
+
     return () => {
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
   }, [gt])
 
@@ -73,15 +91,17 @@ export default function LeaderboardScreen() {
   const load = async () => {
     setLoading(true)
     try {
-      const [list] = await Promise.all([
+      const [list, userRes] = await Promise.all([
         fetchEntries(),
+        supabase.auth.getUser(),
         new Promise<void>(r => setTimeout(r, MIN_LOADER_MS)),
       ])
-      const user = await getCurrentUser().catch(() => null)
-      currentUserRef.current = user?.userId ?? null
+
+      const user = userRes.data.user
+      currentUserRef.current = user?.id ?? null
       setEntries(list)
       if (user) {
-        const idx = list.findIndex(e => e.user_id === user.userId)
+        const idx = list.findIndex(e => e.user_id === user.id)
         if (idx !== -1) setMyEntry({ rank: idx + 1, entry: list[idx] })
         else setMyEntry(null)
       }

@@ -26,8 +26,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Toast from 'react-native-toast-message'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
@@ -67,7 +66,7 @@ export default function ClubRoomScreen() {
 
   const load = useCallback(async () => {
     try {
-      const { data: { user } } = await getCurrentUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user || !clubId) return
       setMyId(user.id)
 
@@ -153,8 +152,8 @@ export default function ClubRoomScreen() {
       .subscribe()
 
     return () => {
-      // supabase.removeChannel(channel)
-      // supabase.removeChannel(infoChannel)
+      supabase.removeChannel(channel)
+      supabase.removeChannel(infoChannel)
     }
   }, [clubId])
 
@@ -184,7 +183,7 @@ export default function ClubRoomScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
 
     setSending(true)
-    const { error } = await client.models.club_messages.create({
+    const { error } = await supabase.from('club_messages').insert({
       club_id: clubId, sender_id: myId, body: payload,
     })
     setSending(false)
@@ -210,7 +209,7 @@ export default function ClubRoomScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
 
     setSending(true)
-    const { error } = await client.models.club_messages.create({
+    const { error } = await supabase.from('club_messages').insert({
       club_id: clubId, sender_id: myId, body
     })
     setSending(false)

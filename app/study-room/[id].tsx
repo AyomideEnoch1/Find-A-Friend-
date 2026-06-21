@@ -27,13 +27,11 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Toast from 'react-native-toast-message'
-// import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { ReplyPayload, parseReply, ReplyBanner, QuotedBubble } from '../../components/chat/ReplyUI'
-import { client } from "../../lib/aws"
-import { getCurrentUser } from "aws-amplify/auth"
 
 const ROOM_COLOR = '#3b82f6'
 
@@ -65,26 +63,28 @@ export default function StudyRoomScreen() {
 
   const load = useCallback(async () => {
     try {
-      let user;
-      try { user = await getCurrentUser() } catch {}
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user || !groupId) return
-      setMyId(user.userId)
+      setMyId(user.id)
 
       // Load group info
-      const { data: groups } = await client.models.StudyGroup.get({ id: groupId })
+      const { data: groups } = await supabase
+        .from('study_groups').select('name').eq('id', groupId).single()
       if (groups) setGroupName(groups.name)
 
       // Check membership
-      const { data: membership } = await client.models.StudyGroupMember.list({
-        filter: { group_id: { eq: groupId }, user_id: { eq: user.userId } }
-      })
-      setIsMember(membership && membership.length > 0)
+      const { data: membership } = await supabase
+        .from('study_group_members').select('user_id')
+        .eq('group_id', groupId).eq('user_id', user.id).maybeSingle()
+      setIsMember(!!membership)
 
       // Load messages
-      const { data: msgs, errors: error } = await client.models.StudyGroupMessage.list({
-        filter: { group_id: { eq: groupId } },
-        limit: 100
-      })
+      const { data: msgs, error } = await supabase
+        .from('study_group_messages')
+        .select('*, profiles!sender_id(id, full_name, avatar_url)')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true })
+        .limit(100)
 
       if (error && error.code === '42P01') {
         Toast.show({ type: 'info', text1: 'Run study_group_messages SQL', text2: 'Check code comments.' })
@@ -102,8 +102,6 @@ export default function StudyRoomScreen() {
 
   useEffect(() => {
     if (!groupId) return
-    // TODO: AWS Amplify Realtime
-    /*
     const channel = supabase
       .channel(`study-room:${groupId}`)
       .on('postgres_changes', {
@@ -122,7 +120,6 @@ export default function StudyRoomScreen() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-    */
   }, [groupId])
 
   const sendMessage = async () => {
@@ -149,7 +146,7 @@ export default function StudyRoomScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80)
 
     setSending(true)
-    const { error } = await client.models.study_group_messages.create({
+    const { error } = await supabase.from('study_group_messages').insert({
       group_id: groupId, sender_id: myId, body: payload,
     })
     setSending(false)

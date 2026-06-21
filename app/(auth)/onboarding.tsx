@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState } from 'react'
 import { router } from 'expo-router'
 import { client } from '../../lib/aws'
+import { supabase } from '../../lib/supabase'
 import { getCurrentUser } from 'aws-amplify/auth'
 import { useTheme } from '../../lib/theme'
 import { registerForPushNotifications, savePushToken, subscribeToWebPush } from '../../lib/notifications'
@@ -52,7 +53,7 @@ export default function OnboardingScreen() {
   }
   setLoading(true)
 
-  const { data: { user } } = await getCurrentUser()
+  const user = await getCurrentUser()
   if (!user) {
     Alert.alert('Error', 'Not logged in')
     setLoading(false)
@@ -62,8 +63,8 @@ export default function OnboardingScreen() {
   const { error } = await supabase
     .from('profiles')
     .upsert({
-      id: user.id,
-      email: user.email,
+      id: user.userId,
+      email: user.username,
       full_name: fullName.trim(),
       department: department === 'Other' ? manualDepartment.trim() : department,
       level,
@@ -86,7 +87,7 @@ export default function OnboardingScreen() {
     // is the perfect place to do it before navigating away.
     if (Platform.OS === 'web') {
       try {
-        await subscribeToWebPush(user.id)
+        await subscribeToWebPush(user.userId)
       } catch {}
     }
 

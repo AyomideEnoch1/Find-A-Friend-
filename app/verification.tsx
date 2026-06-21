@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTheme } from '../lib/theme'
-import { client } from '../lib/aws'
+import { supabase } from '../lib/supabase'
 import { getCurrentProfile } from '../lib/profiles'
 import type { Profile } from '../lib/profiles'
 import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
@@ -26,8 +26,7 @@ export default function VerificationScreen() {
   const [profile, setProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
-    // TODO: AWS Auth
-    (client as any).auth.getUser().then(({ data }: any) => {
+    supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? '')
       setCreatedAt(data.user?.created_at ?? '')
     })

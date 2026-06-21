@@ -1,56 +1,44 @@
-import { client } from './aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from './supabase'
 
 export async function sendConnectionRequest(receiverId: string) {
-  let user;
-  try { user = await getCurrentUser() } catch { return { error: 'Not logged in' } }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not logged in' }
 
-  const { errors } = await client.models.Connection.create({
-    requester_id: user.userId,
-    receiver_id: receiverId,
-    status: 'pending'
-  })
+  const { error } = await supabase
+    .from('connections')
+    .insert({
+      requester_id: user.id,
+      receiver_id: receiverId,
+      status: 'pending'
+    })
 
-  if (errors && errors[0]?.message?.includes('ConditionalCheckFailedException')) return { error: "already_sent" }
-  return { error: errors?.[0] }
+  if (error && error.code === "23505") return { error: "already_sent" }
+  return { error }
 }
 
 export async function getMyConnections() {
-  let user;
-  try { user = await getCurrentUser() } catch { return [] }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
 
-  const { data, errors } = await client.models.Connection.list({
-    filter: {
-      or: [
-        { requester_id: { eq: user.userId } },
-        { receiver_id: { eq: user.userId } }
-      ],
-      status: { eq: 'accepted' }
-    }
-  })
+  const { data, error } = await supabase
+    .from('connections')
+    .select('*')
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .eq('status', 'accepted')
 
-  if (errors) return []
+  if (error) return []
   return data
 }
 
 export async function checkConnectionStatus(otherUserId: string) {
-  let user;
-  try { user = await getCurrentUser() } catch { return null }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
-  const { data } = await client.models.Connection.list({
-    filter: {
-      or: [
-        { 
-          requester_id: { eq: user.userId },
-          receiver_id: { eq: otherUserId }
-        },
-        {
-          requester_id: { eq: otherUserId },
-          receiver_id: { eq: user.userId }
-        }
-      ]
-    }
-  })
+  const { data } = await supabase
+    .from('connections')
+    .select('*')
+    .or(`and(requester_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+    .maybeSingle()
 
-  return data?.[0] ?? null
+  return data
 }

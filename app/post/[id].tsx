@@ -16,15 +16,13 @@ import { useFeedStore } from '../../store/feedStore'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
-// import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { pickCommentMedia, takeCommentPhoto, recordCommentVideo } from '../../lib/feedAttachments'
-import { useVideoPlayer, VideoView } from 'expo-video'
 import type { FeedMedia } from '../../lib/feedAttachments'
 import { StickerPicker } from '../../components/StickerPicker'
 import { ReplyBanner } from '../../components/chat/ReplyUI'
 import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 function toHandle(name: string | null | undefined) {
   if (!name) return '@user'
@@ -125,15 +123,13 @@ export default function PostDetailScreen() {
   const threadedComments = flattenComments(null)
 
   useEffect(() => {
-    getCurrentUser().then(user => setMyUserId(user.userId ?? null)).catch(() => setMyUserId(null))
+    supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null))
     if (id) loadData()
   }, [id])
 
   useEffect(() => {
     if (!id) return
 
-    // TODO: AWS Amplify Realtime
-    /*
     const channel = supabase
       .channel(`post-comments:${id}`)
       .on('postgres_changes', {
@@ -178,7 +174,6 @@ export default function PostDetailScreen() {
     return () => {
       supabase.removeChannel(channel)
     }
-    */
   }, [id])
 
   const loadData = async () => {
@@ -461,10 +456,13 @@ export default function PostDetailScreen() {
           {item.body ? renderCommentBody(item.body) : null}
           {item.media_url ? (
             item.media_type === 'video' ? (
-              <InlineVideoPlayer
-                sourceUrl={item.media_url}
-                style={{ width: '100%', height: 180, borderRadius: 12, borderWidth: 1, borderColor: theme.border, marginTop: 6, backgroundColor: 'black' }}
-              />
+              <TouchableOpacity
+                style={{ width: '100%', height: 160, borderRadius: 6, borderWidth: 1, borderColor: theme.border, marginTop: 6, backgroundColor: 'black', alignItems: 'center', justifyContent: 'center' }}
+                onPress={() => Linking.openURL(item.media_url!)}
+              >
+                <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.8)" />
+                <Text style={{ color: 'white', marginTop: 8, fontSize: 12 }}>Play Video</Text>
+              </TouchableOpacity>
             ) : (
               <Image source={{ uri: item.media_url }} style={[s.commentMedia, { borderColor: theme.border }]} resizeMode="cover" />
             )
@@ -549,10 +547,13 @@ export default function PostDetailScreen() {
         {images.length > 0 && !isRepost ? (
           images.length === 1 ? (
             images[0].match(/\.(mp4|mov|webm)$/i) ? (
-             <InlineVideoPlayer
-                sourceUrl={images[0]}
-                style={[s.postImage, { borderColor: theme.border, height: 240, backgroundColor: 'black', borderRadius: 12 }]}
-              />
+              <TouchableOpacity
+                style={[s.postImage, { borderColor: theme.border, height: 200, backgroundColor: 'black', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }]}
+                onPress={() => Linking.openURL(images[0])}
+              >
+                <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.85)" />
+                <Text style={{ color: 'white', marginTop: 8, fontSize: 13, fontFamily: typography.fontMedium }}>Play Video in Browser</Text>
+              </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={() => setSelectedImage(images[0])} activeOpacity={0.95}>
                 <Image source={{ uri: images[0] }} style={[s.postImage, { borderColor: theme.border }]} resizeMode="cover" />
@@ -1062,140 +1063,3 @@ const s = StyleSheet.create({
   },
   sendDisabled: { opacity: 0.4 },
 })
-
-function InlineVideoPlayer({ sourceUrl, style }: { sourceUrl: string; style: any }) {
-  const player = useVideoPlayer(sourceUrl, (p) => {
-    p.loop = false
-  })
-
-  const [isPlaying, setIsPlaying] = React.useState(false)
-  const [showControls, setShowControls] = React.useState(true)
-  const [currentTime, setCurrentTime] = React.useState(0)
-  const [duration, setDuration] = React.useState(0)
-  const controlsTimeoutRef = React.useRef<any>(null)
-
-  const resetControlsTimeout = React.useCallback(() => {
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current)
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      setShowControls(false)
-    }, 3000)
-  }, [])
-
-  React.useEffect(() => {
-    setIsPlaying(player.playing)
-    setDuration(player.duration || 0)
-
-    const subPlaying = player.addListener('playingChange', (event) => {
-      setIsPlaying(event.isPlaying)
-      if (event.isPlaying) {
-        resetControlsTimeout()
-      } else {
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current)
-        }
-        setShowControls(true)
-      }
-    })
-
-    const subStatus = player.addListener('statusChange', ({ status }) => {
-      setDuration(player.duration || 0)
-    })
-
-    const subTime = player.addListener('timeUpdate', (event) => {
-      setCurrentTime(event.currentTime)
-    })
-
-    if (player.playing) {
-      resetControlsTimeout()
-    }
-
-    return () => {
-      subPlaying.remove()
-      subStatus.remove()
-      subTime.remove()
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current)
-      }
-    }
-  }, [player, resetControlsTimeout])
-
-  const handlePressScreen = () => {
-    if (!showControls) {
-      setShowControls(true)
-      resetControlsTimeout()
-    } else {
-      setShowControls(false)
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current)
-      }
-    }
-  }
-
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      player.pause()
-    } else {
-      player.play()
-    }
-    resetControlsTimeout()
-  }
-
-  const progress = duration > 0 ? currentTime / duration : 0
-
-  return (
-    <Pressable style={[style, { overflow: 'hidden', position: 'relative' }]} onPress={handlePressScreen}>
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={false}
-      />
-
-      {showControls && (
-        <View style={{
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <TouchableOpacity
-            onPress={handlePlayPause}
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: 'rgba(0,0,0,0.6)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={24}
-              color="white"
-              style={!isPlaying ? { marginLeft: 3 } : {}}
-            />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Progress Bar at the bottom */}
-      <View style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 3,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-      }}>
-        <View style={{
-          height: '100%',
-          width: `${progress * 100}%`,
-          backgroundColor: '#a78bfa',
-        }} />
-      </View>
-    </Pressable>
-  )
-}

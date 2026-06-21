@@ -13,14 +13,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { unenrollFromCourse } from '../lib/academic'
+import {
+  getMyEnrolledCourses, getStudyGroups, getResources,
+  enrollInCourse, unenrollFromCourse, getCourses,
+} from '../lib/academic'
 import StudyGroupCard from '../components/academic/StudyGroupCard'
-import type { Course, StudyGroup, AcademicResource, ResourceType } from '../lib/academic'
+import type { Course, StudyGroup, AcademicResource } from '../lib/academic'
 import { getTimeAgo } from '../lib/matching'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import { useBadgesStore } from '../store/badgesStore'
-import { useAcademicStore } from '../store/academicStore'
 
 type Tab = 'courses' | 'groups' | 'resources'
 
@@ -41,32 +43,6 @@ const RESOURCE_TYPE_COLORS: Record<string, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Skeletons
-// ---------------------------------------------------------------------------
-
-function SkeletonRow() {
-  return (
-    <View style={[s.courseCard, { padding: 12, opacity: 0.5 }]}>
-      <View style={{ width: 40, height: 40, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20 }} />
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <View style={{ width: '60%', height: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4, marginBottom: 8 }} />
-        <View style={{ width: '40%', height: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 4 }} />
-      </View>
-    </View>
-  )
-}
-
-function renderSkeletons() {
-  return (
-    <View style={{ paddingTop: 8 }}>
-      <SkeletonRow />
-      <SkeletonRow />
-      <SkeletonRow />
-    </View>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Sub-component: Course row
 // ---------------------------------------------------------------------------
 
@@ -77,7 +53,6 @@ interface CourseRowProps {
 
 function CourseRow({ course, onUnenroll }: CourseRowProps) {
   const [loading, setLoading] = useState(false)
-  const theme = useTheme()
 
   const handleUnenroll = () => {
     Alert.alert(
@@ -104,16 +79,16 @@ function CourseRow({ course, onUnenroll }: CourseRowProps) {
 
   return (
     <TouchableOpacity
-      style={[s.courseCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={s.courseCard}
       onPress={() => router.push(`/course/${course.id}` as any)}
       activeOpacity={0.85}>
       <View style={s.courseAccent} />
       <View style={s.courseBody}>
         <View style={{ flex: 1 }}>
           <Text style={s.courseCode}>{course.code}</Text>
-          <Text style={[s.courseName, { color: theme.text }]} numberOfLines={1}>{course.name}</Text>
+          <Text style={s.courseName} numberOfLines={1}>{course.name}</Text>
           {(course.department || course.level) && (
-            <Text style={[s.courseMeta, { color: theme.textMuted }]}>
+            <Text style={s.courseMeta}>
               {[course.department, course.level].filter(Boolean).join(' · ')}
             </Text>
           )}
@@ -145,7 +120,6 @@ function CourseRow({ course, onUnenroll }: CourseRowProps) {
 // ---------------------------------------------------------------------------
 
 function ResourceRow({ resource }: { resource: AcademicResource }) {
-  const theme = useTheme()
   const icon = RESOURCE_TYPE_ICONS[resource.resource_type] ?? 'attach-outline'
   const color = RESOURCE_TYPE_COLORS[resource.resource_type] ?? 'rgba(240,240,255,0.4)'
   const sizeLabel = resource.file_size_kb
@@ -156,25 +130,25 @@ function ResourceRow({ resource }: { resource: AcademicResource }) {
 
   return (
     <TouchableOpacity
-      style={[s.resourceCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={s.resourceCard}
       onPress={() => router.push(`/resource/${resource.id}` as any)}
       activeOpacity={0.85}>
       <View style={[s.resourceIcon, { backgroundColor: color + '18' }]}>
         <Ionicons name={icon} size={18} color={color} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[s.resourceTitle, { color: theme.text }]} numberOfLines={1}>{resource.title}</Text>
+        <Text style={s.resourceTitle} numberOfLines={1}>{resource.title}</Text>
         <View style={s.resourceMeta}>
           {resource.courses && (
             <Text style={s.resourceCourse}>{resource.courses.code}</Text>
           )}
-          <Text style={[s.resourceTime, { color: theme.textMuted }]}>{getTimeAgo(resource.created_at)}</Text>
-          {sizeLabel && <Text style={[s.resourceSize, { color: theme.textFaint }]}>{sizeLabel}</Text>}
+          <Text style={s.resourceTime}>{getTimeAgo(resource.created_at)}</Text>
+          {sizeLabel && <Text style={s.resourceSize}>{sizeLabel}</Text>}
         </View>
       </View>
       <View style={s.downloadBadge}>
-        <Ionicons name="download-outline" size={11} color={theme.textFaint} />
-        <Text style={[s.downloadCount, { color: theme.textMuted }]}>{resource.download_count}</Text>
+        <Ionicons name="download-outline" size={11} color="rgba(240,240,255,0.35)" />
+        <Text style={s.downloadCount}>{resource.download_count}</Text>
       </View>
     </TouchableOpacity>
   )
@@ -189,39 +163,50 @@ export default function AcademicScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('courses')
   const markSeen = useBadgesStore(s => s.markSeen)
 
-  const {
-    enrolledCourses, loadingEnrolled, fetchEnrolledCourses,
-    groups, loadingGroups, fetchGroups, groupsNextToken,
-    resources, loadingResources, fetchResources, resourcesNextToken,
-    searchQuery, setSearchQuery,
-    resourceTypeFilter, setResourceTypeFilter
-  } = useAcademicStore()
-
   useFocusEffect(
     useCallback(() => {
       markSeen('academic')
     }, [markSeen])
   )
 
+  const [courses, setCourses] = useState<Course[]>([])
+  const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([])
+  const [resources, setResources] = useState<AcademicResource[]>([])
+
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  const [resourceSearch, setResourceSearch] = useState('')
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     loadTab(activeTab)
   }, [activeTab])
 
-  const loadTab = async (tab: Tab, reset = false) => {
+  const loadTab = async (tab: Tab, refresh = false) => {
+    if (!refresh) setLoading(true)
     try {
-      if (tab === 'courses') {
-        await fetchEnrolledCourses()
-      } else if (tab === 'groups') {
-        await fetchGroups(reset)
-      } else if (tab === 'resources') {
-        await fetchResources(reset)
+      switch (tab) {
+        case 'courses': {
+          const { data } = await getMyEnrolledCourses()
+          setCourses(data ?? [])
+          break
+        }
+        case 'groups': {
+          const { data } = await getStudyGroups()
+          setStudyGroups(data ?? [])
+          break
+        }
+        case 'resources': {
+          const { data } = await getResources()
+          setResources(data ?? [])
+          break
+        }
       }
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'Network Error', text2: 'Failed to load academic data. Pull to retry.' })
+    } catch {
+      // Non-fatal — keep existing data
     } finally {
+      setLoading(false)
       setRefreshing(false)
     }
   }
@@ -232,51 +217,42 @@ export default function AcademicScreen() {
   }, [activeTab])
 
   const handleResourceSearch = (text: string) => {
-    setSearchQuery(text)
+    setResourceSearch(text)
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchTimer.current = setTimeout(async () => {
-      try {
-        await fetchResources(true)
-      } catch (e) {
-        Toast.show({ type: 'error', text1: 'Search Error', text2: 'Failed to search resources.' })
-      }
-    }, 400)
+      setLoading(true)
+      const { data } = await getResources({ search: text || undefined })
+      setResources(data ?? [])
+      setLoading(false)
+    }, 300)
   }
 
   const handleCourseUnenrolled = (courseId: string) => {
-    fetchEnrolledCourses() // Reload list
+    setCourses(prev => prev.filter(c => c.id !== courseId))
   }
-
-  const handleEndReached = () => {
-    if (activeTab === 'groups' && groupsNextToken && !loadingGroups) {
-      fetchGroups(false).catch(() => {})
-    } else if (activeTab === 'resources' && resourcesNextToken && !loadingResources) {
-      fetchResources(false).catch(() => {})
-    }
-  }
-
-  // Effect to refetch resources if filter changes
-  useEffect(() => {
-    if (activeTab === 'resources') {
-      fetchResources(true).catch(() => {})
-    }
-  }, [resourceTypeFilter])
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={s.centeredWrap}>
+          <ActivityIndicator size="large" color="#a78bfa" />
+        </View>
+      )
+    }
+
     if (activeTab === 'courses') {
-      if (loadingEnrolled && enrolledCourses.length === 0) return renderSkeletons()
       return (
         <FlatList
-          data={enrolledCourses}
+          data={courses}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <CourseRow course={item} onUnenroll={handleCourseUnenrolled} />
           )}
           ListEmptyComponent={
             <View style={s.empty}>
-              <Ionicons name="book-outline" size={40} color={theme.textFaint} />
-              <Text style={[s.emptyTitle, { color: theme.textMuted }]}>No enrolled courses</Text>
-              <Text style={[s.emptySub, { color: theme.textFaint }]}>Browse and enroll in courses below</Text>
+              <Ionicons name="book-outline" size={40} color="rgba(240,240,255,0.1)" />
+              <Text style={s.emptyTitle}>No enrolled courses</Text>
+              <Text style={s.emptySub}>Browse and enroll in courses below</Text>
               <TouchableOpacity
                 style={s.browseBtn}
                 onPress={() => router.push('/course-browser' as any)}>
@@ -294,25 +270,21 @@ export default function AcademicScreen() {
     }
 
     if (activeTab === 'groups') {
-      if (loadingGroups && groups.length === 0) return renderSkeletons()
       return (
         <FlatList
-          data={groups}
+          data={studyGroups}
           keyExtractor={item => item.id}
           renderItem={({ item }) => <StudyGroupCard group={item} />}
           ListEmptyComponent={
             <View style={s.empty}>
-              <Ionicons name="people-outline" size={40} color={theme.textFaint} />
-              <Text style={[s.emptyTitle, { color: theme.textMuted }]}>No study groups yet</Text>
-              <Text style={[s.emptySub, { color: theme.textFaint }]}>Create one and invite your coursemates</Text>
+              <Ionicons name="people-outline" size={40} color="rgba(240,240,255,0.1)" />
+              <Text style={s.emptyTitle}>No study groups yet</Text>
+              <Text style={s.emptySub}>Create one and invite your coursemates</Text>
             </View>
           }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#a78bfa" />
           }
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={loadingGroups && groups.length > 0 ? <ActivityIndicator style={{marginVertical: 20}} /> : null}
           contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
           scrollEnabled={false}
         />
@@ -320,77 +292,40 @@ export default function AcademicScreen() {
     }
 
     // Resources tab
-    const RESOURCE_FILTERS = [
-      { key: 'all', label: 'All' },
-      { key: 'note', label: 'Notes' },
-      { key: 'past_question', label: 'Past Questions' },
-      { key: 'slide', label: 'Slides' },
-      { key: 'textbook', label: 'Textbooks' },
-      { key: 'other', label: 'Other' },
-    ]
-
     return (
       <>
-        <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Ionicons name="search-outline" size={15} color={theme.textFaint} />
+        <View style={s.searchBar}>
+          <Ionicons name="search-outline" size={15} color="rgba(240,240,255,0.3)" />
           <TextInput
-            style={[s.searchInput, { color: theme.text }]}
+            style={s.searchInput}
             placeholder="Search notes, past questions..."
-            placeholderTextColor={theme.textFaint}
-            value={searchQuery}
+            placeholderTextColor="rgba(240,240,255,0.3)"
+            value={resourceSearch}
             onChangeText={handleResourceSearch}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => { setSearchQuery(''); fetchResources(true); }}>
-              <Ionicons name="close-circle" size={15} color={theme.textFaint} />
+          {resourceSearch.length > 0 && (
+            <TouchableOpacity onPress={() => { setResourceSearch(''); loadTab('resources') }}>
+              <Ionicons name="close-circle" size={15} color="rgba(240,240,255,0.3)" />
             </TouchableOpacity>
           )}
         </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtersContainer}>
-          {RESOURCE_FILTERS.map(f => {
-            const isActive = resourceTypeFilter === f.key
-            return (
-              <TouchableOpacity 
-                key={f.key} 
-                style={[
-                  s.filterPill,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                  isActive && { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }
-                ]}
-                onPress={() => setResourceTypeFilter(f.key as any)}>
-                <Text style={[
-                  s.filterPillText,
-                  { color: theme.textMuted },
-                  isActive && { color: theme.accent, fontFamily: typography.fontBold }
-                ]}>{f.label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
-
-        {loadingResources && resources.length === 0 ? renderSkeletons() : (
-          <FlatList
-            data={resources}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => <ResourceRow resource={item} />}
-            ListEmptyComponent={
-              <View style={s.empty}>
-                <Ionicons name="document-outline" size={40} color={theme.textFaint} />
-                <Text style={[s.emptyTitle, { color: theme.textMuted }]}>No resources found</Text>
-                <Text style={[s.emptySub, { color: theme.textFaint }]}>Upload notes or past questions to share</Text>
-              </View>
-            }
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
-            }
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={loadingResources && resources.length > 0 ? <ActivityIndicator style={{marginVertical: 20}} /> : null}
-            contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
-            scrollEnabled={false}
-          />
-        )}
+        <FlatList
+          data={resources}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => <ResourceRow resource={item} />}
+          ListEmptyComponent={
+            <View style={s.empty}>
+              <Ionicons name="document-outline" size={40} color="rgba(240,240,255,0.1)" />
+              <Text style={s.emptyTitle}>No resources found</Text>
+              <Text style={s.emptySub}>Upload notes or past questions to share</Text>
+            </View>
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#a78bfa" />
+          }
+          contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
+          scrollEnabled={false}
+        />
       </>
     )
   }
@@ -398,13 +333,13 @@ export default function AcademicScreen() {
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top']}>
       {/* Header */}
-      <View style={[s.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={[s.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={theme.text} />
+      <View style={s.header}>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={20} color="#f0f0ff" />
         </TouchableOpacity>
-        <Text style={[s.title, { color: theme.text }]}>Academic Hub</Text>
+        <Text style={s.title}>Academic Hub</Text>
         <TouchableOpacity
-          style={[s.createBtn, { backgroundColor: theme.card }]}
+          style={s.createBtn}
           onPress={() => {
             if (activeTab === 'groups') router.push('/create-study-group' as any)
             else if (activeTab === 'resources') router.push('/upload-resource' as any)
@@ -415,17 +350,13 @@ export default function AcademicScreen() {
       </View>
 
       {/* Tab bar */}
-      <View style={[s.tabBar, { borderBottomColor: theme.border }]}>
+      <View style={s.tabBar}>
         {(['courses', 'groups', 'resources'] as Tab[]).map(tab => (
           <TouchableOpacity
             key={tab}
-            style={[
-              s.tab,
-              { backgroundColor: theme.card, borderColor: theme.border },
-              activeTab === tab && s.tabActive
-            ]}
+            style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Text style={[s.tabText, { color: theme.textMuted }, activeTab === tab && s.tabTextActive]}>
+            <Text style={[s.tabText, activeTab === tab && s.tabTextActive]}>
               {tab === 'courses' ? 'My Courses' : tab === 'groups' ? 'Study Groups' : 'Resources'}
             </Text>
           </TouchableOpacity>
@@ -549,21 +480,6 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
   },
   searchInput: { flex: 1, fontSize: 13, color: '#f0f0ff' },
-  // Filters
-  filtersContainer: {
-    paddingHorizontal: 16, paddingBottom: 16, gap: 8,
-  },
-  filterPill: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  filterPillActive: {
-    backgroundColor: 'rgba(167,139,250,0.2)',
-    borderColor: '#a78bfa',
-  },
-  filterPillText: { fontSize: 12, color: 'rgba(240,240,255,0.6)', fontFamily: typography.fontMedium },
-  filterPillTextActive: { color: '#a78bfa', fontFamily: typography.fontBold },
   // Empty state
   empty: {
     alignItems: 'center', paddingTop: 60, paddingBottom: 40, gap: 8,

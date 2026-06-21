@@ -27,8 +27,7 @@ import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import type { FeedPost } from '../../lib/feed'
 import type { Event } from '../../lib/events'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 
 type Tab = 'feed' | 'announcements' | 'members' | 'events'
 
@@ -95,7 +94,7 @@ export default function ClubDetailScreen() {
       const [clubRes, myRole, authUserRes] = await Promise.all([
         getClubDetail(id),
         getMyClubRole(id),
-        getCurrentUser(),
+        supabase.auth.getUser(),
       ])
       if (clubRes.error) {
         throw clubRes.error
@@ -207,7 +206,7 @@ export default function ClubDetailScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: false, quality: 0.8,
+      mediaTypes: 'images', allowsEditing: false, quality: 0.8,
     })
     if (!result.canceled) setEditCoverUri(result.assets[0].uri)
   }
@@ -361,7 +360,7 @@ export default function ClubDetailScreen() {
               <EmptyTab message="No announcements" />
             ) : (
               announcements.map(item => (
-                <View key={item.id} style={[s.announcementCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View key={item.id} style={s.announcementCard}>
                   <View style={s.announcementHeader}>
                     <View style={s.announcementAvatar}>
                       <Text style={s.announcementInitials}>
@@ -369,11 +368,11 @@ export default function ClubDetailScreen() {
                       </Text>
                     </View>
                     <View>
-                      <Text style={[s.announcementAuthor, { color: theme.text }]}>{item.profiles?.full_name ?? 'Moderator'}</Text>
-                      <Text style={[s.announcementTime, { color: theme.textFaint }]}>{getTimeAgo(item.created_at)}</Text>
+                      <Text style={s.announcementAuthor}>{item.profiles?.full_name ?? 'Moderator'}</Text>
+                      <Text style={s.announcementTime}>{getTimeAgo(item.created_at)}</Text>
                     </View>
                   </View>
-                  <Text style={[s.announcementBody, { color: theme.text }]}>{item.body}</Text>
+                  <Text style={s.announcementBody}>{item.body}</Text>
                 </View>
               ))
             )}
@@ -388,7 +387,7 @@ export default function ClubDetailScreen() {
               members.map(item => (
                 <TouchableOpacity
                   key={`${item.club_id}-${item.user_id}`}
-                  style={[s.memberRow, { borderBottomColor: theme.border }]}
+                  style={s.memberRow}
                   onPress={() => handleMemberTap(item)}>
                   <View style={s.memberAvatar}>
                     {item.profiles?.avatar_url ? (
@@ -398,8 +397,8 @@ export default function ClubDetailScreen() {
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.memberName, { color: theme.text }]}>{item.profiles?.full_name ?? 'Member'}</Text>
-                    <Text style={[s.memberDept, { color: theme.textMuted }]}>{item.profiles?.department ?? ''}</Text>
+                    <Text style={s.memberName}>{item.profiles?.full_name ?? 'Member'}</Text>
+                    <Text style={s.memberDept}>{item.profiles?.department ?? ''}</Text>
                   </View>
                   {item.role !== 'member' && (
                     <View style={s.roleBadge}>
@@ -525,17 +524,9 @@ export default function ClubDetailScreen() {
           {TABS.map(tab => (
             <TouchableOpacity
               key={tab.value}
-              style={[
-                s.tab,
-                { backgroundColor: theme.card, borderColor: theme.border },
-                activeTab === tab.value && [s.tabActive, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }],
-              ]}
+              style={[s.tab, activeTab === tab.value && s.tabActive]}
               onPress={() => setActiveTab(tab.value)}>
-              <Text style={[
-                s.tabText,
-                { color: theme.textMuted },
-                activeTab === tab.value && [s.tabTextActive, { color: theme.accent }],
-              ]}>
+              <Text style={[s.tabText, activeTab === tab.value && s.tabTextActive]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -646,11 +637,11 @@ export default function ClubDetailScreen() {
 
               {/* Cover image */}
               <TouchableOpacity
-                style={[s.editCoverBox, { backgroundColor: theme.card, borderColor: theme.border }, editCoverUri && { borderColor: editColor }]}
+                style={[s.editCoverBox, { borderColor: editCoverUri ? editColor : 'rgba(255,255,255,0.08)' }]}
                 onPress={pickEditCover}>
                 {editCoverUri || club?.cover_url ? (
                   <>
-                     <Image
+                    <Image
                       source={{ uri: editCoverUri ?? club?.cover_url ?? '' }}
                       style={{ width: '100%', height: '100%' }}
                       resizeMode="cover"
@@ -662,8 +653,8 @@ export default function ClubDetailScreen() {
                   </>
                 ) : (
                   <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="image-outline" size={26} color={theme.textFaint} />
-                    <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>Tap to add a cover image</Text>
+                    <Ionicons name="image-outline" size={26} color="rgba(240,240,255,0.2)" />
+                    <Text style={{ color: 'rgba(240,240,255,0.3)', fontSize: 11, marginTop: 4 }}>Tap to add a cover image</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -695,17 +686,9 @@ export default function ClubDetailScreen() {
                 {EDIT_CATEGORIES.map(cat => (
                   <TouchableOpacity
                     key={cat}
-                    style={[
-                      s.editCatPill,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                      editCategory === cat && { backgroundColor: `${editColor}25`, borderColor: editColor },
-                    ]}
+                    style={[s.editCatPill, editCategory === cat && { backgroundColor: `${editColor}25`, borderColor: editColor }]}
                     onPress={() => setEditCategory(cat)}>
-                    <Text style={[
-                      s.editCatText,
-                      { color: theme.textMuted },
-                      editCategory === cat && { color: editColor, fontFamily: typography.fontBold },
-                    ]}>{cat}</Text>
+                    <Text style={[s.editCatText, editCategory === cat && { color: editColor, fontFamily: typography.fontBold }]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -750,12 +733,12 @@ export default function ClubDetailScreen() {
           <View style={[s.modalHandle, { backgroundColor: theme.border2 }]} />
           <Text style={[s.modalTitle, { color: theme.text }]}>Add Member to Club</Text>
 
-          <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Ionicons name="search-outline" size={15} color={theme.textMuted} />
+          <View style={s.searchBar}>
+            <Ionicons name="search-outline" size={15} color="rgba(240,240,255,0.3)" />
             <TextInput
-              style={[s.searchInput, { color: theme.text }]}
+              style={s.searchInput}
               placeholder="Search students..."
-              placeholderTextColor={theme.textFaint}
+              placeholderTextColor="rgba(240,240,255,0.3)"
               value={search}
               onChangeText={async (val) => {
                 setSearch(val)

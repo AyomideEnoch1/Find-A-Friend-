@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { client } from '../lib/aws'
+import { supabase } from '../lib/supabase'
 
 export interface UserSticker {
   id: string
@@ -22,22 +22,22 @@ export const useStickerStore = create<StickerState>((set, get) => ({
   loadStickers: async () => {
     if (get().loaded || get().loading) return
     set({ loading: true })
-    // TODO: AWS Auth
-    const { data: { user } } = await (client as any).auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       set({ loading: false })
       return
     }
-    const { data } = await client.models.user_stickers.list({
-      filter: { user_id: { eq: user.id } }
-    } as any)
+    const { data } = await supabase
+      .from('user_stickers')
+      .select('id, media_url')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
     
     if (data) set({ stickers: data, loaded: true })
     set({ loading: false })
   },
   addSticker: async (url: string) => {
-    // TODO: AWS Auth
-    const { data: { user } } = await (client as any).auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: new Error('Not logged in') }
 
     // Avoid duplicates
@@ -45,7 +45,11 @@ export const useStickerStore = create<StickerState>((set, get) => ({
       return { error: new Error('Sticker already saved') }
     }
 
-    const { data, error } = await client.models.user_stickers.create({ user_id: user.id, media_url: url } as any)
+    const { data, error } = await supabase
+      .from('user_stickers')
+      .insert({ user_id: user.id, media_url: url })
+      .select('id, media_url')
+      .single()
 
     if (error) return { error }
     if (data) {
@@ -54,7 +58,7 @@ export const useStickerStore = create<StickerState>((set, get) => ({
     return { error: null }
   },
   removeSticker: async (id: string) => {
-    const { error } = await client.models.user_stickers.delete({ id } as any)
+    const { error } = await supabase.from('user_stickers').delete().eq('id', id)
     if (!error) {
       set(state => ({ stickers: state.stickers.filter(s => s.id !== id) }))
     }

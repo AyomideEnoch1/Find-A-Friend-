@@ -15,14 +15,12 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-// import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { GAME_META, type GameType } from '../../lib/games'
 import { getInitials } from '../../lib/matching'
 import NeuralBackground from '../../components/NeuralBackground'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -152,37 +150,43 @@ export default function WaitingScreen() {
   // Init: load user + create or join session
   useEffect(() => {
     init()
-    return () => { channelRef.current && channelRef.current.unsubscribe() }
+    return () => { channelRef.current && supabase.removeChannel(channelRef.current) }
   }, [])
 
   const init = async () => {
-    let user;
-    try { user = await getCurrentUser() } catch {}
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not logged in'); return }
-    setMyId(user.userId)
+    setMyId(user.id)
 
     // Fetch my name
-    const { data: prof } = await client.models.Profile.get({ id: user.userId })
+    const { data: prof } = await supabase
+      .from('profiles').select('full_name').eq('id', user.id).single()
     setMyName(prof?.full_name ?? 'You')
 
     if (params.sessionId) {
       // Rejoining specific session (random match or resume)
-      await joinSession(params.sessionId, user.userId)
+      await joinSession(params.sessionId, user.id)
     } else if (params.opponentId && params.opponentId !== 'faf-bot') {
       // Check if a waiting session already exists between these two users,
       // including sessions where the host hasn't set guest_id yet (chat challenge flow)
-      const { data: existing } = await client.models.LiveGameSession.list({
-        filter: {
-          game_type: { eq: gt },
-          // TODO: complex or/and filters
-        }
-      })
-      const existingSession = existing && existing.length > 0 ? existing[0] : null;
+      const { data: existing } = await supabase
+        .from('live_game_sessions')
+        .select('id, host_id, guest_id, status')
+        .eq('game_type', gt)
+        .in('status', ['waiting', 'active'])
+        .or(
+          `and(host_id.eq.${user.id},guest_id.eq.${params.opponentId}),` +
+          `and(host_id.eq.${params.opponentId},guest_id.eq.${user.id}),` +
+          `and(host_id.eq.${params.opponentId},guest_id.is.null)`
+        )
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      if (existingSession) {
-        await joinSession(existingSession.id, user.userId)
+      if (existing) {
+        await joinSession(existing.id, user.id)
       } else {
-        await createSession(user.userId, params.opponentId)
+        await createSession(user.id, params.opponentId)
       }
     } else {
       // Bot game — go straight in
@@ -203,29 +207,37 @@ export default function WaitingScreen() {
       initialState = { word: WORDS[Math.floor(Math.random() * WORDS.length)] }
     }
 
-    const { data, errors: err } = await client.models.LiveGameSession.create({
+    const { data, error: err } = await supabase
+      .from('live_game_sessions')
+      .insert({
         game_type: gt,
         host_id: hostId,
         guest_id: guestId,
         status: 'waiting',
         state: initialState
       })
+      .select('id')
+      .single()
 
     if (err || !data) { setError('Could not create session'); return }
 
     // Double check for race conditions (duplicate sessions)
     if (guestId) {
-      const { data: duplicates } = await client.models.LiveGameSession.list({
-        filter: {
-          game_type: { eq: gt },
-          // TODO: complex or/and filters
-        }
-      })
+      const { data: duplicates } = await supabase
+        .from('live_game_sessions')
+        .select('id, created_at')
+        .eq('game_type', gt)
+        .in('status', ['waiting', 'active'])
+        .or(
+          `and(host_id.eq.${hostId},guest_id.eq.${guestId}),` +
+          `and(host_id.eq.${guestId},guest_id.eq.${hostId})`
+        )
+        .order('created_at', { ascending: true })
 
       if (duplicates && duplicates.length > 1) {
         // If ours is not the oldest one, delete ours and join the oldest one instead
         if (duplicates[0].id !== data.id) {
-          await client.models.LiveGameSession.delete({ id: data.id })
+          await supabase.from('live_game_sessions').delete().eq('id', data.id)
           await joinSession(duplicates[0].id, hostId)
           return
         }
@@ -239,7 +251,11 @@ export default function WaitingScreen() {
 
   const joinSession = async (sid: string, userId: string) => {
     // Check our role in this session
-    const { data: sess, errors: fetchErr } = await client.models.LiveGameSession.get({ id: sid })
+    const { data: sess, error: fetchErr } = await supabase
+      .from('live_game_sessions')
+      .select('*')
+      .eq('id', sid)
+      .single()
 
     if (fetchErr || !sess) { setError('Session not found'); return }
 
@@ -248,17 +264,24 @@ export default function WaitingScreen() {
     if (sess.host_id !== userId && (!sess.guest_id || sess.guest_id === userId) && sess.status === 'waiting') {
       // We are the guest joining — mark active so the host's
       // subscription fires and both players get the launchGame() call.
-      const { errors: updateErr } = await client.models.LiveGameSession.update({ id: sid, guest_id: userId, status: 'active' })
+      const { error: updateErr } = await supabase
+        .from('live_game_sessions')
+        .update({ guest_id: userId, status: 'active' })
+        .eq('id', sid)
       if (updateErr) { setError('Could not join session'); return }
       
       sess.guest_id = userId
       sess.status = 'active'
     } else if (sess.host_id === userId && sess.guest_id) {
       // Host is rejoining and guest is already present — ensure status is active
-      await client.models.LiveGameSession.update({ id: sid, status: 'active' })
+      await supabase
+        .from('live_game_sessions')
+        .update({ status: 'active' })
+        .eq('id', sid)
       sess.status = 'active'
       // Host already knows about guest — resolve opponent info immediately
-      const { data: guestProf } = await client.models.Profile.get({ id: sess.guest_id })
+      const { data: guestProf } = await supabase
+        .from('profiles').select('full_name').eq('id', sess.guest_id).single()
       if (guestProf) setOpponentName(guestProf.full_name ?? 'Opponent')
       setOpponentReady(true)
     } else if (sess.status === 'active') {
@@ -281,8 +304,7 @@ export default function WaitingScreen() {
   }
 
   const subscribeToSession = (sid: string, userId: string) => {
-    // TODO: AWS Amplify Realtime
-    /*
+    // Remove any stale channel for this session before subscribing
     const stale = supabase.getChannels().find(c => c.topic === `realtime:live-session-${sid}`)
     if (stale) supabase.removeChannel(stale)
 
@@ -301,7 +323,7 @@ export default function WaitingScreen() {
         if (partner) {
           setOpponentReady(true)
           // Fetch partner name if not already set
-          client.models.Profile.get({ id: partner })
+          supabase.from('profiles').select('full_name').eq('id', partner).single()
             .then(({ data: p }) => {
               if (p?.full_name) setOpponentName(p.full_name)
             })
@@ -318,7 +340,6 @@ export default function WaitingScreen() {
           setError('Connection error — please try again')
         }
       })
-      */
   }
 
   const launchGame = (sid: string | null) => {
@@ -339,7 +360,7 @@ export default function WaitingScreen() {
 
   const cancelAndBack = async () => {
     if (sessionId) {
-      await client.models.LiveGameSession.update({ id: sessionId, status: 'finished' })
+      await supabase.from('live_game_sessions').update({ status: 'finished' }).eq('id', sessionId)
     }
     router.back()
   }

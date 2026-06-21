@@ -1,6 +1,6 @@
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/data';
-// import type { Schema } from '../amplify/data/resource'; // Will be available after sandbox deploy
+import type { Schema } from '../amplify/data/resource';
 
 Amplify.configure({
   Auth: {
@@ -18,11 +18,18 @@ Amplify.configure({
         },
       },
     }
+  },
+  API: {
+    GraphQL: {
+      endpoint: 'https://dummy-endpoint.appsync-api.us-east-1.amazonaws.com/graphql',
+      region: process.env.EXPO_PUBLIC_AWS_REGION || 'us-east-1',
+      defaultAuthMode: 'userPool'
+    }
   }
 });
 
 // The generated client for AppSync
-export const client = generateClient<any>({ authMode: 'userPool' });
+export const client: any = generateClient({ authMode: 'userPool' });
 
 export async function broadcastEvent(channelId: string, event: string, payload: any) {
   try {
@@ -38,7 +45,7 @@ export async function broadcastEvent(channelId: string, event: string, payload: 
 
 export function subscribeToChannel(channelId: string, callback: (event: string, payload: any) => void) {
   const sub = client.subscriptions.onRealtimeEvent({ channelId }).subscribe({
-    next: ({ data }) => {
+    next: ({ data }: { data: any }) => {
       if (data?.onRealtimeEvent) {
         try {
           const payload = JSON.parse(data.onRealtimeEvent.payload);
@@ -48,7 +55,7 @@ export function subscribeToChannel(channelId: string, callback: (event: string, 
         }
       }
     },
-    error: (err) => console.error('Subscription error:', err)
+    error: (err: any) => console.error('Subscription error:', err)
   });
   return sub;
 }

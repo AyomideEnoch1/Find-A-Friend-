@@ -5,8 +5,8 @@
  * Vendors are invisible until approved (`is_approved = true`).
  * Only the vendor owner or an admin Edge Function can flip that flag.
  * Deals are created by vendors and are only visible when their vendor is approved.
-import { client } from './aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+ */
+import { supabase } from './supabase'
 import { uploadFile } from './upload'
 
 // ---------------------------------------------------------------------------
@@ -82,11 +82,20 @@ export async function getVendors(category?: string): Promise<{
   error: Error | null
 }> {
   try {
-    const filter: any = { is_approved: { eq: true }, is_active: { eq: true } }
-    if (category) filter.category = { eq: category }
-    const { data, errors } = await client.models.Vendor.list({ filter })
-    if (errors) throw errors[0]
-    return { data: data as unknown as Vendor[], error: null }
+    let query = supabase
+      .from('vendors')
+      .select('*')
+      .eq('is_approved', true)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+
+    if (category) {
+      query = query.eq('category', category)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return { data: data as Vendor[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -101,15 +110,20 @@ export async function getVendorsWithDeals(category?: string): Promise<{
   error: Error | null
 }> {
   try {
-    const filter: any = { is_approved: { eq: true }, is_active: { eq: true } }
-    if (category) filter.category = { eq: category }
-    const { data, errors } = await client.models.Vendor.list({ filter })
-    if (errors) throw errors[0]
-    const withDeals = await Promise.all(data.map(async (v: any) => {
-      const deals = await v.vendor_deals()
-      return { ...v, vendor_deals: deals.data }
-    }))
-    return { data: withDeals as unknown as VendorWithDeals[], error: null }
+    let query = supabase
+      .from('vendors')
+      .select('*, vendor_deals(*)')
+      .eq('is_approved', true)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+
+    if (category) {
+      query = query.eq('category', category)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return { data: data as VendorWithDeals[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -124,11 +138,14 @@ export async function getVendorDetail(vendorId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { data, errors } = await client.models.Vendor.get({ id: vendorId })
-    if (errors) throw errors[0]
-    if (!data) throw new Error('Not found')
-    const deals = await (data as any).vendor_deals()
-    return { data: { ...data, vendor_deals: deals.data } as unknown as VendorWithDeals, error: null }
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*, vendor_deals(*)')
+      .eq('id', vendorId)
+      .single()
+
+    if (error) throw error
+    return { data: data as VendorWithDeals, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -143,16 +160,17 @@ export async function getMyVendor(): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.Vendor.list({ filter: { owner_id: { eq: user.id } } })
-    if (errors) throw errors[0]
-    if (!data || data.length === 0) return { data: null, error: null }
-    const vendor = data[0]
-    const deals = await (vendor as any).vendor_deals()
-    return { data: { ...vendor, vendor_deals: deals.data } as unknown as VendorWithDeals, error: null }
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*, vendor_deals(*)')
+      .eq('owner_id', user.id)
+      .maybeSingle()
+
+    if (error) throw error
+    return { data: data as VendorWithDeals, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -170,25 +188,33 @@ export async function getListings(category?: string): Promise<{
     let vendorIds: string[] | null = null
 
     if (category) {
-      const { data: vendorRows, errors: vError } = await client.models.Vendor.list({
-        filter: { is_approved: { eq: true }, is_active: { eq: true }, category: { eq: category } }
-      })
-      if (vError) throw vError[0]
-      vendorIds = (vendorRows ?? []).map((v: any) => v.id)
+      // PostgREST cannot filter on embedded/joined columns via .eq() —
+      // resolve vendor IDs for the category first, then filter deals by those IDs.
+      const { data: vendorRows, error: vError } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('is_approved', true)
+        .eq('is_active', true)
+        .eq('category', category)
+
+      if (vError) throw vError
+      vendorIds = (vendorRows ?? []).map((v: { id: string }) => v.id)
       if (!vendorIds.length) return { data: [], error: null }
     }
 
-    const filter: any = { is_active: { eq: true } }
-    if (vendorIds) filter.vendor_id = { in: vendorIds }
+    let query = supabase
+      .from('vendor_deals')
+      .select('*, vendors(id, name, icon, logo_url, location_text, category)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
 
-    const { data, errors } = await client.models.VendorDeal.list({ filter })
-    if (errors) throw errors[0]
-    
-    const withVendors = await Promise.all(data.map(async (d: any) => {
-      const v = await d.vendors()
-      return { ...d, vendors: v.data }
-    }))
-    return { data: withVendors as unknown as VendorDeal[], error: null }
+    if (vendorIds) {
+      query = query.in('vendor_id', vendorIds)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return { data: data as VendorDeal[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -203,9 +229,8 @@ export async function applyAsVendor(payload: VendorApplicationPayload): Promise<
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
     const insertData: any = {
       owner_id: user.id,
@@ -222,9 +247,14 @@ export async function applyAsVendor(payload: VendorApplicationPayload): Promise<
       insertData.cover_url = payload.cover_url
     }
 
-    const { data, errors } = await client.models.Vendor.create(insertData)
-    if (errors) throw errors[0]
-    return { data: data as unknown as Vendor, error: null }
+    const { data, error } = await supabase
+      .from('vendors')
+      .insert(insertData)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as Vendor, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -239,18 +269,22 @@ export async function createListing(payload: CreateListingPayload): Promise<{
   error: Error | null
 }> {
   try {
-    const { data, errors } = await client.models.VendorDeal.create({
-      vendor_id: payload.vendorId,
-      title: payload.title,
-      description: payload.description ?? null,
-      discount: payload.discount,
-      how_to_redeem: payload.howToRedeem ?? 'Show FAF app',
-      valid_from: payload.validFrom ?? null,
-      valid_until: payload.validUntil ?? null,
-    })
-    if (errors) throw errors[0]
-    const v = await (data as any).vendors()
-    return { data: { ...data, vendors: v.data } as unknown as VendorDeal, error: null }
+    const { data, error } = await supabase
+      .from('vendor_deals')
+      .insert({
+        vendor_id: payload.vendorId,
+        title: payload.title,
+        description: payload.description ?? null,
+        discount: payload.discount,
+        how_to_redeem: payload.howToRedeem ?? 'Show FAF app',
+        valid_from: payload.validFrom ?? null,
+        valid_until: payload.validUntil ?? null,
+      })
+      .select('*, vendors(id, name, icon, logo_url, location_text, category)')
+      .single()
+
+    if (error) throw error
+    return { data: data as VendorDeal, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -265,7 +299,7 @@ export async function updateDeal(dealId: string, payload: Partial<CreateListingP
   error: Error | null
 }> {
   try {
-    const updateData: any = { id: dealId }
+    const updateData: any = {}
     if (payload.title !== undefined) updateData.title = payload.title
     if (payload.description !== undefined) updateData.description = payload.description
     if (payload.discount !== undefined) updateData.discount = payload.discount
@@ -273,9 +307,15 @@ export async function updateDeal(dealId: string, payload: Partial<CreateListingP
     if (payload.validFrom !== undefined) updateData.valid_from = payload.validFrom
     if (payload.validUntil !== undefined) updateData.valid_until = payload.validUntil
 
-    const { data, errors } = await client.models.VendorDeal.update(updateData)
-    if (errors) throw errors[0]
-    return { data: data as unknown as VendorDeal, error: null }
+    const { data, error } = await supabase
+      .from('vendor_deals')
+      .update(updateData)
+      .eq('id', dealId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as VendorDeal, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -290,8 +330,12 @@ export async function deleteDeal(dealId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const { errors } = await client.models.VendorDeal.delete({ id: dealId })
-    if (errors) throw errors[0]
+    const { error } = await supabase
+      .from('vendor_deals')
+      .delete()
+      .eq('id', dealId)
+
+    if (error) throw error
     return { data: true, error: null }
   } catch (err) {
     return { data: false, error: err as Error }
@@ -307,22 +351,31 @@ export async function toggleSaveDeal(dealId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data: existingData } = await client.models.SavedDeal.list({
-      filter: { user_id: { eq: user.id }, deal_id: { eq: dealId } }
-    })
-    const existing = existingData && existingData.length > 0 ? existingData[0] : null
+    const { data: existing } = await supabase
+      .from('saved_deals')
+      .select('deal_id')
+      .eq('user_id', user.id)
+      .eq('deal_id', dealId)
+      .maybeSingle()
 
     if (existing) {
-      const { errors } = await client.models.SavedDeal.delete({ id: existing.id })
-      if (errors) throw errors[0]
+      const { error } = await supabase
+        .from('saved_deals')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('deal_id', dealId)
+
+      if (error) throw error
       return { data: { saved: false }, error: null }
     } else {
-      const { errors } = await client.models.SavedDeal.create({ user_id: user.id, deal_id: dealId })
-      if (errors) throw errors[0]
+      const { error } = await supabase
+        .from('saved_deals')
+        .insert({ user_id: user.id, deal_id: dealId })
+
+      if (error) throw error
       return { data: { saved: true }, error: null }
     }
   } catch (err) {
@@ -335,22 +388,20 @@ export async function getSavedDeals(): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.SavedDeal.list({
-      filter: { user_id: { eq: user.id } }
-    })
-    if (errors) throw errors[0]
-    
-    const deals = await Promise.all((data ?? []).map(async (r: any) => {
-      const dealRes = await r.vendor_deals()
-      if (!dealRes.data) return null
-      const vRes = await dealRes.data.vendors()
-      return { ...dealRes.data, vendors: vRes.data }
-    }))
-    return { data: deals.filter(Boolean) as unknown as VendorDeal[], error: null }
+    const { data, error } = await supabase
+      .from('saved_deals')
+      .select('vendor_deals(*, vendors(id, name, icon, logo_url, location_text, category))')
+      .eq('user_id', user.id)
+      .order('saved_at', { ascending: false })
+
+    if (error) throw error
+    const deals = (data ?? [])
+      .map((r: any) => r.vendor_deals)
+      .filter(Boolean) as VendorDeal[]
+    return { data: deals, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -361,19 +412,15 @@ export async function getSavedDeals(): Promise<{
  * Used to hydrate the deals list with saved state.
  */
 export async function getMySavedDealIds(): Promise<Set<string>> {
-  try {
-    const authUser = await getCurrentUser()
-    if (!authUser) return new Set()
-    const user = { id: authUser.userId }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new Set()
 
-    const { data } = await client.models.SavedDeal.list({
-      filter: { user_id: { eq: user.id } }
-    })
+  const { data } = await supabase
+    .from('saved_deals')
+    .select('deal_id')
+    .eq('user_id', user.id)
 
-    return new Set((data ?? []).map((r: any) => r.deal_id))
-  } catch {
-    return new Set()
-  }
+  return new Set((data ?? []).map((r: { deal_id: string }) => r.deal_id))
 }
 
 // ---------------------------------------------------------------------------
@@ -390,19 +437,22 @@ export async function adminApproveVendor(vendorId: string): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.Vendor.update({
-      id: vendorId,
-      is_approved: true,
-      approved_by: user.id,
-      approved_at: new Date().toISOString(),
-    })
+    const { data, error } = await supabase
+      .from('vendors')
+      .update({
+        is_approved: true,
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', vendorId)
+      .select()
+      .single()
 
-    if (errors) throw errors[0]
-    return { data: data as unknown as Vendor, error: null }
+    if (error) throw error
+    return { data: data as Vendor, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -417,9 +467,8 @@ export async function uploadVendorLogo(uri: string): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
     const ext = uri.split('.').pop() ?? 'jpg'
     const path = `${user.id}/${Date.now()}.${ext}`
@@ -441,9 +490,8 @@ export async function uploadVendorCover(uri: string): Promise<{
   error: Error | null
 }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
     const ext = uri.split('.').pop() ?? 'jpg'
     const path = `${user.id}/cover_${Date.now()}.${ext}`
@@ -492,23 +540,24 @@ export async function createVendorOrder(payload: {
   notes?: string
 }): Promise<{ data: VendorOrder | null; error: Error | null }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.VendorOrder.create({
-      vendor_id: payload.vendorId,
-      user_id: user.id,
-      deal_id: payload.dealId ?? null,
-      quantity: payload.quantity,
-      notes: payload.notes ?? null,
-      status: 'pending',
-    })
+    const { data, error } = await supabase
+      .from('vendor_orders')
+      .insert({
+        vendor_id: payload.vendorId,
+        user_id: user.id,
+        deal_id: payload.dealId ?? null,
+        quantity: payload.quantity,
+        notes: payload.notes ?? null,
+        status: 'pending',
+      })
+      .select('*, vendor_deals(title, discount), vendors(name, icon, logo_url)')
+      .single()
 
-    if (errors) throw errors[0]
-    const deal = await (data as any).vendor_deals()
-    const vendor = await (data as any).vendors()
-    return { data: { ...data, vendor_deals: deal?.data, vendors: vendor?.data } as any, error: null }
+    if (error) throw error
+    return { data: data as any, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -516,19 +565,17 @@ export async function createVendorOrder(payload: {
 
 export async function getMyOrders(): Promise<{ data: VendorOrder[] | null; error: Error | null }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.VendorOrder.list({ filter: { user_id: { eq: user.id } } })
-    if (errors) throw errors[0]
-    
-    const enriched = await Promise.all(data.map(async (o: any) => {
-      const deal = await o.vendor_deals()
-      const vendor = await o.vendors()
-      return { ...o, vendor_deals: deal?.data, vendors: vendor?.data }
-    }))
-    return { data: enriched as any[], error: null }
+    const { data, error } = await supabase
+      .from('vendor_orders')
+      .select('*, vendor_deals(title, discount), vendors(name, icon, logo_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return { data: data as any[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -536,15 +583,14 @@ export async function getMyOrders(): Promise<{ data: VendorOrder[] | null; error
 
 export async function getVendorOrders(vendorId: string): Promise<{ data: VendorOrder[] | null; error: Error | null }> {
   try {
-    const { data, errors } = await client.models.VendorOrder.list({ filter: { vendor_id: { eq: vendorId } } })
-    if (errors) throw errors[0]
-    
-    const enriched = await Promise.all(data.map(async (o: any) => {
-      const deal = await o.vendor_deals()
-      const profile = await o.profiles()
-      return { ...o, vendor_deals: deal?.data, profiles: profile?.data }
-    }))
-    return { data: enriched as any[], error: null }
+    const { data, error } = await supabase
+      .from('vendor_orders')
+      .select('*, vendor_deals(title, discount), profiles!user_id(full_name, avatar_url)')
+      .eq('vendor_id', vendorId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return { data: data as any[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -552,8 +598,12 @@ export async function getVendorOrders(vendorId: string): Promise<{ data: VendorO
 
 export async function updateOrderStatus(orderId: string, status: 'pending' | 'accepted' | 'completed' | 'cancelled'): Promise<{ error: Error | null }> {
   try {
-    const { errors } = await client.models.VendorOrder.update({ id: orderId, status, updated_at: new Date().toISOString() })
-    if (errors) throw errors[0]
+    const { error } = await supabase
+      .from('vendor_orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+
+    if (error) throw error
     return { error: null }
   } catch (err) {
     return { error: err as Error }
@@ -562,14 +612,14 @@ export async function updateOrderStatus(orderId: string, status: 'pending' | 'ac
 
 export async function getDealReviews(dealId: string): Promise<{ data: DealReview[] | null; error: Error | null }> {
   try {
-    const { data, errors } = await client.models.DealReview.list({ filter: { deal_id: { eq: dealId } } })
-    if (errors) throw errors[0]
-    
-    const enriched = await Promise.all(data.map(async (r: any) => {
-      const profile = await r.profiles()
-      return { ...r, profiles: profile?.data }
-    }))
-    return { data: enriched as any[], error: null }
+    const { data, error } = await supabase
+      .from('deal_reviews')
+      .select('*, profiles!user_id(full_name, avatar_url)')
+      .eq('deal_id', dealId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return { data: data as any[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
@@ -581,20 +631,22 @@ export async function createDealReview(payload: {
   comment?: string
 }): Promise<{ data: DealReview | null; error: Error | null }> {
   try {
-    const authUser = await getCurrentUser()
-    if (!authUser) throw new Error('Not authenticated')
-    const user = { id: authUser.userId }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
 
-    const { data, errors } = await client.models.DealReview.create({
-      deal_id: payload.dealId,
-      user_id: user.id,
-      rating: payload.rating,
-      comment: payload.comment ?? null,
-    })
+    const { data, error } = await supabase
+      .from('deal_reviews')
+      .insert({
+        deal_id: payload.dealId,
+        user_id: user.id,
+        rating: payload.rating,
+        comment: payload.comment ?? null,
+      })
+      .select('*, profiles!user_id(full_name, avatar_url)')
+      .single()
 
-    if (errors) throw errors[0]
-    const profile = await (data as any).profiles()
-    return { data: { ...data, profiles: profile?.data } as any, error: null }
+    if (error) throw error
+    return { data: data as any, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
