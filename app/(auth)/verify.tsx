@@ -400,7 +400,9 @@ export default function VerifyScreen() {
         }
       } catch (error: any) {
         setLoading(false);
-        if (error.name === "NotAuthorizedException") {
+        if (error.message?.includes("already a signed in user") || error.name === "AlreadySignedInException") {
+          router.replace("/(tabs)");
+        } else if (error.name === "NotAuthorizedException") {
           Toast.show({
             type: "error",
             text1: "Sign in failed",

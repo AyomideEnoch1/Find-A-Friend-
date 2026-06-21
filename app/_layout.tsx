@@ -253,7 +253,11 @@ function AppStack() {
   useEffect(() => {
     if (!mounted || !initialized) return;
     const inAuth = segments[0] === "(auth)";
-    if (!session && !inAuth) router.replace("/(auth)/welcome");
+    if (!session && !inAuth) {
+      router.replace("/(auth)/welcome");
+    } else if (session && inAuth) {
+      router.replace("/(tabs)");
+    }
   }, [session, segments, mounted, initialized]);
 
   useEffect(() => {
