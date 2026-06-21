@@ -101,6 +101,10 @@ export class CognitoAuthAdapter {
 
   async signInWithPassword({ email, password }: any) {
     try {
+      // Clear any existing session before starting a new sign in
+      await this.saveSessionToStorage(null);
+      this.triggerListeners('SIGNED_OUT', null);
+
       const formattedEmail = email.toLowerCase().trim();
       const res = await callCognito('InitiateAuth', {
         ClientId: COGNITO_CLIENT_ID,

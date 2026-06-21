@@ -253,7 +253,24 @@ function AppStack() {
   useEffect(() => {
     if (!mounted || !initialized) return;
     const inAuth = segments[0] === "(auth)";
-    if (!session && !inAuth) router.replace("/(auth)/welcome");
+    if (!session) {
+      if (!inAuth) router.replace("/(auth)/welcome");
+    } else {
+      if (inAuth && segments[1] !== "onboarding") {
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              router.replace("/(tabs)");
+            } else {
+              router.replace("/(auth)/onboarding");
+            }
+          });
+      }
+    }
   }, [session, segments, mounted, initialized]);
 
   useEffect(() => {
