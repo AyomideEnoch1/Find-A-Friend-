@@ -32,6 +32,33 @@ async function callCognito(action: string, body: object) {
   return data;
 }
 
+function decodeBase64(str: string) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  let output = '';
+  str = str.replace(/[^A-Za-z0-9+/]/g, '');
+  for (let i = 0, bc = 0, bs = 0; i < str.length; i++) {
+    const char = str.charAt(i);
+    const idx = chars.indexOf(char);
+    if (idx === -1) continue;
+    bs = bc % 4 ? (bs << 6) + idx : idx;
+    if (bc++ % 4) {
+      output += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6)));
+    }
+  }
+  return output;
+}
+
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = decodeBase64(base64);
+    return JSON.parse(decoded);
+  } catch (e) {
+    return null;
+  }
+}
+
 export class CognitoAuthAdapter {
   private listeners: Array<(event: string, session: any) => void> = [];
   private currentSession: any = null;
@@ -176,6 +203,16 @@ export class CognitoAuthAdapter {
     if (this.currentSession && this.currentSession.expires_at < Date.now() / 1000) {
       await this.refreshCognitoSession();
     }
+    
+    // Auto-resolve email_verified from ID Token if missing in session user
+    if (this.currentSession?.access_token && this.currentSession.user && this.currentSession.user.email_verified === undefined) {
+      const payload = parseJwt(this.currentSession.access_token);
+      if (payload) {
+        this.currentSession.user.email_verified = payload.email_verified === true || payload.email_verified === 'true';
+        await this.saveSessionToStorage(this.currentSession);
+      }
+    }
+    
     return { data: { session: this.currentSession }, error: null };
   }
 
