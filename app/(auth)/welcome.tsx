@@ -180,7 +180,7 @@ export default function WelcomeScreen() {
           <Animated.View style={[s.actions, btnStyle]}>
             <TouchableOpacity
               style={[s.btnPrimary, { backgroundColor: theme.accent }]}
-              onPress={() => router.push('/(auth)/onboarding' as any)}
+              onPress={() => router.push({ pathname: '/(auth)/verify', params: { initialMode: 'signup' } } as any)}
               activeOpacity={0.8}
             >
               <View style={s.btnGlow} />
@@ -189,7 +189,7 @@ export default function WelcomeScreen() {
 
             <TouchableOpacity
               style={[s.btnSecondary, { borderColor: theme.border, backgroundColor: 'transparent' }]}
-              onPress={() => router.push('/(auth)/verify' as any)}
+              onPress={() => router.push({ pathname: '/(auth)/verify', params: { initialMode: 'signin' } } as any)}
               activeOpacity={0.85}
             >
               <Text style={[s.btnSecondaryText, { color: theme.text }]}>Sign in to my account</Text>

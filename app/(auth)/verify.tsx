@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { confirmSignUp, signIn, signUp } from "aws-amplify/auth";
-import { router } from "expo-router";
+import { router, useLocalSearchParams, useSegments } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -242,7 +242,8 @@ function Orb({
 export default function VerifyScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>("signup");
+  const { initialMode } = useLocalSearchParams<{ initialMode?: Mode }>();
+  const [mode, setMode] = useState<Mode>(initialMode === "signin" || initialMode === "signup" ? initialMode : "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
