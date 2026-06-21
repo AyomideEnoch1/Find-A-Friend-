@@ -702,11 +702,15 @@ async function runMigration() {
       await rdsClient.query('TRUNCATE TABLE public.legacy_auth_credentials');
 
       for (const user of usersRes.rows) {
+        let hash = user.encrypted_password;
+        if (hash && hash.startsWith('$2y$')) {
+          hash = hash.replace('$2y$', '$2a$');
+        }
         await rdsClient.query(
           `INSERT INTO public.legacy_auth_credentials (id, email, encrypted_password, full_name) 
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (email) DO NOTHING`,
-          [user.id, user.email, user.encrypted_password, user.full_name || '']
+          [user.id, user.email, hash, user.full_name || '']
         );
       }
       console.log('User hashes ported successfully!');
