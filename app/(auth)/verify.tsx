@@ -410,7 +410,7 @@ export default function VerifyScreen() {
                   />
                 )}
 
-                {mode === 'signin' && (
+                {(mode === 'signin' || mode === 'signup') && (
                   <TouchableOpacity
                     onPress={() => setMode('forgot')}
                     style={s.forgotBtn}
