@@ -181,6 +181,35 @@ export default function AnonymousAdminDashboard() {
     )
   }
 
+  // Delete All Confessions
+  const handleDeleteAllConfessions = async () => {
+    Alert.alert(
+      'Delete All Confessions',
+      'Are you absolutely sure you want to permanently delete ALL confessions? This action cannot be undone and will delete all anonymous posts.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('posts')
+                .delete()
+                .eq('is_anonymous', true)
+              if (error) throw error
+              setPosts([])
+              setStats(s => ({ ...s, totalPosts: 0 }))
+              Alert.alert('Success', 'All anonymous confessions have been deleted.')
+            } catch (err) {
+              Alert.alert('Error', 'Failed to delete confessions. Ensure you have admin RLS permissions.')
+            }
+          }
+        }
+      ]
+    )
+  }
+
   // Create Linked Event
   const handleCreateEvent = async () => {
     if (!eventTitle.trim()) {
@@ -377,11 +406,19 @@ export default function AnonymousAdminDashboard() {
             )}
             ListHeaderComponent={
               <View style={s.listHeader}>
-                <Text style={[s.listHeaderTitle, { color: theme.text }]}>Anonymous Submissions ({posts.length})</Text>
-                <TouchableOpacity onPress={() => fetchPosts(true)} style={[s.refreshBtn, { backgroundColor: theme.border }]}>
-                  <Ionicons name="refresh" size={14} color={theme.text} />
-                  <Text style={[s.refreshText, { color: theme.text }]}>Refresh</Text>
-                </TouchableOpacity>
+                <Text style={[s.listHeaderTitle, { color: theme.text, flex: 1 }]}>Submissions ({posts.length})</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity onPress={() => fetchPosts(true)} style={[s.refreshBtn, { backgroundColor: theme.border }]}>
+                    <Ionicons name="refresh" size={14} color={theme.text} />
+                    <Text style={[s.refreshText, { color: theme.text }]}>Refresh</Text>
+                  </TouchableOpacity>
+                  {posts.length > 0 && (
+                    <TouchableOpacity onPress={handleDeleteAllConfessions} style={[s.refreshBtn, { backgroundColor: 'rgba(244,63,94,0.15)', borderColor: '#f43f5e', borderWidth: 0.5 }]}>
+                      <Ionicons name="trash-outline" size={14} color="#f43f5e" />
+                      <Text style={[s.refreshText, { color: '#f43f5e' }]}>Delete All</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             }
             ListEmptyComponent={

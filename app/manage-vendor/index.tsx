@@ -94,7 +94,7 @@ export default function ManageVendorScreen() {
     const isExpired = item.valid_until ? new Date(item.valid_until) < new Date() : false
     
     return (
-      <View style={[s.dealCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={[s.dealCard, theme.cardShadow, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={{ flex: 1 }}>
           <View style={s.dealHeader}>
             <Text style={[s.dealTitle, { color: theme.text }]}>{item.title}</Text>
@@ -112,7 +112,7 @@ export default function ManageVendorScreen() {
         </View>
         <View style={s.dealActions}>
           <TouchableOpacity 
-            style={[s.actionBtn, { backgroundColor: theme.bg }]}
+            style={[s.actionBtn, { backgroundColor: theme.card2, borderColor: theme.border, borderWidth: 0.5 }]}
             onPress={() => router.push(`/manage-vendor/deal?id=${item.id}` as any)}
           >
             <Ionicons name="pencil" size={14} color={theme.textMuted} />
@@ -166,7 +166,7 @@ export default function ManageVendorScreen() {
                 <Text style={[s.vendorLocation, { color: theme.textFaint }]}>{vendor.location_text}</Text>
               </View>
             </View>
-            <View style={[s.statsRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[s.statsRow, theme.cardShadow, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <View style={s.statBox}>
                 <Text style={[s.statNum, { color: theme.text }]}>{vendor.vendor_deals?.length || 0}</Text>
                 <Text style={[s.statLabel, { color: theme.textMuted }]}>Total Deals</Text>
@@ -189,7 +189,7 @@ export default function ManageVendorScreen() {
               style={[s.createBtn, { backgroundColor: theme.accent }]}
               onPress={() => router.push('/manage-vendor/deal' as any)}
             >
-              <Text style={s.createBtnText}>Create Deal</Text>
+              <Text style={[s.createBtnText, { color: '#fff' }]}>Create Deal</Text>
             </TouchableOpacity>
           </View>
         }

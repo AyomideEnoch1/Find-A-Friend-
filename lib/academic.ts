@@ -405,26 +405,10 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
     const ext = payload.fileName.split('.').pop() ?? 'pdf'
     const storagePath = `${user.id}/${Date.now()}_${payload.fileName}`
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('Not authenticated')
+    // Upload directly to S3 bucket
+    const s3Url = await uploadFile('academic-resources', storagePath, payload.fileUri, payload.mimeType)
 
-    const formData = new FormData()
-    formData.append('file', { uri: payload.fileUri, name: payload.fileName, type: payload.mimeType } as any)
-
-    const uploadRes = await fetch(
-      `https://vcbtvhociaioeyhhsczh.supabase.co/storage/v1/object/academic-resources/${storagePath}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
-        body: formData,
-      }
-    )
-    if (!uploadRes.ok) {
-      const msg = await uploadRes.text().catch(() => uploadRes.status.toString())
-      throw new Error(`Upload failed: ${msg}`)
-    }
-
-    // For private bucket, store the storage path (signed URLs generated on demand)
+    // Store the S3 URL in database
     const { data, error: insertError } = await supabase
       .from('academic_resources')
       .insert({
@@ -432,7 +416,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
         course_id: payload.courseId ?? null,
         title: payload.title,
         description: payload.description ?? null,
-        file_url: storagePath,
+        file_url: s3Url,
         file_type: ext,
         file_size_kb: payload.fileSizeKb ?? null,
         resource_type: payload.resourceType ?? 'note',
@@ -448,7 +432,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
 }
 
 /**
- * Returns a 1-hour signed URL for a private academic resource.
+ * Returns S3 download URL for the academic resource.
  * Also increments the download count via RPC.
  */
 export async function getResourceSignedUrl(
@@ -456,18 +440,18 @@ export async function getResourceSignedUrl(
   expiresInSeconds = 3600
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    const { data, error } = await supabase.storage
-      .from('academic-resources')
-      .createSignedUrl(resource.file_url, expiresInSeconds)
-
-    if (error) throw error
+    let downloadUrl = resource.file_url
+    if (!downloadUrl.startsWith('http')) {
+      // Legacy path, construct the S3 URL format
+      downloadUrl = `https://faf-infra-prod-v2-appstoragebucket-prasmiamuew2.s3.amazonaws.com/academic-resources/${resource.file_url}`
+    }
 
     // Increment download counter (fire-and-forget, non-blocking)
     supabase.rpc('increment_resource_download', {
       p_resource_id: resource.id,
     }).then(() => {})
 
-    return { data: data.signedUrl, error: null }
+    return { data: downloadUrl, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

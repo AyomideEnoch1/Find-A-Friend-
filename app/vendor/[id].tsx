@@ -38,10 +38,12 @@ interface DealCardProps {
   onToggleSave: (id: string) => void
   onOrderPress: (deal: VendorDeal) => void
   onReviewsPress: (deal: VendorDeal) => void
+  accentColor: string
 }
 
-function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: DealCardProps) {
+function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress, accentColor }: DealCardProps) {
   const [saving, setSaving] = useState(false)
+  const theme = useTheme()
 
   const handleSave = async () => {
     setSaving(true)
@@ -57,27 +59,32 @@ function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: D
   const isExpired = deal.valid_until ? new Date(deal.valid_until) < new Date() : false
 
   return (
-    <View style={[s.dealCard, isExpired && s.dealCardExpired]}>
-      <View style={s.discountBadge}>
-        <Text style={s.discountText}>{deal.discount}</Text>
+    <View style={[
+      s.dealCard,
+      isExpired && s.dealCardExpired,
+      { backgroundColor: theme.card, borderColor: theme.border },
+      theme.cardShadow
+    ]}>
+      <View style={[s.discountBadge, { backgroundColor: accentColor + '18', borderColor: accentColor + '35' }]}>
+        <Text style={[s.discountText, { color: accentColor }]}>{deal.discount}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.dealTitle}>{deal.title}</Text>
+        <Text style={[s.dealTitle, { color: theme.text }]}>{deal.title}</Text>
         {deal.description && (
-          <Text style={s.dealDesc} numberOfLines={2}>{deal.description}</Text>
+          <Text style={[s.dealDesc, { color: theme.textMuted }]} numberOfLines={2}>{deal.description}</Text>
         )}
         <View style={s.dealMeta}>
-          <Ionicons name="information-circle-outline" size={11} color="rgba(240,240,255,0.35)" />
-          <Text style={s.redeemText}>{deal.how_to_redeem}</Text>
+          <Ionicons name="information-circle-outline" size={11} color={theme.textFaint} />
+          <Text style={[s.redeemText, { color: theme.textMuted }]}>{deal.how_to_redeem}</Text>
         </View>
 
         <TouchableOpacity style={s.reviewsTrigger} onPress={() => onReviewsPress(deal)}>
           <Ionicons name="star" size={11} color="#fbbf24" style={{ marginRight: 4 }} />
-          <Text style={s.reviewsTriggerText}>Reviews & Ratings</Text>
+          <Text style={[s.reviewsTriggerText, { color: accentColor }]}>Reviews & Ratings</Text>
         </TouchableOpacity>
 
         {deal.valid_until && (
-          <Text style={[s.validUntil, isExpired && s.expired, { marginTop: 6 }]}>
+          <Text style={[s.validUntil, { color: isExpired ? theme.danger : theme.textFaint, marginTop: 6 }]}>
             {isExpired ? 'Expired' : `Valid until ${new Date(deal.valid_until).toLocaleDateString()}`}
           </Text>
         )}
@@ -88,17 +95,17 @@ function DealCard({ deal, saved, onToggleSave, onOrderPress, onReviewsPress }: D
           onPress={handleSave}
           disabled={saving}>
           {saving
-            ? <ActivityIndicator size="small" color="#fbbf24" />
+            ? <ActivityIndicator size="small" color={accentColor} />
             : <Ionicons
                 name={saved ? 'bookmark' : 'bookmark-outline'}
                 size={20}
-                color={saved ? '#fbbf24' : 'rgba(240,240,255,0.4)'}
+                color={saved ? accentColor : theme.textFaint}
               />}
         </TouchableOpacity>
 
         {!isExpired && (
           <TouchableOpacity
-            style={s.orderBtn}
+            style={[s.orderBtn, { backgroundColor: accentColor }]}
             onPress={() => onOrderPress(deal)}>
             <Ionicons name="cart-outline" size={18} color="#000" />
           </TouchableOpacity>
@@ -316,6 +323,7 @@ export default function VendorDetailScreen() {
             onToggleSave={handleToggleSave}
             onOrderPress={handleOrderPress}
             onReviewsPress={handleReviewsPress}
+            accentColor={accentColor}
           />
         )}
         ListHeaderComponent={
@@ -344,12 +352,12 @@ export default function VendorDetailScreen() {
             <View style={s.infoSection}>
               <View style={s.infoHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.vendorName}>{vendor.name}</Text>
+                  <Text style={[s.vendorName, { color: theme.text }]}>{vendor.name}</Text>
                   <View style={s.metaRow}>
                     <Text style={[s.categoryBadge, { color: accentColor }]}>{vendor.category}</Text>
-                    <Text style={s.sep}>·</Text>
-                    <Ionicons name="location-outline" size={12} color="rgba(240,240,255,0.4)" />
-                    <Text style={s.location}>{vendor.location_text}</Text>
+                    <Text style={[s.sep, { color: theme.textFaint }]}>·</Text>
+                    <Ionicons name="location-outline" size={12} color={theme.textFaint} />
+                    <Text style={[s.location, { color: theme.textFaint }]}>{vendor.location_text}</Text>
                   </View>
                 </View>
                 <View style={[s.dealCountBadge, { backgroundColor: accentColor + '22' }]}>
@@ -361,7 +369,7 @@ export default function VendorDetailScreen() {
               </View>
 
               {vendor.description && (
-                <Text style={s.description}>{vendor.description}</Text>
+                <Text style={[s.description, { color: theme.textMuted }]}>{vendor.description}</Text>
               )}
 
               {/* Interaction Buttons Row */}
@@ -396,14 +404,14 @@ export default function VendorDetailScreen() {
               </View>
             </View>
 
-            <Text style={s.sectionTitle}>Active Deals</Text>
+            <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Active Deals</Text>
           </>
         }
         ListEmptyComponent={
           <View style={s.empty}>
-            <Ionicons name="pricetag-outline" size={36} color="rgba(240,240,255,0.1)" />
-            <Text style={s.emptyText}>No active deals right now</Text>
-            <Text style={s.emptySub}>Check back soon for student discounts</Text>
+            <Ionicons name="pricetag-outline" size={36} color={theme.textFaint} />
+            <Text style={[s.emptyText, { color: theme.textMuted }]}>No active deals right now</Text>
+            <Text style={[s.emptySub, { color: theme.textFaint }]}>Check back soon for student discounts</Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: 40 }}
