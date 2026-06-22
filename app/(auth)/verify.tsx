@@ -234,21 +234,36 @@ export default function VerifyScreen() {
 
     if (mode === 'confirm') {
       if (!trimmedEmail || !code) {
-        Toast.show({ type: 'error', text1: 'Missing code', text2: 'Please enter verification code' })
+        Toast.show({ type: 'error', text1: 'Missing code', text2: 'Please enter the verification code' })
         return
       }
       setLoading(true)
-      const { error } = await (supabase.auth as any).confirmSignUp(trimmedEmail, code)
+      const { data: confirmData, error } = await (supabase.auth as any).confirmSignUp(trimmedEmail, code)
       setLoading(false)
       if (error) {
         Toast.show({ type: 'error', text1: 'Verification failed', text2: error.message })
-      } else {
+      } else if (confirmData?.isReVerify) {
+        // ── Re-verification path: user already has a profile ──
+        // Upgrade their badge in the database to 'verified' now.
         try {
-          await AsyncStorage.setItem('verified_via_code_' + trimmedEmail, 'true')
-        } catch (e) {
-          console.warn('Failed to save verified_via_code flag:', e)
+          const { data: profileRow } = await supabase
+            .from('profiles').select('id').eq('email', trimmedEmail).maybeSingle()
+          if (profileRow?.id) {
+            await supabase
+              .from('profiles')
+              .update({ badge_type: 'verified', badge_color: '#a78bfa' })
+              .eq('id', profileRow.id)
+          }
+        } catch (dbErr) {
+          console.warn('Badge upgrade failed:', dbErr)
         }
-        Toast.show({ type: 'success', text1: 'Email verified!', text2: 'You can now sign in with your password.' })
+        Toast.show({ type: 'success', text1: '✅ Email verified!', text2: 'Welcome back — signing you in.' })
+        setCode('')
+        // Sign them in so they get a fresh session with email_verified=true
+        setMode('signin')
+      } else {
+        // ── New-user path: prompt to sign in ──
+        Toast.show({ type: 'success', text1: '✅ Email verified!', text2: 'You can now sign in with your password.' })
         setMode('signin')
         setCode('')
         setPassword('')
@@ -296,7 +311,7 @@ export default function VerifyScreen() {
       setLoading(false)
       if (error) {
         if (error.message.toLowerCase().includes('not confirmed') || error.message.includes('UserNotConfirmedException')) {
-          Toast.show({ type: 'info', text1: 'Email not confirmed', text2: 'Please enter the verification code sent to your email.' })
+          Toast.show({ type: 'info', text1: '📧 Verify your email', text2: 'A verification code has been sent to your inbox.' })
           setMode('confirm')
           setCode('')
         } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
