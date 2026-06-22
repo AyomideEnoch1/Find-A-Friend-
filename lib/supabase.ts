@@ -59,6 +59,11 @@ function parseJwt(token: string) {
   }
 }
 
+// Holds the Cognito AccessToken for a user who is CONFIRMED but has
+// email_verified=false. Used to call GetUserAttributeVerificationCode /
+// VerifyUserAttribute instead of the new-user ConfirmSignUp APIs.
+let pendingVerificationAccessToken: string | null = null;
+
 export class CognitoAuthAdapter {
   private listeners: Array<(event: string, session: any) => void> = [];
   private currentSession: any = null;
@@ -155,7 +160,20 @@ export class CognitoAuthAdapter {
       const emailVerifiedAttr = userRes.UserAttributes.find((a: any) => a.Name === 'email_verified')?.Value;
 
       if (emailVerifiedAttr !== 'true') {
-        throw new Error('UserNotConfirmedException: Email is not verified.');
+        // Store the access token so confirmSignUp / resendConfirmationCode
+        // can use VerifyUserAttribute / GetUserAttributeVerificationCode
+        // (the correct APIs for already-CONFIRMED users re-verifying email).
+        pendingVerificationAccessToken = authResult.AccessToken;
+        // Automatically dispatch OTP to the user's email.
+        try {
+          await callCognito('GetUserAttributeVerificationCode', {
+            AccessToken:   authResult.AccessToken,
+            AttributeName: 'email',
+          });
+        } catch (otpErr: any) {
+          console.warn('Auto OTP send failed (will show resend option):', otpErr.message);
+        }
+        throw new Error('UserNotConfirmedException: Please verify your email. A code has been sent to your inbox.');
       }
 
       const user = {
@@ -279,12 +297,37 @@ export class CognitoAuthAdapter {
   async confirmSignUp(email: string, code: string) {
     try {
       const formattedEmail = email.toLowerCase().trim();
-      await callCognito('ConfirmSignUp', {
-        ClientId: COGNITO_CLIENT_ID,
-        Username: formattedEmail,
-        ConfirmationCode: code,
-      });
-      return { data: {}, error: null };
+
+      if (pendingVerificationAccessToken) {
+        // ── Re-verification path (user is CONFIRMED, email_verified=false) ──
+        // Use VerifyUserAttribute with the stored access token.
+        await callCognito('VerifyUserAttribute', {
+          AccessToken:       pendingVerificationAccessToken,
+          AttributeName:     'email',
+          Code:              code,
+        });
+        // Clear the pending token now that verification succeeded.
+        const verifiedToken = pendingVerificationAccessToken;
+        pendingVerificationAccessToken = null;
+        // Persist the verified flag in AsyncStorage for the onboarding badge flow.
+        try {
+          await AsyncStorage.setItem('verified_via_code_' + formattedEmail, 'true');
+        } catch (_) {}
+        // If the user already has a profile (not a new signup), upgrade badge
+        // directly in the database right now.
+        return { data: { accessToken: verifiedToken, isReVerify: true }, error: null };
+      } else {
+        // ── New-user path (UNCONFIRMED → ConfirmSignUp) ──
+        await callCognito('ConfirmSignUp', {
+          ClientId:         COGNITO_CLIENT_ID,
+          Username:         formattedEmail,
+          ConfirmationCode: code,
+        });
+        try {
+          await AsyncStorage.setItem('verified_via_code_' + formattedEmail, 'true');
+        } catch (_) {}
+        return { data: { isReVerify: false }, error: null };
+      }
     } catch (err: any) {
       return { data: null, error: err };
     }
@@ -293,10 +336,19 @@ export class CognitoAuthAdapter {
   async resendConfirmationCode(email: string) {
     try {
       const formattedEmail = email.toLowerCase().trim();
-      await callCognito('ResendConfirmationCode', {
-        ClientId: COGNITO_CLIENT_ID,
-        Username: formattedEmail,
-      });
+      if (pendingVerificationAccessToken) {
+        // Re-verify path: use GetUserAttributeVerificationCode
+        await callCognito('GetUserAttributeVerificationCode', {
+          AccessToken:   pendingVerificationAccessToken,
+          AttributeName: 'email',
+        });
+      } else {
+        // New-user path: use ResendConfirmationCode
+        await callCognito('ResendConfirmationCode', {
+          ClientId:  COGNITO_CLIENT_ID,
+          Username:  formattedEmail,
+        });
+      }
       return { data: {}, error: null };
     } catch (err: any) {
       return { data: null, error: err };
