@@ -394,8 +394,17 @@ const baseSupabase = createClient(API_URL, 'aws-anonymous-key', {
 
       // The Supabase JS client appends /rest/v1/ to the base URL for all DB queries,
       // but our PostgREST instance serves tables from the root /. Strip the prefix.
+      // Additionally, route storage requests directly to the Supabase endpoint since ECS PostgREST does not serve storage.
       const urlStr = url.toString();
-      const rewrittenUrl = API_URL ? urlStr.replace(`${API_URL}/rest/v1`, API_URL) : urlStr;
+      let rewrittenUrl = urlStr;
+      if (API_URL) {
+        if (urlStr.includes('/storage/v1')) {
+          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vcbtvhociaioeyhhsczh.supabase.co';
+          rewrittenUrl = urlStr.replace(`${API_URL}/storage/v1`, `${supabaseUrl}/storage/v1`);
+        } else {
+          rewrittenUrl = urlStr.replace(`${API_URL}/rest/v1`, API_URL);
+        }
+      }
       
       return fetch(rewrittenUrl, {
         ...options,

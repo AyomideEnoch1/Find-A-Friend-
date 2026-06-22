@@ -405,10 +405,23 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
     const ext = payload.fileName.split('.').pop() ?? 'pdf'
     const storagePath = `${user.id}/${Date.now()}_${payload.fileName}`
 
-    // Upload directly to S3 bucket
-    const s3Url = await uploadFile('academic-resources', storagePath, payload.fileUri, payload.mimeType)
+    // Upload to Supabase Storage (which is rewritten to the direct Supabase URL)
+    const fileBody = new FormData() as any
+    fileBody.append('file', {
+      uri: payload.fileUri,
+      name: payload.fileName,
+      type: payload.mimeType,
+    })
 
-    // Store the S3 URL in database
+    const { error: uploadError } = await supabase.storage
+      .from('academic-resources')
+      .upload(storagePath, fileBody, {
+        upsert: false
+      })
+
+    if (uploadError) throw uploadError
+
+    // Store the relative path in the database (file_url)
     const { data, error: insertError } = await supabase
       .from('academic_resources')
       .insert({
@@ -416,7 +429,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
         course_id: payload.courseId ?? null,
         title: payload.title,
         description: payload.description ?? null,
-        file_url: s3Url,
+        file_url: storagePath,
         file_type: ext,
         file_size_kb: payload.fileSizeKb ?? null,
         resource_type: payload.resourceType ?? 'note',
@@ -440,18 +453,27 @@ export async function getResourceSignedUrl(
   expiresInSeconds = 3600
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    let downloadUrl = resource.file_url
-    if (!downloadUrl.startsWith('http')) {
-      // Legacy path, construct the S3 URL format
-      downloadUrl = `https://faf-infra-prod-v2-appstoragebucket-prasmiamuew2.s3.amazonaws.com/academic-resources/${resource.file_url}`
+    let path = resource.file_url
+    if (path.startsWith('http')) {
+      const searchStr = 'academic-resources/'
+      const idx = path.indexOf(searchStr)
+      if (idx !== -1) {
+        path = path.substring(idx + searchStr.length)
+      }
     }
+
+    const { data, error } = await supabase.storage
+      .from('academic-resources')
+      .createSignedUrl(path, expiresInSeconds)
+
+    if (error) throw error
 
     // Increment download counter (fire-and-forget, non-blocking)
     supabase.rpc('increment_resource_download', {
       p_resource_id: resource.id,
     }).then(() => {})
 
-    return { data: downloadUrl, error: null }
+    return { data: data.signedUrl, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
