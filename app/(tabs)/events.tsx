@@ -83,12 +83,12 @@ export default function EventsScreen() {
   useFocusEffect(
     useCallback(() => {
       markSeen('events')
-    }, [markSeen])
+      loadTab(activeTab)
+    }, [activeTab, markSeen])
   )
 
   useEffect(() => {
     setSelectedDay(null)
-    loadTab(activeTab)
   }, [activeTab])
 
   useEffect(() => {
@@ -157,15 +157,36 @@ export default function EventsScreen() {
   const loadTab = async (tab: Tab) => {
     setLoading(true)
     try {
+      let myRsvpsMap = new Map<string, 'going' | 'interested' | 'not_going'>()
+      try {
+        const { data: myRsvpsData } = await getMyRsvps()
+        if (myRsvpsData) {
+          myRsvpsData.forEach(r => {
+            myRsvpsMap.set(r.event.id, r.rsvp.status)
+          })
+        }
+      } catch (err) {
+        console.warn('Failed to pre-fetch my RSVPs:', err)
+      }
+
       if (tab === 'upcoming') {
         const { data, error: err } = await getEvents({ upcoming: true })
         if (err) throw err
-        setEvents(data ?? [])
+        const mapped = (data ?? []).map(e => ({
+          ...e,
+          user_rsvp_status: myRsvpsMap.get(e.id) ?? null
+        }))
+        setEvents(mapped)
       } else if (tab === 'past') {
         const { data, error: err } = await getEvents({ upcoming: false })
         if (err) throw err
         const now = new Date().toISOString()
-        setEvents((data ?? []).filter(e => e.starts_at < now))
+        const filtered = (data ?? []).filter(e => e.starts_at < now)
+        const mapped = filtered.map(e => ({
+          ...e,
+          user_rsvp_status: myRsvpsMap.get(e.id) ?? null
+        }))
+        setEvents(mapped)
       } else {
         const { data, error: err } = await getMyRsvps()
         if (err) throw err

@@ -306,6 +306,8 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      <AdCarousel />
+
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
