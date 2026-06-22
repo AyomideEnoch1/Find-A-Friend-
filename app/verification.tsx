@@ -42,8 +42,8 @@ export default function VerificationScreen() {
   const isUniversity = email.includes('.edu') || email.includes('ac.uk')
     || email.includes('edu.ng') || email.includes('ac.za') || email.includes('.edu.')
 
-  const badgeType = profile?.badge_type || (isUniversity ? 'verified' : null)
-  const badgeColor = profile?.badge_color || (badgeType ? BADGE_COLORS[badgeType] : null)
+  const badgeType = profile?.badge_type || 'guest'
+  const badgeColor = profile?.badge_color || BADGE_COLORS[badgeType]
 
   return (
     <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>

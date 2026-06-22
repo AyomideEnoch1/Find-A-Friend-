@@ -13,8 +13,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getEventDetail, getEventAttendees, rsvpEvent, cancelRsvp, deleteEvent } from '../../lib/events'
 import { getInitials } from '../../lib/matching'
 import type { Event, EventRsvp } from '../../lib/events'
-import { client } from '../../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../../lib/supabase'
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -37,7 +36,7 @@ export default function EventDetailScreen() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${id}` },
-        (payload) => {
+        (payload: any) => {
           const updated = payload.new as Event;
           setEvent((e) => e ? { ...e, ...updated } : updated);
         }
@@ -70,8 +69,8 @@ export default function EventDetailScreen() {
         getEventAttendees(id, 'going'),
       ])
       try {
-        const user = await getCurrentUser()
-        if (user) setMyUserId(user.userId)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) setMyUserId(user.id)
       } catch (e) {}
       setEvent(eventRes.data)
       setRsvpStatus(eventRes.data?.user_rsvp_status ?? null)

@@ -57,8 +57,14 @@ exports.handler = async (event) => {
 
       const legacyUser = res.rows[0];
 
-      // Compare password with bcrypt hash from Supabase
-      const match = await bcrypt.compare(password, legacyUser.encrypted_password);
+      console.log(`User found. Hash prefix: ${legacyUser.encrypted_password ? legacyUser.encrypted_password.substring(0, 10) : 'null'}`);
+      
+      // Compare password with bcrypt hash from Supabase (convert $2y$ to $2a$ for bcryptjs compatibility)
+      let hash = legacyUser.encrypted_password;
+      if (hash && hash.startsWith('$2y$')) {
+        hash = hash.replace('$2y$', '$2a$');
+      }
+      const match = await bcrypt.compare(password, hash);
       if (!match) {
         console.log(`Incorrect password for user ${username}.`);
         throw new Error('Invalid credentials');

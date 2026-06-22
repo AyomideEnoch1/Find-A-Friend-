@@ -14,6 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from 'react-native-toast-message'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -24,17 +27,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 
 const { width } = Dimensions.get("window");
 
-type Mode = "signup" | "signin";
+type Mode = 'signup' | 'signin' | 'forgot' | 'reset' | 'confirm'
 
 const UNIVERSITY_DOMAINS = [
   "unilag.edu.ng",
@@ -247,8 +245,7 @@ export default function VerifyScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [showVerification, setShowVerification] = useState(false);
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -286,8 +283,88 @@ export default function VerifyScreen() {
     transform: [{ translateX: tabSlide.value * ((width - 48) / 2) }],
   }));
 
+  const handleResendCode = async () => {
+    const trimmedEmail = email.toLowerCase().trim()
+    if (!trimmedEmail) {
+      Toast.show({ type: 'error', text1: 'Missing email', text2: 'Please enter your university email' })
+      return
+    }
+    setLoading(true)
+    const { error } = await (supabase.auth as any).resendConfirmationCode(trimmedEmail)
+    setLoading(false)
+    if (error) {
+      Toast.show({ type: 'error', text1: 'Resend failed', text2: error.message })
+    } else {
+      Toast.show({ type: 'success', text1: 'Code sent', text2: 'Please check your inbox' })
+    }
+  }
+
   const handleSubmit = async () => {
     const trimmedEmail = email.toLowerCase().trim();
+
+    if (mode === 'forgot') {
+      if (!trimmedEmail) {
+        Toast.show({ type: 'error', text1: 'Missing email', text2: 'Please enter your university email' })
+        return
+      }
+      setLoading(true)
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail)
+      setLoading(false)
+      if (error) {
+        Toast.show({ type: 'error', text1: 'Request failed', text2: error.message })
+      } else {
+        Toast.show({ type: 'success', text1: 'Code sent', text2: 'Check your email inbox' })
+        setMode('reset')
+      }
+      return
+    }
+
+    if (mode === 'reset') {
+      if (!trimmedEmail || !code || !password) {
+        Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill in all fields' })
+        return
+      }
+      if (password.length < 6) {
+        Toast.show({ type: 'error', text1: 'Weak password', text2: 'Password must be at least 6 characters' })
+        return
+      }
+      setLoading(true)
+      const { error } = await (supabase.auth as any).updateUserPassword(trimmedEmail, code, password)
+      setLoading(false)
+      if (error) {
+        Toast.show({ type: 'error', text1: 'Reset failed', text2: error.message })
+      } else {
+        Toast.show({ type: 'success', text1: 'Password reset successful', text2: 'You can now sign in' })
+        setMode('signin')
+        setPassword('')
+        setCode('')
+      }
+      return
+    }
+
+    if (mode === 'confirm') {
+      if (!trimmedEmail || !code) {
+        Toast.show({ type: 'error', text1: 'Missing code', text2: 'Please enter verification code' })
+        return
+      }
+      setLoading(true)
+      const { error } = await (supabase.auth as any).confirmSignUp(trimmedEmail, code)
+      setLoading(false)
+      if (error) {
+        Toast.show({ type: 'error', text1: 'Verification failed', text2: error.message })
+      } else {
+        try {
+          await AsyncStorage.setItem('verified_via_code_' + trimmedEmail, 'true')
+        } catch (e) {
+          console.warn('Failed to save verified_via_code flag:', e)
+        }
+        Toast.show({ type: 'success', text1: 'Email verified!', text2: 'You can now sign in with your password.' })
+        setMode('signin')
+        setCode('')
+        setPassword('')
+      }
+      return
+    }
 
     if (!trimmedEmail || !password) {
       Toast.show({
@@ -340,26 +417,10 @@ export default function VerifyScreen() {
         }
         return;
       }
-      if (data.session) {
-        setLoading(false);
-        router.replace("/(auth)/onboarding");
-      } else {
-        const { data: sd } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password,
-        });
-        setLoading(false);
-        if (sd?.session) {
-          router.replace("/(auth)/onboarding");
-        } else {
-          Toast.show({
-            type: "success",
-            text1: "Check your email",
-            text2: `Confirmation sent to ${trimmedEmail}`,
-          });
-          setMode("signin");
-        }
-      }
+      setLoading(false)
+      Toast.show({ type: 'success', text1: 'Verify your email', text2: `Enter the code sent to ${trimmedEmail}` })
+      setMode('confirm')
+      setCode('')
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
@@ -367,18 +428,12 @@ export default function VerifyScreen() {
       });
       setLoading(false);
       if (error) {
-        if (error.message.toLowerCase().includes("not confirmed") || error.message.toLowerCase().includes("unconfirmed")) {
-          Toast.show({
-            type: "info",
-            text1: "Email not confirmed",
-            text2: "Check your inbox for a confirmation link.",
-          });
-        } else if (error.message.toLowerCase().includes("invalid login credentials") || error.message.toLowerCase().includes("notauthorized")) {
-          Toast.show({
-            type: "error",
-            text1: "Sign in failed",
-            text2: "Wrong email or password.",
-          });
+        if (error.message.toLowerCase().includes('not confirmed') || error.message.includes('UserNotConfirmedException')) {
+          Toast.show({ type: 'info', text1: 'Email not confirmed', text2: 'Please enter the verification code sent to your email.' })
+          setMode('confirm')
+          setCode('')
+        } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
+          Toast.show({ type: 'error', text1: 'Sign in failed', text2: 'Wrong email or password.' })
         } else {
           Toast.show({
             type: "error",
@@ -480,52 +535,62 @@ export default function VerifyScreen() {
                 cardStyle,
               ]}
             >
-              {/* Tab switcher */}
-              <View style={[s.tabBar, { borderColor: theme.border }]}>
-                <Animated.View
-                  style={[
-                    s.tabIndicator,
-                    { backgroundColor: theme.accent },
-                    tabIndicatorStyle,
-                  ]}
-                />
-                <TouchableOpacity
-                  style={s.tabBtn}
-                  onPress={() => {
-                    setMode("signup");
-                    setPassword("");
-                    setConfirmPassword("");
-                  }}
-                >
-                  <Text
+              {/* Tab switcher or Title Header */}
+              {mode === 'signup' || mode === 'signin' ? (
+                <View style={[s.tabBar, { borderColor: theme.border }]}>
+                  <Animated.View
                     style={[
-                      s.tabLabel,
-                      { color: theme.textMuted },
-                      mode === "signup" && { color: theme.accent },
+                      s.tabIndicator,
+                      { backgroundColor: theme.accent },
+                      tabIndicatorStyle,
                     ]}
+                  />
+                  <TouchableOpacity
+                    style={s.tabBtn}
+                    onPress={() => {
+                      setMode("signup");
+                      setPassword("");
+                      setConfirmPassword("");
+                    }}
                   >
-                    Sign Up
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.tabBtn}
-                  onPress={() => {
-                    setMode("signin");
-                    setPassword("");
-                    setConfirmPassword("");
-                  }}
-                >
-                  <Text
-                    style={[
-                      s.tabLabel,
-                      { color: theme.textMuted },
-                      mode === "signin" && { color: theme.accent },
-                    ]}
+                    <Text
+                      style={[
+                        s.tabLabel,
+                        { color: theme.textMuted },
+                        mode === "signup" && { color: theme.accent },
+                      ]}
+                    >
+                      Sign Up
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.tabBtn}
+                    onPress={() => {
+                      setMode("signin");
+                      setPassword("");
+                      setConfirmPassword("");
+                    }}
                   >
-                    Sign In
+                    <Text
+                      style={[
+                        s.tabLabel,
+                        { color: theme.textMuted },
+                        mode === "signin" && { color: theme.accent },
+                      ]}
+                    >
+                      Sign In
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={[s.tabBarTitle, { borderColor: theme.border }]}>
+                  <Text style={[s.tabBarTitleText, { color: theme.accent }]}>
+                    {mode === 'forgot' && 'Reset Password'}
+                    {mode === 'reset' && 'Set New Password'}
+                    {mode === 'confirm' && 'Confirm Email'}
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              )}
 
               <View style={s.cardBody}>
                 <AnimatedInput
@@ -535,16 +600,37 @@ export default function VerifyScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                 />
-                <AnimatedInput
-                  label="Password"
-                  placeholder={
-                    mode === "signup" ? "Min. 6 characters" : "Your password"
-                  }
-                  value={password}
-                  onChangeText={setPassword}
-                  isPassword
-                />
-                {mode === "signup" && !showVerification && (
+                {(mode === 'reset' || mode === 'confirm') && (
+                  <AnimatedInput
+                    label="Verification Code"
+                    placeholder="Enter 6-digit code"
+                    value={code}
+                    onChangeText={setCode}
+                    keyboardType="number-pad"
+                  />
+                )}
+
+                {mode !== 'forgot' && mode !== 'confirm' && (
+                  <AnimatedInput
+                    label={mode === 'reset' ? "New Password" : "Password"}
+                    placeholder={mode === 'signup' ? 'Min. 6 characters' : 'Your password'}
+                    value={password}
+                    onChangeText={setPassword}
+                    isPassword
+                  />
+                )}
+
+                {(mode === 'signin' || mode === 'signup') && (
+                  <TouchableOpacity
+                    onPress={() => setMode('forgot')}
+                    style={s.forgotBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.forgotText, { color: theme.accent }]}>Forgot password?</Text>
+                  </TouchableOpacity>
+                )}
+
+                {mode === 'signup' && (
                   <AnimatedInput
                     label="Confirm Password"
                     placeholder="Repeat your password"
@@ -554,15 +640,6 @@ export default function VerifyScreen() {
                   />
                 )}
 
-                {showVerification && (
-                  <AnimatedInput
-                    label="Verification Code"
-                    placeholder="Enter 6-digit code from email"
-                    value={verificationCode}
-                    onChangeText={setVerificationCode}
-                    keyboardType="number-pad"
-                  />
-                )}
 
                 {mode === "signup" && (
                   <View
@@ -583,6 +660,34 @@ export default function VerifyScreen() {
                   </View>
                 )}
 
+                {mode === 'forgot' && (
+                  <View style={[s.infoCard, { backgroundColor: 'rgba(96,165,250,0.08)', borderColor: 'rgba(96,165,250,0.2)' }]}>
+                    <View style={[s.infoDot, { backgroundColor: '#60a5fa' }]} />
+                    <Text style={[s.infoText, { color: 'rgba(96,165,250,0.8)' }]}>
+                      We will send a password reset code to your university email.
+                    </Text>
+                  </View>
+                )}
+
+                {mode === 'confirm' && (
+                  <View style={[s.infoCard, { backgroundColor: 'rgba(167,139,250,0.08)', borderColor: 'rgba(167,139,250,0.2)' }]}>
+                    <View style={[s.infoDot, { backgroundColor: '#a78bfa' }]} />
+                    <Text style={[s.infoText, { color: 'rgba(167,139,250,0.8)' }]}>
+                      Please check your university email inbox for the 6-digit confirmation code.
+                    </Text>
+                  </View>
+                )}
+
+                {mode === 'confirm' && (
+                  <TouchableOpacity
+                    onPress={handleResendCode}
+                    style={s.resendBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={s.resendText}>Didn't receive code? Resend Code</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   style={[
                     s.btnPrimary,
@@ -598,25 +703,37 @@ export default function VerifyScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Text style={s.btnText}>
-                      {showVerification
-                        ? "Verify Code →"
-                        : mode === "signup"
-                          ? "Create Account →"
-                          : "Sign In →"}
+                      {mode === 'signup' && 'Create Account →'}
+                      {mode === 'signin' && 'Sign In →'}
+                      {mode === 'forgot' && 'Send Reset Code →'}
+                      {mode === 'reset' && 'Reset Password →'}
+                      {mode === 'confirm' && 'Verify Email →'}
                     </Text>
                   )}
                 </TouchableOpacity>
 
-                <Text style={[s.termsText, { color: theme.textFaint }]}>
-                  By continuing you agree to our{" "}
-                  <Text style={[s.termsLink, { color: theme.accent }]}>
-                    Terms
-                  </Text>{" "}
-                  and{" "}
-                  <Text style={[s.termsLink, { color: theme.accent }]}>
-                    Privacy Policy
+                {mode === 'signup' && (
+                  <Text style={[s.termsText, { color: theme.textFaint }]}>
+                    By continuing you agree to our{" "}
+                    <Text style={[s.termsLink, { color: theme.accent }]}>
+                      Terms
+                    </Text>{" "}
+                    and{" "}
+                    <Text style={[s.termsLink, { color: theme.accent }]}>
+                      Privacy Policy
+                    </Text>
                   </Text>
-                </Text>
+                )}
+
+                {(mode === 'forgot' || mode === 'reset' || mode === 'confirm') && (
+                  <TouchableOpacity
+                    onPress={() => { setMode('signin'); setPassword(''); setConfirmPassword(''); setCode('') }}
+                    style={s.cancelBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.cancelText, { color: theme.textMuted }]}>← Back to Sign In</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </Animated.View>
           </ScrollView>
@@ -794,4 +911,43 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
   termsLink: { color: "rgba(167,139,250,0.6)" },
+  forgotBtn: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  forgotText: {
+    fontSize: 12,
+    fontFamily: typography.fontMedium,
+  },
+  tabBarTitle: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 0.5,
+  },
+  tabBarTitleText: {
+    fontSize: 15,
+    fontFamily: typography.fontBold,
+    letterSpacing: 0.5,
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  cancelText: {
+    fontSize: 13,
+    fontFamily: typography.fontMedium,
+  },
+  resendBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  resendText: {
+    fontSize: 12,
+    fontFamily: typography.fontMedium,
+    textDecorationLine: 'underline',
+  },
 });

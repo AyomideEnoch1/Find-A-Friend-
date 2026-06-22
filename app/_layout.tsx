@@ -253,10 +253,35 @@ function AppStack() {
   useEffect(() => {
     if (!mounted || !initialized) return;
     const inAuth = segments[0] === "(auth)";
-    if (!session && !inAuth) {
-      router.replace("/(auth)/welcome");
-    } else if (session && inAuth) {
-      router.replace("/(tabs)");
+    if (!session) {
+      if (!inAuth) router.replace("/(auth)/welcome");
+    } else {
+      if (session.user && (session.user as any).email_verified === false) {
+        supabase.auth.signOut().then(() => {
+          Toast.show({
+            type: 'error',
+            text1: 'Email not verified',
+            text2: 'Please verify your email to access the app.',
+          });
+          router.replace("/(auth)/welcome");
+        });
+        return;
+      }
+
+      if (inAuth && segments[1] !== "onboarding") {
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              router.replace("/(tabs)");
+            } else {
+              router.replace("/(auth)/onboarding");
+            }
+          });
+      }
     }
   }, [session, segments, mounted, initialized]);
 
