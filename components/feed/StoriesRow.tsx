@@ -36,13 +36,8 @@ export default function StoriesRow() {
   };
 
   return (
-    <View
-      style={[
-        s.wrapper,
-        { borderBottomColor: theme.border, backgroundColor: theme.card },
-      ]}
-    >
-      <View style={[StyleSheet.absoluteFill, s.tint]} pointerEvents="none" />
+    <View style={[s.wrapper]}>
+      <View style={[StyleSheet.absoluteFill]} pointerEvents="none" />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -90,7 +85,7 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   content: { paddingHorizontal: 16, gap: 2 },
-  tint: { backgroundColor: "rgba(167,139,250,0.04)" },
+  // tint: { backgroundColor: "rgba(167,139,250,0.04)" },
   refreshCircle: {
     alignItems: "center",
     width: 72,
