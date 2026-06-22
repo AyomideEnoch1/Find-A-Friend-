@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withTiming, withDelay, withRepeat, withSequence, withSpring, Easing,
@@ -242,6 +243,11 @@ export default function VerifyScreen() {
       if (error) {
         Toast.show({ type: 'error', text1: 'Verification failed', text2: error.message })
       } else {
+        try {
+          await AsyncStorage.setItem('verified_via_code_' + trimmedEmail, 'true')
+        } catch (e) {
+          console.warn('Failed to save verified_via_code flag:', e)
+        }
         Toast.show({ type: 'success', text1: 'Email verified!', text2: 'You can now sign in with your password.' })
         setMode('signin')
         setCode('')

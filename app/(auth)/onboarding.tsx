@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { registerForPushNotifications, savePushToken, subscribeToWebPush } from '../../lib/notifications'
 
 const allInterests = [
@@ -58,6 +59,18 @@ export default function OnboardingScreen() {
     return
   }
 
+  let badgeType = 'guest'
+  let badgeColor = '#ec4899'
+  try {
+    const wasVerifiedViaCode = await AsyncStorage.getItem('verified_via_code_' + user.email)
+    if (wasVerifiedViaCode === 'true') {
+      badgeType = 'verified'
+      badgeColor = '#a78bfa'
+    }
+  } catch (e) {
+    console.warn('Failed to read verified_via_code flag:', e)
+  }
+
   const { error } = await supabase
     .from('profiles')
     .upsert({
@@ -68,6 +81,8 @@ export default function OnboardingScreen() {
       level,
       bio: bio.trim(),
       interests,
+      badge_type: badgeType,
+      badge_color: badgeColor,
     })
 
   setLoading(false)
