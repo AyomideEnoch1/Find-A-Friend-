@@ -1,25 +1,35 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import * as React from "react";
 import { useState } from "react";
 import { supportsVideoStories } from "../../lib/featureFlags";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  Image, Modal, Share, Pressable, Alert, Platform, Linking, ScrollView,
-} from 'react-native'
-import Toast from 'react-native-toast-message'
-import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
-import * as Haptics from 'expo-haptics'
-import { getInitials, getTimeAgo } from '../../lib/matching'
-import { useFeedStore } from '../../store/feedStore'
-import { client } from '../../lib/aws'
-import { reportPost } from '../../lib/feed'
-import { useTheme, glowShadow } from '../../lib/theme'
-import { typography } from '../../lib/typography'
-import { createStory } from '../../lib/stories'
-import type { FeedPost } from '../../lib/feed'
-import VerifiedBadge from '../ui/VerifiedBadge'
+  Alert,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+import type { FeedPost } from "../../lib/feed";
+import { reportPost } from "../../lib/feed";
+import { getInitials, getTimeAgo } from "../../lib/matching";
+import { createStory } from "../../lib/stories";
+import { useTheme } from "../../lib/theme";
+import { typography } from "../../lib/typography";
+import { useFeedStore } from "../../store/feedStore";
+import VerifiedBadge from "../ui/VerifiedBadge";
 
-import { supabase } from '../../lib/supabase'
+import { supabase } from "../../lib/supabase";
 
 interface PostCardProps {
   post: FeedPost;
@@ -39,8 +49,10 @@ export default function PostCard({ post }: PostCardProps) {
   const theme = useTheme();
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }: any) => setMyUserId(data.user?.id ?? null))
-  }, [])
+    supabase.auth
+      .getUser()
+      .then(({ data }: any) => setMyUserId(data.user?.id ?? null));
+  }, []);
 
   const handleScroll = (event: any) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
