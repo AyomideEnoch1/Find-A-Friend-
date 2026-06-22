@@ -82,7 +82,7 @@ function InlineVideoPlayer({ sourceUrl, style }: { sourceUrl: string; style: any
   }
 
   const { useVideoPlayer, VideoView } = require("expo-video");
-  const player = useVideoPlayer(sourceUrl, (p) => {
+  const player = useVideoPlayer(sourceUrl, (p: any) => {
     p.loop = false;
   });
   return (

@@ -996,7 +996,7 @@ function InlineVideoPlayer({
   }
 
   const { useVideoPlayer, VideoView } = require("expo-video");
-  const player = useVideoPlayer(sourceUrl, (p) => {
+  const player = useVideoPlayer(sourceUrl, (p: any) => {
     p.loop = false;
   });
 

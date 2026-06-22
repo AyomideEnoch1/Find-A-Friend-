@@ -100,7 +100,7 @@ export default function HomeScreen() {
     ), []
   )
 
-  const renderHeader = useCallback(() => <View><AdCarousel /><StoriesRow /></View>, [])
+  const renderHeader = useCallback(() => <View><StoriesRow /></View>, [])
 
   const renderFooter = useCallback(() =>
     loading && posts.length > 0 ? (
@@ -211,6 +211,8 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <AdCarousel />
 
       <FlatList
         data={posts}
