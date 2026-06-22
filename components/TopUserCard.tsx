@@ -19,6 +19,8 @@ import { getInitials } from "../lib/matching";
 import { useTheme } from "../lib/theme";
 import { typography } from "../lib/typography";
 
+import { supabase } from "../lib/supabase";
+
 interface TopUserCardProps {
   user: FollowProfile;
   index: number;
@@ -51,8 +53,7 @@ export default function TopUserCard({
   }, [user.follower_count]);
 
   useEffect(() => {
-    // TODO: AWS Auth
-    (client as any).auth.getUser().then(({ data: { user: authUser } }: any) => {
+    supabase.auth.getUser().then(({ data: { user: authUser } }: any) => {
       if (authUser) setCurrentUserId(authUser.id);
     });
   }, []);
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   container: {
     height: 200,
     width: 200,
-    borderRadius: 20,
+    borderRadius: 12,
     overflow: "hidden",
     marginHorizontal: 5,
     marginVertical: 10,

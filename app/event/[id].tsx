@@ -32,8 +32,33 @@ export default function EventDetailScreen() {
   useEffect(() => {
     if (!id) return;
 
-    // TODO: Complex realtime channel
+    const eventChannel = supabase
+      .channel(`event-detail-realtime-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${id}` },
+        (payload) => {
+          const updated = payload.new as Event;
+          setEvent((e) => e ? { ...e, ...updated } : updated);
+        }
+      )
+      .subscribe();
+
+    const rsvpsChannel = supabase
+      .channel(`event-rsvps-realtime-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_rsvps", filter: `event_id=eq.${id}` },
+        async () => {
+          const attendeesRes = await getEventAttendees(id, 'going')
+          setAttendees(attendeesRes.data ?? [])
+        }
+      )
+      .subscribe();
+
     return () => {
+      supabase.removeChannel(eventChannel);
+      supabase.removeChannel(rsvpsChannel);
     };
   }, [id]);
 

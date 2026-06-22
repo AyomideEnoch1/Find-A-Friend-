@@ -19,6 +19,8 @@ import { createStory } from '../../lib/stories'
 import type { FeedPost } from '../../lib/feed'
 import VerifiedBadge from '../ui/VerifiedBadge'
 
+import { supabase } from '../../lib/supabase'
+
 interface PostCardProps {
   post: FeedPost;
 }
@@ -37,8 +39,7 @@ export default function PostCard({ post }: PostCardProps) {
   const theme = useTheme();
 
   React.useEffect(() => {
-    // TODO: AWS Auth
-    (client as any).auth.getUser().then(({ data }: any) => setMyUserId(data.user?.id ?? null))
+    supabase.auth.getUser().then(({ data }: any) => setMyUserId(data.user?.id ?? null))
   }, [])
 
   const handleScroll = (event: any) => {
@@ -658,36 +659,18 @@ export default function PostCard({ post }: PostCardProps) {
               {orig.body ? renderBody(orig.body, true) : null}
               {orig.image_url ? (
                 orig.image_url.match(/\.(mp4|mov|webm)$/i) ? (
-                  <TouchableOpacity
+                  <InlineVideoPlayer
+                    sourceUrl={orig.image_url!}
                     style={[
                       s.repostMedia,
                       {
                         borderColor: theme.border,
                         height: 140,
                         backgroundColor: "black",
-                        alignItems: "center",
-                        justifyContent: "center",
                         borderRadius: 8,
                       },
                     ]}
-                    onPress={() => Linking.openURL(orig.image_url!)}
-                  >
-                    <Ionicons
-                      name="play-circle-outline"
-                      size={44}
-                      color="rgba(255,255,255,0.8)"
-                    />
-                    <Text
-                      style={{
-                        color: "white",
-                        marginTop: 4,
-                        fontSize: 11,
-                        fontFamily: typography.fontMedium,
-                      }}
-                    >
-                      Play Video
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 ) : (
                   <Image
                     source={{ uri: orig.image_url }}
@@ -1004,143 +987,16 @@ function InlineVideoPlayer({
     p.loop = false;
   });
 
-  const [isPlaying, setIsPlaying] = React.useState(false);
-  const [showControls, setShowControls] = React.useState(true);
-  const [currentTime, setCurrentTime] = React.useState(0);
-  const [duration, setDuration] = React.useState(0);
-  const controlsTimeoutRef = React.useRef<any>(null);
-
-  const resetControlsTimeout = React.useCallback(() => {
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      setShowControls(false);
-    }, 1500);
-  }, []);
-
-  React.useEffect(() => {
-    setIsPlaying(player.playing);
-    setDuration(player.duration || 0);
-
-    const subPlaying = player.addListener("playingChange", (event) => {
-      setIsPlaying(event.isPlaying);
-      if (event.isPlaying) {
-        resetControlsTimeout();
-      } else {
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current);
-        }
-        setShowControls(true);
-      }
-    });
-
-    const subStatus = player.addListener("statusChange", ({ status }) => {
-      setDuration(player.duration || 0);
-    });
-
-    const subTime = player.addListener("timeUpdate", (event) => {
-      setCurrentTime(event.currentTime);
-    });
-
-    if (player.playing) {
-      resetControlsTimeout();
-    }
-
-    return () => {
-      subPlaying.remove();
-      subStatus.remove();
-      subTime.remove();
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    };
-  }, [player, resetControlsTimeout]);
-
-  const handlePressScreen = () => {
-    if (!showControls) {
-      setShowControls(true);
-      resetControlsTimeout();
-    } else {
-      setShowControls(false);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    }
-  };
-
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      player.pause();
-    } else {
-      player.play();
-    }
-    resetControlsTimeout();
-  };
-
-  const progress = duration > 0 ? currentTime / duration : 0;
-
   return (
-    <Pressable
-      style={[style, { overflow: "hidden", position: "relative" }]}
-      onPress={handlePressScreen}
-    >
+    <View style={[style, { overflow: "hidden", backgroundColor: "black" }]}>
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
         contentFit="contain"
-        nativeControls={false}
+        nativeControls={true}
+        allowsFullscreen={true}
+        showsTimecodes={true}
       />
-
-      {showControls && (
-        <View
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            backgroundColor: "rgba(0,0,0,0.3)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <TouchableOpacity
-            onPress={handlePlayPause}
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: "rgba(0,0,0,0.6)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={24}
-              color="white"
-              style={!isPlaying ? { marginLeft: 3 } : {}}
-            />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Progress Bar at the bottom */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          backgroundColor: "rgba(255,255,255,0.2)",
-        }}
-      >
-        <View
-          style={{
-            height: "100%",
-            width: `${progress * 100}%`,
-            backgroundColor: "#a78bfa",
-          }}
-        />
-      </View>
-    </Pressable>
+    </View>
   );
 }

@@ -12,7 +12,7 @@ export default function SplashScreen() {
       <View style={[s.logoCircle, { backgroundColor: theme.accentBg, borderColor: theme.accent }]}>
         <Text style={[s.logoText, { color: theme.accent }]}>FAF</Text>
       </View>
-      <Text style={[s.tagline, { color: theme.textMuted }]}>Find A Friend</Text>
+      <Text style={[s.tagline, { color: theme.text }]}>Find A Friend</Text>
       <ActivityIndicator color={theme.accent} size="small" style={s.spinner} />
     </View>
   )

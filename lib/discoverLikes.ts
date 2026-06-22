@@ -187,14 +187,14 @@ export async function getConnectionStatusesBulk(targetUserIds: string[]): Promis
       filter: { follower_id: { eq: user.id } }
     })
 
-    const followingSet = new Set((followingRows ?? []).filter(r => targetUserIds.includes(r.following_id)).map(r => r.following_id))
+    const followingSet = new Set((followingRows ?? []).filter((r: any) => targetUserIds.includes(r.following_id)).map((r: any) => r.following_id))
 
     // 2. Get all users from the list that follow me
     const { data: followerRows } = await client.models.Follows.list({
       filter: { following_id: { eq: user.id } }
     })
 
-    const followerSet = new Set((followerRows ?? []).filter(r => targetUserIds.includes(r.follower_id)).map(r => r.follower_id))
+    const followerSet = new Set((followerRows ?? []).filter((r: any) => targetUserIds.includes(r.follower_id)).map((r: any) => r.follower_id))
 
     // 3. Compute status for each target user
     for (const id of targetUserIds) {

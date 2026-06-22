@@ -108,7 +108,7 @@ export async function getMapEvents(): Promise<{
     })
 
     if (errors) throw new Error(errors[0].message)
-    const filtered = (data ?? []).filter(e => e.map_location_id && new Date(e.starts_at) >= new Date())
+    const filtered = (data ?? []).filter((e: any) => e.map_location_id && new Date(e.starts_at) >= new Date())
     return { data: filtered as unknown as EventWithPin[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
@@ -132,7 +132,7 @@ export async function getMapVendors(): Promise<{
     })
 
     if (errors) throw new Error(errors[0].message)
-    const filtered = (data ?? []).filter(v => v.map_location_id)
+    const filtered = (data ?? []).filter((v: any) => v.map_location_id)
     return { data: filtered as unknown as VendorWithPin[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }

@@ -18,11 +18,13 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Linking,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { getInitials, getTimeAgo } from "../../lib/matching";
 import { deleteStory } from "../../lib/stories";
 import { client } from "../../lib/aws";
+import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
 import {
   selectCurrentGroup,
@@ -168,12 +170,16 @@ export default function StoryViewer() {
       setMyReaction(null);
       return;
     }
-    client.models.story_reactions.list({
-      filter: {
-        story_id: { eq: story.id },
-        user_id: { eq: user.id }
-      }
-    } as any).then(({ data }: any) => setMyReaction(data?.[0]?.emoji ?? null));
+    supabase
+      .from("story_reactions")
+      .select("emoji")
+      .eq("story_id", story.id)
+      .eq("user_id", user.id)
+      .then(({ data, error }: any) => {
+        if (!error && data) {
+          setMyReaction(data[0]?.emoji ?? null);
+        }
+      });
     setStoryComment("");
   }, [story?.id, user?.id]);
 
@@ -182,27 +188,33 @@ export default function StoryViewer() {
     const isSame = myReaction === emoji;
     setMyReaction(isSame ? null : emoji);
     if (isSame) {
-      await client.models.story_reactions.delete({ story_id: story.id, user_id: user.id } as any);
+      await supabase
+        .from("story_reactions")
+        .delete()
+        .eq("story_id", story.id)
+        .eq("user_id", user.id);
     } else {
-      await client.models.story_reactions.update(
-        { user_id: user.id, story_id: story.id, emoji } as any
-      );
+      await supabase
+        .from("story_reactions")
+        .upsert({ user_id: user.id, story_id: story.id, emoji });
       // Mirror to author's DM so they see it in chat
       if (story.author_id !== user.id) {
         // TODO: Complex RPC
         const convId = null as any;
         if (convId) {
-          await client.models.messages.create({
-            conversation_id: convId,
-            sender_id: user.id,
-            body: JSON.stringify({
-              _type: "story_reaction",
-              emoji,
-              storyId: story.id,
-              caption: story.caption ?? "",
-              mediaUrl: story.media_url,
-            }),
-          } as any);
+          await supabase
+            .from("messages")
+            .insert({
+              conversation_id: convId,
+              sender_id: user.id,
+              body: JSON.stringify({
+                _type: "story_reaction",
+                emoji,
+                storyId: story.id,
+                caption: story.caption ?? "",
+                mediaUrl: story.media_url,
+              }),
+            });
         }
       }
     }
@@ -218,26 +230,30 @@ export default function StoryViewer() {
       // TODO: Complex RPC
       const convId = null as any;
       if (convId) {
-        await client.models.messages.create({
-          conversation_id: convId,
-          sender_id: user.id,
-          body: JSON.stringify({
-            _type: "story_comment",
-            body: text,
-            storyId: story.id,
-            caption: story.caption ?? "",
-            mediaUrl: story.media_url,
-          }),
-        } as any);
+        await supabase
+          .from("messages")
+          .insert({
+            conversation_id: convId,
+            sender_id: user.id,
+            body: JSON.stringify({
+              _type: "story_comment",
+              body: text,
+              storyId: story.id,
+              caption: story.caption ?? "",
+              mediaUrl: story.media_url,
+            }),
+          });
       }
     }
 
     // Also insert into story_comments if the table exists (best-effort)
-    await client.models.story_comments.create({
-      story_id: story.id,
-      author_id: user.id,
-      body: text,
-    } as any);
+    await supabase
+      .from("story_comments")
+      .insert({
+        story_id: story.id,
+        author_id: user.id,
+        body: text,
+      });
 
     setStoryComment("");
     commentInputRef.current?.blur();
@@ -306,16 +322,16 @@ export default function StoryViewer() {
                 color="#ef4444"
                 style={{ marginBottom: 16 }}
               />
-              <Text style={s.fallbackTitle}>Video Stories Not Supported</Text>
+              <Text style={s.fallbackTitle}>New Update Available</Text>
               <Text style={s.fallbackMessage}>
-                Please update the app to watch video stories.
+                To view this video story, please download the latest APK from our official website: fafcampus.site
               </Text>
               <View style={s.fallbackBtnRow}>
                 <TouchableOpacity
                   style={s.fallbackUpdateBtn}
-                  onPress={handleUpdateApp}
+                  onPress={() => Linking.openURL("https://fafcampus.site")}
                 >
-                  <Text style={s.fallbackUpdateText}>Update App</Text>
+                  <Text style={s.fallbackUpdateText}>Download APK</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.fallbackBackBtn}
