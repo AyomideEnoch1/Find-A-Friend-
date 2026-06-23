@@ -1,20 +1,53 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator
+  Alert, ActivityIndicator, Share, Clipboard
 } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import * as Updates from 'expo-updates'
+import { typography } from '../lib/typography'
 
 export default function SettingsScreen() {
   const { signOut, user } = useAuthStore()
   const theme = useTheme()
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [inviteCount, setInviteCount] = useState(0)
+
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('profiles')
+      .select('invite_code')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data?.invite_code) setInviteCode(data.invite_code) })
+    supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count }) => { if (count !== null) setInviteCount(count) })
+  }, [user?.id])
+
+  const handleCopyCode = () => {
+    if (!inviteCode) return
+    Clipboard.setString(inviteCode)
+    Toast.show({ type: 'success', text1: '✅ Copied!', text2: 'Invite code copied to clipboard.' })
+  }
+
+  const handleShareCode = async () => {
+    if (!inviteCode) return
+    try {
+      await Share.share({
+        message: `Join me on Find-A-Friend — the campus social app! 🎓\n\nUse my invite code: ${inviteCode}\n\nDownload: https://fafcampus.site`,
+        title: 'Join me on Find-A-Friend!',
+      })
+    } catch {}
+  }
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure?', [
@@ -213,6 +246,30 @@ export default function SettingsScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* Invite Code Card */}
+        <Text style={[s.sectionTitle, { color: theme.textMuted }]}>Invite Friends</Text>
+        <View style={[s.inviteCard, { backgroundColor: theme.card, borderColor: theme.accent + '44' }]}>
+          <View style={s.inviteTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.inviteLabel, { color: theme.textMuted }]}>Your Invite Code</Text>
+              <Text style={[s.inviteCodeText, { color: theme.accent }]}>{inviteCode ?? '...'}</Text>
+              {inviteCount > 0 && (
+                <Text style={[s.inviteCountText, { color: theme.textMuted }]}>🎉 {inviteCount} {inviteCount === 1 ? 'person' : 'people'} joined with your code</Text>
+              )}
+            </View>
+            <TouchableOpacity onPress={handleCopyCode} style={[s.codeBtn, { borderColor: theme.accent + '55' }]}>
+              <Ionicons name="copy-outline" size={18} color={theme.accent} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            onPress={handleShareCode}
+            style={[s.shareInviteBtn, { backgroundColor: theme.accent }]}
+          >
+            <Ionicons name="share-social-outline" size={16} color="#fff" />
+            <Text style={s.shareInviteBtnText}>Share Invite Link</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
           <Text style={s.signOutText}>Sign out</Text>
         </TouchableOpacity>
@@ -289,4 +346,25 @@ const s = StyleSheet.create({
   signOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
   versionWrap: { alignItems: 'center', gap: 2, marginTop: 20 },
   versionText: { fontSize: 11 },
+  inviteCard: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+    gap: 14,
+  },
+  inviteTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  inviteLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 4 },
+  inviteCodeText: { fontSize: 26, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 4 },
+  inviteCountText: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 4 },
+  codeBtn: {
+    width: 40, height: 40, borderRadius: 10, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shareInviteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, borderRadius: 12,
+  },
+  shareInviteBtnText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
 })

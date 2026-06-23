@@ -18,6 +18,7 @@ import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import ClubCard from '../components/clubs/ClubCard'
 import { useBadgesStore } from '../store/badgesStore'
+import { useThemeStore } from '../store/themeStore'
 import type { Club } from '../lib/clubs'
 
 const CLUB_COLORS = [
@@ -74,12 +75,16 @@ export default function ClubsScreen() {
     }, [markSeen])
   )
 
-  useEffect(() => { loadClubs() }, [])
+  const feedMode = useThemeStore((s) => s.feedMode)
+  const activeUniversity = useThemeStore((s) => s.activeUniversity)
+  const uniId = feedMode === 'local' ? activeUniversity?.id : null
+
+  useEffect(() => { loadClubs() }, [feedMode, activeUniversity?.id])
 
   const loadClubs = async () => {
     setLoading(true)
     try {
-      const { data } = await getClubs()
+      const { data } = await getClubs({ universityId: uniId })
       const rawClubs = data ?? []
       const ids = rawClubs.map(c => c.id)
       const memberships = await getMyClubMemberships(ids)
@@ -97,7 +102,7 @@ export default function ClubsScreen() {
     }
   }
 
-  const onRefresh = useCallback(() => { setRefreshing(true); loadClubs() }, [])
+  const onRefresh = useCallback(() => { setRefreshing(true); loadClubs() }, [uniId])
 
   const handleCreate = async () => {
     if (!newName.trim()) {

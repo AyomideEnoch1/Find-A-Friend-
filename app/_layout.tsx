@@ -56,8 +56,38 @@ function AppStack() {
     } = supabase.auth.onAuthStateChange((_event, session) =>
       setSession(session),
     );
-    return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      useThemeStore.getState().setActiveUniversity(null);
+      return;
+    }
+    const loadUserUniversity = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("university_id")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (profile?.university_id) {
+          const { data: uni } = await supabase
+            .from("universities")
+            .select("*")
+            .eq("id", profile.university_id)
+            .maybeSingle();
+
+          if (uni) {
+            useThemeStore.getState().setActiveUniversity(uni);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load user university context:", err);
+      }
+    };
+    loadUserUniversity();
+  }, [session?.user?.id]);
 
   const { addNotification, loadUnreadCount } = useNotificationsStore();
   const { setOnlineUsers } = usePresenceStore();
@@ -268,22 +298,102 @@ function AppStack() {
         return;
       }
 
-      if (inAuth && segments[1] !== "onboarding") {
+      if (inAuth && segments[1] !== "onboarding" && segments[1] !== "complete-profile") {
+        // Step 1: Check if the profile record exists at all (simple id-only query, always works)
         supabase
           .from('profiles')
           .select('id')
           .eq('id', session.user.id)
           .maybeSingle()
-          .then(({ data }) => {
-            if (data) {
+          .then(({ data: profileExists, error: profileError }) => {
+            if (profileError) {
+              // Query failed unexpectedly — go to tabs as safe fallback
               router.replace("/(tabs)");
-            } else {
+              return;
+            }
+            if (!profileExists) {
+              // Genuinely no profile yet — new user needs onboarding
               router.replace("/(auth)/onboarding");
+              return;
+            }
+
+            // Step 2: Profile exists — now check gate columns (new columns, may not be cached yet)
+            supabase
+              .from('profiles')
+              .select('gender, university_id, forced_signout_at')
+              .eq('id', session.user.id)
+              .maybeSingle()
+              .then(({ data: gate, error: gateError }) => {
+                if (gateError || !gate) {
+                  // New columns not yet visible (PostgREST cache lag) — go to tabs safely
+                  router.replace("/(tabs)");
+                  return;
+                }
+
+                // Forced sign-out check — use expires_at - expires_in for session creation time
+                if (gate.forced_signout_at) {
+                  const expiresAt = (session as any).expires_at as number | undefined;
+                  const expiresIn = (session as any).expires_in as number | undefined;
+                  const sessionCreatedMs = expiresAt && expiresIn
+                    ? (expiresAt - expiresIn) * 1000
+                    : Date.now(); // If we can't determine, assume current (don't sign out)
+                  const forceTime = new Date(gate.forced_signout_at).getTime();
+                  if (sessionCreatedMs < forceTime) {
+                    supabase.auth.signOut().then(() => {
+                      Toast.show({ type: 'info', text1: '🔄 Please sign in again', text2: 'We\'ve updated the app. Please sign in to continue.' });
+                      router.replace("/(auth)/welcome");
+                    });
+                    return;
+                  }
+                }
+
+                // Gate: gender + university required
+                if (!gate.gender || !gate.university_id) {
+                  router.replace("/(auth)/complete-profile");
+                  return;
+                }
+
+                router.replace("/(tabs)");
+              });
+          });
+      }
+
+      if (!inAuth) {
+        // Already inside the app — silently check profile gate in background
+        supabase
+          .from('profiles')
+          .select('gender, university_id, forced_signout_at')
+          .eq('id', session.user.id)
+          .maybeSingle()
+          .then(({ data: gate, error: gateError }) => {
+            if (gateError || !gate) return; // Don't disturb user if columns not ready yet
+
+            // Forced sign-out check
+            if (gate.forced_signout_at) {
+              const expiresAt = (session as any).expires_at as number | undefined;
+              const expiresIn = (session as any).expires_in as number | undefined;
+              const sessionCreatedMs = expiresAt && expiresIn
+                ? (expiresAt - expiresIn) * 1000
+                : Date.now();
+              const forceTime = new Date(gate.forced_signout_at).getTime();
+              if (sessionCreatedMs < forceTime) {
+                supabase.auth.signOut().then(() => {
+                  Toast.show({ type: 'info', text1: '🔄 Please sign in again', text2: 'We\'ve updated the app. Please sign in to continue.' });
+                  router.replace("/(auth)/welcome");
+                });
+                return;
+              }
+            }
+
+            // Gate check
+            if (!gate.gender || !gate.university_id) {
+              router.replace("/(auth)/complete-profile");
             }
           });
       }
     }
   }, [session, segments, mounted, initialized]);
+
 
   useEffect(() => {
     // User tapped the notification
@@ -333,6 +443,7 @@ function AppStack() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
+        <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
         <Stack.Screen name="post/[id]" />
         <Stack.Screen name="create-post" />
         <Stack.Screen name="hashtag/[tag]" />

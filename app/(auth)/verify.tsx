@@ -246,7 +246,55 @@ export default function VerifyScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [code, setCode] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [selectedUni, setSelectedUni] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchUnis = async () => {
+      try {
+        const { data } = await supabase
+          .from("universities")
+          .select("*")
+          .order("name", { ascending: true });
+        if (data && data.length > 0) {
+          setUniversities(data);
+          setSelectedUni(data[0]);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch universities:", err);
+      }
+    };
+    fetchUnis();
+  }, []);
+
+  const getFilteredUnis = () => {
+    if (!email.trim()) return universities;
+    const parts = email.split('@');
+    if (parts.length < 2) return universities;
+    const domain = parts[1].toLowerCase().trim();
+    const matched = universities.filter(uni => uni.domain?.toLowerCase() === domain);
+    if (matched.length > 0) return matched;
+    return universities;
+  };
+
+  const filteredUnis = getFilteredUnis();
+
+  useEffect(() => {
+    if (universities.length > 0) {
+      const parts = email.split('@');
+      if (parts.length >= 2) {
+        const domain = parts[1].toLowerCase().trim();
+        const matched = universities.filter(uni => uni.domain?.toLowerCase() === domain);
+        if (matched.length > 0) {
+          if (!selectedUni || !matched.some(uni => uni.id === selectedUni.id)) {
+            setSelectedUni(matched[0]);
+          }
+        }
+      }
+    }
+  }, [email, universities, selectedUni]);
 
   useEffect(() => {
     if (initialMode === "signin" || initialMode === "signup") {
@@ -409,6 +457,19 @@ export default function VerifyScreen() {
     setLoading(true);
 
     if (mode === "signup") {
+      if (selectedUni) {
+        const domain = selectedUni.domain.toLowerCase();
+        if (!trimmedEmail.endsWith(`@${domain}`) && !trimmedEmail.endsWith(`.${domain}`)) {
+          Toast.show({
+            type: "error",
+            text1: "Invalid email domain",
+            text2: `Email must end with @${selectedUni.domain} for ${selectedUni.name}`,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
@@ -431,6 +492,12 @@ export default function VerifyScreen() {
           });
         }
         return;
+      }
+      if (selectedUni) {
+        await AsyncStorage.setItem('signup_university_id', selectedUni.id).catch(() => {});
+      }
+      if (inviteCode.trim()) {
+        await AsyncStorage.setItem('signup_invite_code', inviteCode.trim()).catch(() => {});
       }
       setLoading(false)
       Toast.show({ type: 'success', text1: 'Verify your email', text2: `Enter the code sent to ${trimmedEmail}` })
@@ -608,9 +675,51 @@ export default function VerifyScreen() {
               )}
 
               <View style={s.cardBody}>
+                {mode === 'signup' && filteredUnis.length > 0 && (
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={iv.label}>Select University</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {filteredUnis.map((uni) => {
+                        const isSelected = selectedUni?.id === uni.id;
+                        return (
+                          <TouchableOpacity
+                            key={uni.id}
+                            style={[
+                              {
+                                paddingHorizontal: 14,
+                                paddingVertical: 10,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: isSelected ? uni.primary_color : theme.border,
+                                backgroundColor: isSelected ? `${uni.primary_color}15` : theme.card,
+                              }
+                            ]}
+                            onPress={() => setSelectedUni(uni)}
+                          >
+                            <Text
+                              style={{
+                                color: isSelected ? theme.text : theme.textMuted,
+                                fontFamily: typography.fontSemiBold,
+                                fontSize: 13,
+                              }}
+                            >
+                              {uni.short_name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {selectedUni && (
+                      <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 6, fontFamily: typography.fontRegular }}>
+                        Requires email ending with: <Text style={{ color: theme.accent, fontFamily: typography.fontSemiBold }}>@{selectedUni.domain}</Text>
+                      </Text>
+                    )}
+                  </View>
+                )}
+
                 <AnimatedInput
                   label="University Email"
-                  placeholder="yourname@unilag.edu.ng"
+                  placeholder={selectedUni ? `yourname@${selectedUni.domain}` : "yourname@unilag.edu.ng"}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -652,6 +761,16 @@ export default function VerifyScreen() {
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     isPassword
+                  />
+                )}
+
+                {mode === 'signup' && (
+                  <AnimatedInput
+                    label="Invite Code (optional)"
+                    placeholder="Enter an invite code from a friend"
+                    value={inviteCode}
+                    onChangeText={(t) => setInviteCode(t.toUpperCase().trim())}
+                    autoCapitalize="characters"
                   />
                 )}
 

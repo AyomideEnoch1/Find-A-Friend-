@@ -180,25 +180,36 @@ export async function getMyVendor(): Promise<{
 // All active deals (across all approved vendors)
 // ---------------------------------------------------------------------------
 
-export async function getListings(category?: string): Promise<{
+export async function getListings(category?: string, universityId?: string | null): Promise<{
   data: VendorDeal[] | null
   error: Error | null
 }> {
   try {
     let vendorIds: string[] | null = null
 
-    if (category) {
-      // PostgREST cannot filter on embedded/joined columns via .eq() —
-      // resolve vendor IDs for the category first, then filter deals by those IDs.
-      const { data: vendorRows, error: vError } = await supabase
+    if (category || universityId) {
+      const selectFields = universityId
+        ? 'id, profiles!owner_id!inner(university_id)'
+        : 'id, profiles!owner_id(university_id)'
+
+      let vendorQuery = supabase
         .from('vendors')
-        .select('id')
+        .select(selectFields)
         .eq('is_approved', true)
         .eq('is_active', true)
-        .eq('category', category)
 
+      if (category) {
+        vendorQuery = vendorQuery.eq('category', category)
+      }
+
+      if (universityId) {
+        vendorQuery = vendorQuery.eq('profiles.university_id', universityId)
+      }
+
+      const { data: vendorRows, error: vError } = await vendorQuery
       if (vError) throw vError
-      vendorIds = (vendorRows ?? []).map((v: { id: string }) => v.id)
+
+      vendorIds = (vendorRows ?? []).map((v: any) => v.id)
       if (!vendorIds.length) return { data: [], error: null }
     }
 

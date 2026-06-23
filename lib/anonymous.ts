@@ -113,18 +113,27 @@ export async function createAnonymousPost(
  */
 export async function getAnonymousPosts(
   cursor?: string,
-  limit = 20
+  limit = 20,
+  universityId?: string | null
 ): Promise<{ data: AnonymousPost[] | null; error: Error | null }> {
   try {
+    const selectFields = universityId
+      ? 'id, body, tags, image_url, is_anonymous, post_type, likes_count, comments_count, author_id, created_at, profiles!author_id!inner(university_id)'
+      : 'id, body, tags, image_url, is_anonymous, post_type, likes_count, comments_count, author_id, created_at, profiles!author_id(university_id)'
+
     let query = supabase
       .from('posts')
-      .select('id, body, tags, image_url, is_anonymous, post_type, likes_count, comments_count, author_id, created_at')
+      .select(selectFields)
       .eq('is_anonymous', true)
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (cursor) {
       query = query.lt('created_at', cursor)
+    }
+
+    if (universityId) {
+      query = query.eq('profiles.university_id', universityId)
     }
 
     const { data, error } = await query

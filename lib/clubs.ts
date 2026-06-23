@@ -65,6 +65,7 @@ export interface ClubAnnouncement {
 export interface ClubFilters {
   category?: string
   search?: string
+  universityId?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -76,9 +77,14 @@ export async function getClubs(filters?: ClubFilters): Promise<{
   error: Error | null
 }> {
   try {
+    const selectFields = filters?.universityId
+      ? '*, profiles!created_by!inner(university_id)'
+      : '*, profiles!created_by(university_id)'
+
+    const fromTarget = filters?.universityId ? 'clubs' : 'global_clubs'
     let query = supabase
-      .from('clubs')
-      .select('*')
+      .from(fromTarget)
+      .select(selectFields)
       .eq('is_active', true)
       .order('member_count', { ascending: false })
 
@@ -88,6 +94,10 @@ export async function getClubs(filters?: ClubFilters): Promise<{
 
     if (filters?.search) {
       query = query.ilike('name', `%${filters.search}%`)
+    }
+
+    if (filters?.universityId) {
+      query = query.eq('profiles.university_id', filters.universityId)
     }
 
     const { data, error } = await query

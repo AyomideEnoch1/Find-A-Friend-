@@ -63,14 +63,18 @@ export default function OnboardingScreen() {
 
   let badgeType = 'guest'
   let badgeColor = '#ec4899'
+  let savedUniId = null
+  let savedInviteCode: string | null = null
   try {
     const wasVerifiedViaCode = await AsyncStorage.getItem('verified_via_code_' + user.username)
     if (wasVerifiedViaCode === 'true') {
       badgeType = 'verified'
       badgeColor = '#a78bfa'
     }
+    savedUniId = await AsyncStorage.getItem('signup_university_id')
+    savedInviteCode = await AsyncStorage.getItem('signup_invite_code')
   } catch (e) {
-    console.warn('Failed to read verified_via_code flag:', e)
+    console.warn('Failed to read flag or university id from storage:', e)
   }
 
   const { error } = await supabase
@@ -85,6 +89,8 @@ export default function OnboardingScreen() {
       interests,
       badge_type: badgeType,
       badge_color: badgeColor,
+      university_id: savedUniId,
+      ...(savedInviteCode ? { invited_by: savedInviteCode } : {}),
     })
 
   setLoading(false)

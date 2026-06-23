@@ -83,13 +83,41 @@ export default function PostCard({ post }: PostCardProps) {
   }
 
   const isAnon = post.is_anonymous;
-  const displayName = isAnon
+  const isGlobalPost = (post as any).posted_to_global_hub;
+  const rawName = isAnon
     ? "Anonymous"
-    : (post.profiles?.full_name ?? "User");
-  const handle = isAnon ? "@anonymous" : toHandle(post.profiles?.full_name);
+    : isGlobalPost
+      ? ((post.profiles as any)?.global_full_name || post.profiles?.full_name || "User")
+      : (post.profiles?.full_name ?? "User");
+  const displayName = rawName;
+  const handle = isAnon ? "@anonymous" : toHandle(rawName);
+
+  const rawAvatarUrl = isAnon
+    ? null
+    : isGlobalPost
+      ? ((post.profiles as any)?.global_avatar_url || post.profiles?.avatar_url)
+      : post.profiles?.avatar_url;
 
   const isRepost = !!(post.repost_of && post.original_post);
   const orig = post.original_post;
+  const isOrigGlobal = orig ? (orig as any).posted_to_global_hub : false;
+
+  const origName = orig
+    ? orig.is_anonymous
+      ? "Anonymous"
+      : isOrigGlobal
+        ? ((orig.profiles as any)?.global_full_name || orig.profiles?.full_name || "User")
+        : (orig.profiles?.full_name ?? "User")
+    : "User";
+
+  const origAvatarUrl = orig
+    ? orig.is_anonymous
+      ? null
+      : isOrigGlobal
+        ? ((orig.profiles as any)?.global_avatar_url || orig.profiles?.avatar_url)
+        : orig.profiles?.avatar_url
+    : null;
+
   let quoteText = post.body ?? "";
   if (isRepost && quoteText.startsWith("[Repost]")) {
     quoteText = "";
@@ -336,8 +364,14 @@ export default function PostCard({ post }: PostCardProps) {
     <Pressable
       style={[
         s.card,
-        { borderColor: theme.border, backgroundColor: theme.card },
-        theme.cardShadow,
+        isGlobalPost
+          ? {
+              borderColor: "rgba(124, 58, 237, 0.35)",
+              backgroundColor: "rgba(25, 10, 55, 0.5)",
+              borderWidth: 1.5,
+            }
+          : { borderColor: theme.border, backgroundColor: theme.card },
+        !isGlobalPost && theme.cardShadow,
       ]}
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
@@ -367,9 +401,9 @@ export default function PostCard({ post }: PostCardProps) {
               { borderColor: isAnon ? theme.border : theme.accentBorder },
             ]}
           >
-            {!isAnon && post.profiles?.avatar_url ? (
+            {!isAnon && rawAvatarUrl ? (
               <Image
-                source={{ uri: post.profiles.avatar_url }}
+                source={{ uri: rawAvatarUrl }}
                 style={s.avatar}
               />
             ) : (
@@ -384,7 +418,7 @@ export default function PostCard({ post }: PostCardProps) {
                   />
                 ) : (
                   <Text style={s.avatarText}>
-                    {getInitials(post.profiles?.full_name ?? "U")}
+                    {getInitials(rawName ?? "U")}
                   </Text>
                 )}
               </View>
@@ -410,6 +444,26 @@ export default function PostCard({ post }: PostCardProps) {
                     customColor={post.profiles?.badge_color}
                     size={14}
                   />
+                )}
+                {!isAnon && post.profiles?.universities && (
+                  <View
+                    style={[
+                      s.uniBadge,
+                      {
+                        backgroundColor: `${post.profiles.universities.primary_color}15`,
+                        borderColor: `${post.profiles.universities.primary_color}45`,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        s.uniBadgeText,
+                        { color: post.profiles.universities.primary_color },
+                      ]}
+                    >
+                      🏫 {post.profiles.universities.short_name}
+                    </Text>
+                  </View>
                 )}
                 {!isAnon &&
                   (!post.profiles?.badge_type ||
@@ -616,9 +670,9 @@ export default function PostCard({ post }: PostCardProps) {
                     },
                   ]}
                 >
-                  {!orig.is_anonymous && orig.profiles?.avatar_url ? (
+                  {!orig.is_anonymous && origAvatarUrl ? (
                     <Image
-                      source={{ uri: orig.profiles.avatar_url }}
+                      source={{ uri: origAvatarUrl }}
                       style={s.repostAvatar}
                     />
                   ) : (
@@ -638,7 +692,7 @@ export default function PostCard({ post }: PostCardProps) {
                         <Text
                           style={[s.repostAvatarText, { color: theme.accent }]}
                         >
-                          {getInitials(orig.profiles?.full_name ?? "U")}
+                          {getInitials(origName ?? "U")}
                         </Text>
                       )}
                     </View>
@@ -651,7 +705,7 @@ export default function PostCard({ post }: PostCardProps) {
                   >
                     {orig.is_anonymous
                       ? "Anonymous"
-                      : (orig.profiles?.full_name ?? "User")}
+                      : origName}
                   </Text>
                   <Text
                     style={[s.repostAuthorHandle, { color: theme.textMuted }]}
@@ -659,7 +713,7 @@ export default function PostCard({ post }: PostCardProps) {
                   >
                     {orig.is_anonymous
                       ? "@anonymous"
-                      : toHandle(orig.profiles?.full_name)}
+                      : toHandle(origName)}
                   </Text>
                   <Text
                     style={[s.repostAuthorHandle, { color: theme.textFaint }]}
@@ -985,6 +1039,17 @@ const s = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     marginTop: 6,
+  },
+  uniBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    marginLeft: 4,
+  },
+  uniBadgeText: {
+    fontSize: 10,
+    fontFamily: typography.fontSemiBold,
   },
 });
 

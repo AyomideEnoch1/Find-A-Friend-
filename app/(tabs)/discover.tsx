@@ -30,6 +30,7 @@ import { showTabBar } from "../../lib/tabBarAnim";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useBadgesStore } from "../../store/badgesStore";
+import { useThemeStore } from "../../store/themeStore";
 
 export default function DiscoverScreen() {
   const [deck, setDeck] = useState<FollowProfile[]>([]);
@@ -51,6 +52,7 @@ export default function DiscoverScreen() {
 
   const theme = useTheme();
   const markSeen = useBadgesStore((s) => s.markSeen);
+  const { activeUniversity, feedMode } = useThemeStore();
 
   const scrollX = new Animated.Value(0);
 
@@ -139,6 +141,9 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     loadData();
+  }, [feedMode, activeUniversity?.id]);
+
+  useEffect(() => {
     getLikesCounts().then(setLikesCount);
 
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -231,10 +236,11 @@ export default function DiscoverScreen() {
     }
 
     try {
+      const uniId = feedMode === 'local' ? activeUniversity?.id : null;
       const [usersRes, trendingRes, topRes] = await Promise.all([
-        getSuggestedUsers(),
+        getSuggestedUsers(uniId),
         getTrending(),
-        getMostFollowedUsers(),
+        getMostFollowedUsers(uniId),
       ]);
       const usersList = usersRes.data ?? [];
       setDeck(usersList);
@@ -403,6 +409,8 @@ export default function DiscoverScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+
 
       {/* Search Bar */}
       <View
@@ -738,5 +746,22 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 20,
     fontWeight: "bold",
+  },
+  toggleTrack: {
+    flexDirection: "row",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 3,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 11,
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontFamily: typography.fontSemiBold,
   },
 });
