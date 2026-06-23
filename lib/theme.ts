@@ -94,7 +94,7 @@ export const DARKER = {
   accentSecondary: "#6366f1",
   accentBg: "rgba(167,139,250,0.12)",
   accentBorder: "rgba(167,139,250,0.35)",
-  accentGlow: "rgba(167,139,250,0.2)",
+  accentGlow: "rgba(167,139,250,0.25)",
   cyan: "#22d3ee",
   danger: "#ef4444",
   success: "#34d399",
@@ -105,6 +105,37 @@ export const DARKER = {
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 12,
+    elevation: 8,
+  },
+};
+
+// Premium cosmic/galactic dark mode theme specifically for the Global Hub
+export const COSMIC_THEME = {
+  bg: "#06060f", // Deep space black
+  card: "rgba(25, 10, 55, 0.45)", // Deep violet/dark glassmorphic card
+  cardSolid: "#0f0b25",
+  card2: "#191238",
+  text: "#f5f3ff", // Near white violet
+  textMuted: "rgba(207, 198, 245, 0.7)",
+  textFaint: "rgba(207, 198, 245, 0.3)",
+  border: "rgba(167, 139, 250, 0.25)",
+  border2: "rgba(167, 139, 250, 0.12)",
+  borderAccent: "rgba(167, 139, 250, 0.45)",
+  accent: "#c084fc", // Radiant violet/neon purple
+  accentSecondary: "#818cf8", // Neon indigo/blue
+  accentBg: "rgba(167, 139, 250, 0.15)",
+  accentBorder: "rgba(167, 139, 250, 0.35)",
+  accentGlow: "rgba(192, 132, 252, 0.35)",
+  cyan: "#22d3ee",
+  danger: "#ef4444",
+  success: "#34d399",
+  statusBar: "light" as const,
+  dark: true,
+  cardShadow: {
+    shadowColor: "#c084fc",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
     elevation: 8,
   },
 };
@@ -152,5 +183,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme(): ThemeColors {
-  return useContext(ThemeContext);
+  const theme = useContext(ThemeContext);
+  const { activeUniversity, feedMode } = useThemeStore();
+
+  if (feedMode === 'global') {
+    return COSMIC_THEME;
+  }
+
+  if (activeUniversity) {
+    return {
+      ...theme,
+      accent: activeUniversity.primary_color,
+      accentSecondary: activeUniversity.secondary_color,
+      accentBg: `${activeUniversity.primary_color}1a`, // Translucent background
+      accentBorder: `${activeUniversity.primary_color}4d`,
+      accentGlow: `${activeUniversity.primary_color}2b`,
+    };
+  }
+
+  return theme;
 }

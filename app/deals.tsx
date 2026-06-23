@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../lib/theme";
+import { useThemeStore } from "../store/themeStore";
 import { typography } from "../lib/typography";
 import {
   getListings,
@@ -63,13 +64,17 @@ export default function DealsScreen() {
   const [search, setSearch] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  const feedMode = useThemeStore((s) => s.feedMode);
+  const activeUniversity = useThemeStore((s) => s.activeUniversity);
+  const uniId = feedMode === 'local' ? activeUniversity?.id : null;
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
       const [dealsRes, savedSet] = await Promise.all([
-        getListings(),
+        getListings(undefined, uniId),
         getMySavedDealIds(),
       ]);
       setDeals(dealsRes.data ?? []);
@@ -80,11 +85,11 @@ export default function DealsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [uniId]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, feedMode, activeUniversity?.id]);
 
   const handleToggleSave = async (deal: VendorDeal) => {
     if (savingId) return;

@@ -18,6 +18,7 @@ import {
   deletePost as deletePostApi,
 } from '../lib/feed'
 import type { FeedPost } from '../lib/feed'
+import { useThemeStore } from './themeStore'
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -33,6 +34,7 @@ interface FeedState {
   bookmarkedPostIds: Set<string>
   activeTab: 'forYou' | 'following'
   error: string | null
+  feedMode: 'local' | 'global'
 
   loadFeed: () => Promise<void>
   refresh: () => Promise<void>
@@ -40,6 +42,7 @@ interface FeedState {
   toggleLike: (postId: string) => Promise<void>
   toggleBookmark: (postId: string) => Promise<void>
   setTab: (tab: 'forYou' | 'following') => Promise<void>
+  setFeedMode: (mode: 'local' | 'global') => Promise<void>
   prependPost: (post: FeedPost) => void
   removePost: (postId: string) => void
   incrementCommentCount: (postId: string) => void
@@ -60,6 +63,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   likedPostIds: new Set(),
   bookmarkedPostIds: new Set(),
   activeTab: 'forYou',
+  feedMode: 'local',
   error: null,
 
   // -------------------------------------------------------------------------
@@ -71,8 +75,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
 
     try {
       const { activeTab } = get()
-      const fetcher = activeTab === 'following' ? getFollowingFeed : getFeed
-      const { data, error } = await fetcher(undefined, 20)
+      const feedMode = useThemeStore.getState().feedMode
+      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const { data, error } = activeTab === 'following'
+        ? await getFollowingFeed(undefined, 20, uniId)
+        : await getFeed(undefined, 20, uniId)
       if (error) throw error
 
       const posts = data ?? []
@@ -109,8 +116,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
 
     try {
       const { activeTab } = get()
-      const fetcher = activeTab === 'following' ? getFollowingFeed : getFeed
-      const { data, error } = await fetcher(undefined, 20)
+      const feedMode = useThemeStore.getState().feedMode
+      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const { data, error } = activeTab === 'following'
+        ? await getFollowingFeed(undefined, 20, uniId)
+        : await getFeed(undefined, 20, uniId)
       if (error) throw error
 
       const posts = data ?? []
@@ -150,8 +160,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
 
     try {
       const { activeTab } = get()
-      const fetcher = activeTab === 'following' ? getFollowingFeed : getFeed
-      const { data, error } = await fetcher(cursor, 20)
+      const feedMode = useThemeStore.getState().feedMode
+      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const { data, error } = activeTab === 'following'
+        ? await getFollowingFeed(cursor, 20, uniId)
+        : await getFeed(cursor, 20, uniId)
       if (error) throw error
 
       const newPosts = data ?? []
@@ -312,6 +325,13 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   setTab: async (tab: 'forYou' | 'following') => {
     if (get().activeTab === tab) return
     set({ activeTab: tab, posts: [], cursor: null, hasMore: true })
+    await get().loadFeed()
+  },
+
+  setFeedMode: async (mode: 'local' | 'global') => {
+    if (useThemeStore.getState().feedMode === mode) return
+    useThemeStore.getState().setFeedMode(mode)
+    set({ posts: [], cursor: null, hasMore: true })
     await get().loadFeed()
   },
 

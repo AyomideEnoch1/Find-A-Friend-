@@ -21,6 +21,9 @@ import NeuralBackground from '../components/NeuralBackground'
 import ScreenLoader from '../components/ScreenLoader'
 import PostCard from '../components/feed/PostCard'
 import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
+import Toast from 'react-native-toast-message'
+import { useThemeStore } from '../store/themeStore'
+import { useFeedStore } from '../store/feedStore'
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name']
 type ProfileTab = 'posts' | 'bookmarks'
@@ -51,6 +54,20 @@ export default function ProfileScreen() {
   const [fullName, setFullName] = useState('')
   const [bio,      setBio]      = useState('')
   const [interests, setInterests] = useState<string[]>([])
+  const [universities, setUniversities] = useState<any[]>([])
+
+  const activeUniversity = useThemeStore((s) => s.activeUniversity)
+  const setActiveUniversity = useThemeStore((s) => s.setActiveUniversity)
+
+  useEffect(() => {
+    supabase
+      .from('universities')
+      .select('*')
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (data) setUniversities(data)
+      })
+  }, [])
 
   const [activeTab,  setActiveTab]  = useState<ProfileTab>('posts')
   const [userPosts,  setUserPosts]  = useState<FeedPost[]>([])
@@ -262,6 +279,50 @@ export default function ProfileScreen() {
             {profile?.bio ? (
               <Text style={[s.profileBio, { color: theme.textMuted }]}>{profile.bio}</Text>
             ) : null}
+
+            {profile && universities.length > 0 && (
+              <View style={{ marginTop: 14, alignItems: 'center', width: '100%' }}>
+                <Text style={{ fontSize: 11, fontFamily: typography.fontSemiBold, textTransform: 'uppercase', color: theme.accent, letterSpacing: 0.8, marginBottom: 8 }}>
+                  Select / Switch Active Campus
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                  {universities.map((uni) => {
+                    const isSelected = activeUniversity?.id === uni.id;
+                    return (
+                      <TouchableOpacity
+                        key={uni.id}
+                        onPress={async () => {
+                          setActiveUniversity(uni);
+                          await supabase
+                            .from('profiles')
+                            .update({ university_id: uni.id })
+                            .eq('id', profile.id);
+                          useFeedStore.getState().refresh();
+                          loadAll();
+                          Toast.show({
+                            type: 'success',
+                            text1: 'Campus Switched',
+                            text2: `Branding active for ${uni.name}`,
+                          });
+                        }}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 7,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: isSelected ? uni.primary_color : theme.border,
+                          backgroundColor: isSelected ? `${uni.primary_color}18` : theme.cardSolid,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontFamily: typography.fontSemiBold, color: isSelected ? theme.text : theme.textMuted }}>
+                          {uni.short_name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>

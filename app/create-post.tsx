@@ -28,6 +28,7 @@ import { uploadFile } from '../lib/upload'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
 import { useFeedStore } from '../store/feedStore'
+import { useThemeStore } from '../store/themeStore'
 import { typography } from '../lib/typography'
 
 
@@ -130,12 +131,14 @@ export default function CreatePostScreen() {
         }
       }
 
+      const isGlobal = useThemeStore.getState().feedMode === 'global'
       const { error } = await createPost({
         body: trimmed,
         imageUrl,
         postType: postType === 'academic' ? 'academic' : postType === 'club' ? 'club' : 'feed',
         clubId: postType === 'club' ? selectedClub?.id : null,
         isAnonymous: false,
+        postedToGlobalHub: isGlobal,
       })
       if (error) throw error
       

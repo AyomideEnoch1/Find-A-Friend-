@@ -21,6 +21,15 @@ export interface FeedAuthor {
   role?: string | null
   badge_type?: string | null
   badge_color?: string | null
+  university_id?: string | null
+  universities?: {
+    id: string
+    name: string
+    short_name: string
+    primary_color: string
+    secondary_color: string
+    logo_url: string | null
+  } | null
 }
 
 export interface FeedPost {
@@ -75,6 +84,7 @@ export interface CreatePostPayload {
   clubId?: string | null
   studyGroupId?: string | null
   postType?: 'feed' | 'anonymous' | 'club' | 'academic'
+  postedToGlobalHub?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +92,7 @@ export interface CreatePostPayload {
 // ---------------------------------------------------------------------------
 
 const POST_SELECT =
-  '*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color), post_likes(count), post_comments(count), reposts(count))'
+  '*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count))'
 
 function toFeedPost(raw: any): FeedPost {
   if (!raw) return raw
@@ -112,20 +122,33 @@ function toFeedPost(raw: any): FeedPost {
  * @param cursor ISO timestamp — returns posts created before this time
  * @param limit  Number of posts to return (default 20)
  */
-export async function getFeed(cursor?: string, limit = 20): Promise<{
+export async function getFeed(cursor?: string, limit = 20, universityId?: string | null): Promise<{
   data: FeedPost[] | null
   error: Error | null
 }> {
   try {
+    let selectString = POST_SELECT
+    if (universityId) {
+      // Use inner join on profiles to filter out posts whose author is not from the specified university
+      selectString = POST_SELECT.replace('profiles!author_id', 'profiles!author_id!inner')
+    }
+
     let query = supabase
       .from('posts')
-      .select(POST_SELECT)
+      .select(selectString)
       .eq('is_anonymous', false)
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (cursor) {
       query = query.lt('created_at', cursor)
+    }
+
+    if (universityId) {
+      query = query.eq('profiles.university_id', universityId)
+                   .eq('posted_to_global_hub', false)
+    } else {
+      query = query.eq('posted_to_global_hub', true)
     }
 
     const { data, error } = await query
@@ -162,6 +185,7 @@ export async function createPost(payload: CreatePostPayload): Promise<{
         post_type: postType,
         club_id: payload.clubId ?? null,
         study_group_id: payload.studyGroupId ?? null,
+        posted_to_global_hub: payload.postedToGlobalHub ?? false,
       })
       .select()
       .single()
@@ -549,7 +573,8 @@ export async function getMyBookmarkedPostIds(postIds: string[]): Promise<string[
 
 export async function getFollowingFeed(
   cursor?: string,
-  limit = 20
+  limit = 20,
+  universityId?: string | null
 ): Promise<{ data: FeedPost[] | null; error: Error | null }> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -566,15 +591,27 @@ export async function getFollowingFeed(
 
     if (!followingIds.length) return { data: [], error: null }
 
+    let selectString = POST_SELECT
+    if (universityId) {
+      selectString = POST_SELECT.replace('profiles!author_id', 'profiles!author_id!inner')
+    }
+
     let query = supabase
       .from('posts')
-      .select(POST_SELECT)
+      .select(selectString)
       .in('author_id', followingIds)
       .eq('is_anonymous', false)
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (cursor) query = query.lt('created_at', cursor)
+
+    if (universityId) {
+      query = query.eq('profiles.university_id', universityId)
+                   .eq('posted_to_global_hub', false)
+    } else {
+      query = query.eq('posted_to_global_hub', true)
+    }
 
     const { data, error } = await query
     if (error) throw error

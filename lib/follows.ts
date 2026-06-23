@@ -195,7 +195,7 @@ export async function getFollowing(userId: string): Promise<{
  * 2. Score by shared interests (via profiles.interests array overlap).
  * 3. Return top 20.
  */
-export async function getSuggestedUsers(): Promise<{
+export async function getSuggestedUsers(universityId?: string | null): Promise<{
   data: FollowProfile[] | null;
   error: Error | null;
 }> {
@@ -217,15 +217,20 @@ export async function getSuggestedUsers(): Promise<{
     // Fetch candidates — always exclude at least the current user
     const excludeIds = [user.id, ...alreadyFollowingIds];
 
+    const fromTarget = universityId ? "profiles" : "global_profiles";
     let candidateQuery = supabase
-      .from("profiles")
+      .from(fromTarget)
       .select(
-        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, role, badge_type, badge_color",
+        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, role, badge_type, badge_color, university_id",
       )
       .limit(500) // fetch up to 500 so all users are visible
       .neq("id", user.id) // always exclude self
       .neq("full_name", "")
       .not("full_name", "is", null);
+
+    if (universityId) {
+      candidateQuery = candidateQuery.eq("university_id", universityId);
+    }
 
     // Exclude already-followed users one-by-one
     for (const id of alreadyFollowingIds) {
@@ -293,16 +298,23 @@ export async function getUserProfile(userId: string): Promise<{
 // Get the top 10 folowers in the database
 // =======================================
 
-export const getMostFollowedUsers = async (): Promise<{
+export const getMostFollowedUsers = async (universityId?: string | null): Promise<{
   data: FollowProfile[] | null;
   error: Error | null;
 }> => {
   try {
-    const { data, error } = await supabase
-      .from("profiles")
+    const fromTarget = universityId ? "profiles" : "global_profiles";
+    let query = supabase
+      .from(fromTarget)
       .select(
-        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color",
-      )
+        "id, full_name, department, level, avatar_url, follower_count, following_count, interests, badge_type, badge_color, university_id",
+      );
+
+    if (universityId) {
+      query = query.eq("university_id", universityId);
+    }
+
+    const { data, error } = await query
       .order("follower_count", { ascending: false })
       .limit(10);
 
