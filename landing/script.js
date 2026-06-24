@@ -745,7 +745,7 @@ const showLaunchpadModal = (email = "") => {
                         </h4>
                         <p style="font-size: 0.8rem; color: var(--text-secondary);">Download the FAF Android APK directly to install the native app on your phone.</p>
                     </div>
-                    <a href="https://expo.dev/accounts/ayomide_enoch/projects/faf/builds/0ce928e8-f342-48f3-9956-c55faeb363b2" download class="btn-premium" style="text-decoration: none; padding: 0.6rem 1.2rem; font-size: 0.8rem; background: var(--gradient-2);">
+                    <a href="https://expo.dev/artifacts/eas/VWucud_TftcJQWZVGKTPpW5LxINq6AT3DObq6xAmLZY.apk" download class="btn-premium" style="text-decoration: none; padding: 0.6rem 1.2rem; font-size: 0.8rem; background: var(--gradient-2);">
                         <span>Download APK</span>
                     </a>
                 </div>
