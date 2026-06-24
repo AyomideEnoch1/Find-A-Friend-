@@ -34,6 +34,26 @@ export interface Profile {
   current_streak?: number
   longest_streak?: number
   last_active_date?: string | null
+  university_id?: string | null
+  universities?: {
+    id: string
+    name: string
+    short_name: string
+    primary_color: string
+    secondary_color: string
+    logo_url: string | null
+  } | null
+  gender?: string | null
+  id_card_url?: string | null
+  id_card_status?: 'not_uploaded' | 'pending' | 'verified' | 'rejected' | null
+  invite_code?: string | null
+  invited_by?: string | null
+  forced_signout_at?: string | null
+  joined_global_hub?: boolean
+  global_full_name?: string | null
+  global_bio?: string | null
+  global_avatar_url?: string | null
+  global_interests?: string[] | null
 }
 
 export interface ProfileStats {
@@ -54,7 +74,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, universities(*)')
     .eq('id', user.id)
     .single()
 
@@ -73,6 +93,15 @@ export async function updateProfile(updates: {
   interests?: string[]
   avatar_url?: string
   cover_url?: string | null
+  university_id?: string | null
+  gender?: string | null
+  id_card_url?: string | null
+  id_card_status?: 'not_uploaded' | 'pending' | 'verified' | 'rejected'
+  joined_global_hub?: boolean
+  global_full_name?: string | null
+  global_bio?: string | null
+  global_avatar_url?: string | null
+  global_interests?: string[] | null
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not logged in' }
@@ -89,14 +118,21 @@ export async function updateProfile(updates: {
 // Profiles list
 // ---------------------------------------------------------------------------
 
-export async function getAllProfiles() {
+export async function getAllProfiles(universityId?: string | null, globalHubOnly?: boolean) {
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, department, level, interests, avatar_url, follower_count, following_count, badge_type, badge_color')
+  const fromTarget = globalHubOnly ? 'global_profiles' : 'profiles'
+  let query = supabase
+    .from(fromTarget)
+    .select('id, full_name, department, level, interests, avatar_url, follower_count, following_count, badge_type, badge_color, university_id, universities(*)')
     .neq('id', user?.id ?? '')
     .limit(20)
+
+  if (!globalHubOnly && universityId) {
+    query = query.eq('university_id', universityId)
+  }
+
+  const { data, error } = await query
 
   if (error) return []
   return data ?? []
@@ -105,7 +141,7 @@ export async function getAllProfiles() {
 export async function getProfileById(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, universities(*)')
     .eq('id', userId)
     .single()
 

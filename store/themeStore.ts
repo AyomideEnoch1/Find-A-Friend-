@@ -10,12 +10,25 @@ interface ThemeState {
   setMode: (mode: ThemeMode) => void
   toggleTheme: () => void
   hydrate: () => Promise<void>
+  activeUniversity: {
+    id: string
+    name: string
+    short_name: string
+    primary_color: string
+    secondary_color: string
+    logo_url: string | null
+  } | null
+  setActiveUniversity: (uni: any) => void
+  feedMode: 'local' | 'global'
+  setFeedMode: (mode: 'local' | 'global') => void
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: 'light',
   isDarker: false,
   hydrated: false,
+  activeUniversity: null,
+  feedMode: 'local',
 
   hydrate: async () => {
     if (get().hydrated) return
@@ -27,7 +40,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     else if (stored === 'darker') mode = 'darker'
     else if (stored === 'dark') mode = 'dark'
     else if (legacyDark !== null) mode = 'dark' // migrate old users to dark
-    set({ mode, isDarker: mode === 'darker', hydrated: true })
+    
+    const storedUni = await AsyncStorage.getItem('activeUniversity').catch(() => null)
+    const activeUniversity = storedUni ? JSON.parse(storedUni) : null
+
+    set({ mode, isDarker: mode === 'darker', hydrated: true, activeUniversity })
   },
 
   setMode: (mode: ThemeMode) => {
@@ -43,5 +60,18 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     else if (current === 'darker') next = 'light'
     AsyncStorage.setItem('themeMode', next).catch(() => {})
     set({ mode: next, isDarker: next === 'darker' })
+  },
+
+  setActiveUniversity: (uni: any) => {
+    if (uni) {
+      AsyncStorage.setItem('activeUniversity', JSON.stringify(uni)).catch(() => {})
+    } else {
+      AsyncStorage.removeItem('activeUniversity').catch(() => {})
+    }
+    set({ activeUniversity: uni })
+  },
+
+  setFeedMode: (mode: 'local' | 'global') => {
+    set({ feedMode: mode })
   },
 }))

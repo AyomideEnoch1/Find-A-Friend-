@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase'
 import { getInitials, getTimeAgo } from '../../lib/matching'
 import { getAllProfiles } from '../../lib/profiles'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { useThemeStore } from '../../store/themeStore'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { usePresenceStore } from '../../store/presenceStore'
@@ -284,6 +285,7 @@ export default function ChatScreen() {
   const [convSearch, setConvSearch] = useState('')
   const [streakMap, setStreakMap] = useState<Record<string, { streak_count: number; at_risk: boolean }>>({})
   const theme = useTheme()
+  const { activeUniversity, feedMode } = useThemeStore()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
   const markSeen = useBadgesStore(s => s.markSeen)
 
@@ -305,14 +307,32 @@ export default function ChatScreen() {
           conversation_id,
           conversations(
             id, name, is_group, created_at,
-            conversation_participants(user_id, profiles(id, full_name, avatar_url))
+            conversation_participants(user_id, profiles(id, full_name, avatar_url, university_id, joined_global_hub))
           )
         `)
         .eq('user_id', authUser.id)
 
       if (!data?.length) { setConversations([]); setLoading(false); return }
 
-      const convIds = data.map((d: any) => d.conversation_id)
+      // Filter conversations list by active university (local) or global hub membership (global)
+      let filteredData = data
+      if (feedMode === 'local' && activeUniversity?.id) {
+        filteredData = filteredData.filter((d: any) => {
+          const parts = d.conversations?.conversation_participants ?? []
+          const other = parts.find((p: any) => p.user_id !== authUser.id)
+          return other?.profiles?.university_id === activeUniversity.id
+        })
+      } else if (feedMode === 'global') {
+        filteredData = filteredData.filter((d: any) => {
+          const parts = d.conversations?.conversation_participants ?? []
+          const other = parts.find((p: any) => p.user_id !== authUser.id)
+          return other?.profiles?.joined_global_hub === true
+        })
+      }
+
+      const convIds = filteredData.map((d: any) => d.conversation_id)
+      if (!convIds.length) { setConversations([]); setLoading(false); return }
+
       const { data: msgs } = await supabase
         .from('messages')
         .select('conversation_id, body, created_at, sender_id, is_read')
@@ -328,7 +348,7 @@ export default function ChatScreen() {
         }
       })
 
-      const enriched = data
+      const enriched = filteredData
         .map((d: any) => ({
           ...d,
           lastMessage: lastMsgMap[d.conversation_id] ?? null,
@@ -371,7 +391,7 @@ export default function ChatScreen() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [feedMode, activeUniversity?.id])
 
   useEffect(() => {
     loadConversations()
@@ -423,7 +443,10 @@ export default function ChatScreen() {
   }
 
   const openNewChat = async () => {
-    const users = await getAllProfiles()
+    const users = await getAllProfiles(
+      feedMode === 'local' ? activeUniversity?.id : null,
+      feedMode === 'global'
+    )
     setAllUsers(users)
     setShowNewChat(true)
   }

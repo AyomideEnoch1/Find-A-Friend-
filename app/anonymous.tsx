@@ -21,6 +21,7 @@ import { useBadgesStore } from '../store/badgesStore'
 import { getCurrentProfile } from '../lib/profiles'
 import type { Profile } from '../lib/profiles'
 import { supabase } from '../lib/supabase'
+import { useThemeStore } from '../store/themeStore'
 import type { Event } from '../lib/events'
 
 export default function AnonymousScreen() {
@@ -37,6 +38,9 @@ export default function AnonymousScreen() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [boardStatus, setBoardStatus] = useState<'open' | 'closed'>('open')
   const [linkedEvents, setLinkedEvents] = useState<Event[]>([])
+  const feedMode = useThemeStore((s) => s.feedMode)
+  const activeUniversity = useThemeStore((s) => s.activeUniversity)
+  const uniId = feedMode === 'local' ? activeUniversity?.id : null
 
   const loadProfileAndStatus = async () => {
     try {
@@ -77,7 +81,7 @@ export default function AnonymousScreen() {
   const loadPosts = async () => {
     setLoading(true)
     try {
-      const { data } = await getAnonymousPosts(undefined, 20)
+      const { data } = await getAnonymousPosts(undefined, 20, uniId)
       const results = data ?? []
       setPosts(results)
       setCursor(results.length > 0 ? results[results.length - 1].created_at : undefined)
@@ -113,13 +117,13 @@ export default function AnonymousScreen() {
       // ignore
     }
 
-    const { data } = await getAnonymousPosts(undefined, 20)
+    const { data } = await getAnonymousPosts(undefined, 20, uniId)
     const results = data ?? []
     setPosts(results)
     setCursor(results.length > 0 ? results[results.length - 1].created_at : undefined)
     setHasMore(results.length === 20)
     setRefreshing(false)
-  }, [])
+  }, [uniId])
 
   useEffect(() => {
     loadProfileAndStatus()
@@ -128,12 +132,12 @@ export default function AnonymousScreen() {
       onRefresh()
     })
     return () => sub.remove()
-  }, [onRefresh])
+  }, [onRefresh, feedMode, activeUniversity?.id])
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || !cursor) return
     setLoadingMore(true)
-    const { data } = await getAnonymousPosts(cursor, 20)
+    const { data } = await getAnonymousPosts(cursor, 20, uniId)
     const results = data ?? []
     setPosts(prev => [...prev, ...results])
     setCursor(results.length > 0 ? results[results.length - 1].created_at : cursor)

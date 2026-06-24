@@ -112,19 +112,28 @@ export interface EventFilters {
 export async function getEvents(
   filters?: EventFilters,
   cursor?: string,
-  limit = 20
+  limit = 20,
+  universityId?: string | null
 ): Promise<{ data: Event[] | null; error: Error | null }> {
   try {
+    let selectString = `
+      *,
+      clubs(id, name, color),
+      profiles!organizer_id(id, full_name, avatar_url, university_id, joined_global_hub)
+    `
+    selectString = selectString.replace('profiles!organizer_id', 'profiles!organizer_id!inner')
+
+    const fromTarget = universityId ? 'events' : 'global_events'
     let query = supabase
-      .from('events')
-      .select(`
-        *,
-        clubs(id, name, color),
-        profiles!organizer_id(id, full_name, avatar_url)
-      `)
+      .from(fromTarget)
+      .select(selectString)
       .eq('is_public', true)
       .order('starts_at', { ascending: true })
       .limit(limit)
+
+    if (universityId) {
+      query = query.eq('profiles.university_id', universityId)
+    }
 
     // Default: only upcoming events
     if (filters?.upcoming !== false) {
@@ -156,7 +165,7 @@ export async function getEvents(
 
     const { data, error } = await query
     if (error) throw error
-    return { data: data as Event[], error: null }
+    return { data: data as any as Event[], error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

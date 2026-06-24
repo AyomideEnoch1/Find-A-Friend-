@@ -15,6 +15,7 @@ import { typography } from '../../lib/typography'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import { showTabBar } from '../../lib/tabBarAnim'
 import { useBadgesStore } from '../../store/badgesStore'
+import { useThemeStore } from '../../store/themeStore'
 import type { Event } from '../../lib/events'
 import { supabase } from '../../lib/supabase'
 
@@ -77,6 +78,7 @@ export default function EventsScreen() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const theme = useTheme()
+  const { activeUniversity, feedMode } = useThemeStore()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
   const markSeen = useBadgesStore(s => s.markSeen)
 
@@ -84,7 +86,7 @@ export default function EventsScreen() {
     useCallback(() => {
       markSeen('events')
       loadTab(activeTab)
-    }, [activeTab, markSeen])
+    }, [activeTab, markSeen, feedMode, activeUniversity?.id])
   )
 
   useEffect(() => {
@@ -169,8 +171,9 @@ export default function EventsScreen() {
         console.warn('Failed to pre-fetch my RSVPs:', err)
       }
 
+      const uniId = feedMode === 'local' ? activeUniversity?.id : null
       if (tab === 'upcoming') {
-        const { data, error: err } = await getEvents({ upcoming: true })
+        const { data, error: err } = await getEvents({ upcoming: true }, undefined, 20, uniId)
         if (err) throw err
         const mapped = (data ?? []).map(e => ({
           ...e,
@@ -178,7 +181,7 @@ export default function EventsScreen() {
         }))
         setEvents(mapped)
       } else if (tab === 'past') {
-        const { data, error: err } = await getEvents({ upcoming: false })
+        const { data, error: err } = await getEvents({ upcoming: false }, undefined, 20, uniId)
         if (err) throw err
         const now = new Date().toISOString()
         const filtered = (data ?? []).filter(e => e.starts_at < now)

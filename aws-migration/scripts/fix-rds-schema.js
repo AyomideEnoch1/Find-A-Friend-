@@ -113,6 +113,252 @@ exports.handler = async function(event, context) {
               EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
             );
         `
+      },
+      {
+        label: 'Create universities table and RLS policies',
+        sql: `
+          CREATE TABLE IF NOT EXISTS public.universities (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name TEXT NOT NULL,
+            domain TEXT NOT NULL UNIQUE,
+            short_name TEXT NOT NULL UNIQUE,
+            primary_color TEXT NOT NULL,
+            secondary_color TEXT NOT NULL,
+            logo_url TEXT,
+            created_at TIMESTAMPTZ DEFAULT now()
+          );
+
+          ALTER TABLE public.universities ENABLE ROW LEVEL SECURITY;
+
+          DROP POLICY IF EXISTS "Allow public read access on universities" ON public.universities;
+          CREATE POLICY "Allow public read access on universities" 
+            ON public.universities FOR SELECT 
+            TO authenticated 
+            USING (true);
+        `
+      },
+      {
+        label: 'Add university_id to profiles',
+        sql: `
+          ALTER TABLE public.profiles 
+            ADD COLUMN IF NOT EXISTS university_id UUID REFERENCES public.universities(id);
+        `
+      },
+      {
+        label: 'Seed initial universities',
+        sql: `
+          INSERT INTO public.universities (name, domain, short_name, primary_color, secondary_color)
+          VALUES 
+            ('University of Lagos', 'unilag.edu.ng', 'UNILAG', '#002244', '#FFD700'),
+            ('University of Ibadan', 'ui.edu.ng', 'UI', '#004B49', '#FFD700'),
+            ('FAF Campus Demo', 'fafcampus.site', 'FAF Demo', '#8b5cf6', '#6366f1'),
+            ('Redeemer''s University', 'run.edu.ng', 'RUN', '#0a2f5c', '#e5b73b')
+          ON CONFLICT (domain) DO NOTHING;
+        `
+      },
+      {
+        label: 'Reload PostgREST schema cache',
+        sql: `NOTIFY pgrst, 'reload schema';`
+      },
+      {
+        label: 'Add gender column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gender TEXT;`
+      },
+      {
+        label: 'Add id_card_url column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_card_url TEXT;`
+      },
+      {
+        label: 'Add id_card_status column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_card_status TEXT DEFAULT 'not_uploaded';`
+      },
+      {
+        label: 'Add invite_code column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS invite_code TEXT UNIQUE;`
+      },
+      {
+        label: 'Add invited_by column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS invited_by TEXT;`
+      },
+      {
+        label: 'Add forced_signout_at column to profiles',
+        sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS forced_signout_at TIMESTAMPTZ;`
+      },
+      {
+        label: 'Create invite_code auto-generate function',
+        sql: `
+          CREATE OR REPLACE FUNCTION public.generate_invite_code()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            IF NEW.invite_code IS NULL THEN
+              NEW.invite_code := upper(substring(md5(random()::text || NEW.id::text) from 1 for 8));
+            END IF;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+        `
+      },
+      {
+        label: 'Create invite_code trigger on profiles',
+        sql: `
+          DROP TRIGGER IF EXISTS trg_generate_invite_code ON public.profiles;
+          CREATE TRIGGER trg_generate_invite_code
+            BEFORE INSERT ON public.profiles
+            FOR EACH ROW EXECUTE FUNCTION public.generate_invite_code();
+        `
+      },
+      {
+        label: 'Backfill invite codes for existing profiles without one',
+        sql: `
+          UPDATE public.profiles
+          SET invite_code = upper(substring(md5(random()::text || id::text) from 1 for 8))
+          WHERE invite_code IS NULL;
+        `
+      },
+      {
+        label: 'Force sign out all existing users (set forced_signout_at to now)',
+        sql: `UPDATE public.profiles SET forced_signout_at = now() WHERE forced_signout_at IS NULL;`
+      },
+      {
+        label: 'Update posts set posted_to_global_hub = false where null',
+        sql: `UPDATE public.posts SET posted_to_global_hub = false WHERE posted_to_global_hub IS NULL;`
+      },
+      {
+        label: 'Update profiles set joined_global_hub = false where null',
+        sql: `UPDATE public.profiles SET joined_global_hub = false WHERE joined_global_hub IS NULL;`
+      },
+      {
+        label: 'Map all existing profiles to Redeemer\'s University (RUN)',
+        sql: `
+          UPDATE public.profiles
+          SET university_id = '0496f872-cd84-4e29-ac32-98d3e3a057c8',
+              university = 'Redeemer''s University'
+          WHERE university_id IS NULL OR university = 'University of Lagos';
+        `
+      },
+      {
+        label: 'Create database views for local and global posts',
+        sql: `
+          CREATE OR REPLACE VIEW public.local_posts AS
+          SELECT * FROM public.posts
+          WHERE posted_to_global_hub = false;
+
+          CREATE OR REPLACE VIEW public.global_posts AS
+          SELECT * FROM public.posts
+          WHERE posted_to_global_hub = true;
+        `
+      },
+      {
+        label: 'Create triggers for views to force set posted_to_global_hub',
+        sql: `
+          CREATE OR REPLACE FUNCTION public.trg_fn_insert_global_post()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            INSERT INTO public.posts (
+              id, author_id, body, tags, is_anonymous, post_type, club_id, study_group_id, repost_of, image_url, posted_to_global_hub, created_at
+            ) VALUES (
+              COALESCE(NEW.id, gen_random_uuid()),
+              NEW.author_id,
+              NEW.body,
+              NEW.tags,
+              COALESCE(NEW.is_anonymous, false),
+              COALESCE(NEW.post_type, 'feed'),
+              NEW.club_id,
+              NEW.study_group_id,
+              NEW.repost_of,
+              NEW.image_url,
+              true,
+              COALESCE(NEW.created_at, now())
+            )
+            RETURNING * INTO NEW;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          DROP TRIGGER IF EXISTS trg_insert_global_post ON public.global_posts;
+          CREATE TRIGGER trg_insert_global_post
+            INSTEAD OF INSERT ON public.global_posts
+            FOR EACH ROW EXECUTE FUNCTION public.trg_fn_insert_global_post();
+
+          CREATE OR REPLACE FUNCTION public.trg_fn_insert_local_post()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            INSERT INTO public.posts (
+              id, author_id, body, tags, is_anonymous, post_type, club_id, study_group_id, repost_of, image_url, posted_to_global_hub, created_at
+            ) VALUES (
+              COALESCE(NEW.id, gen_random_uuid()),
+              NEW.author_id,
+              NEW.body,
+              NEW.tags,
+              COALESCE(NEW.is_anonymous, false),
+              COALESCE(NEW.post_type, 'feed'),
+              NEW.club_id,
+              NEW.study_group_id,
+              NEW.repost_of,
+              NEW.image_url,
+              false,
+              COALESCE(NEW.created_at, now())
+            )
+            RETURNING * INTO NEW;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          DROP TRIGGER IF EXISTS trg_insert_local_post ON public.local_posts;
+          CREATE TRIGGER trg_insert_local_post
+            INSTEAD OF INSERT ON public.local_posts
+            FOR EACH ROW EXECUTE FUNCTION public.trg_fn_insert_local_post();
+        `
+      },
+      {
+        label: 'Create database views for global events, clubs, and profiles',
+        sql: `
+          CREATE OR REPLACE VIEW public.global_events AS
+          SELECT e.* FROM public.events e
+          JOIN public.profiles p ON e.organizer_id = p.id
+          WHERE p.joined_global_hub = true;
+
+          CREATE OR REPLACE VIEW public.global_clubs AS
+          SELECT c.* FROM public.clubs c
+          JOIN public.profiles p ON c.created_by = p.id
+          WHERE p.joined_global_hub = true;
+
+          CREATE OR REPLACE VIEW public.global_profiles AS
+          SELECT * FROM public.profiles
+          WHERE joined_global_hub = true;
+        `
+      },
+      {
+        label: 'Grant view permissions to database roles',
+        sql: `
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.local_posts TO anon, authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.global_posts TO anon, authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.global_events TO anon, authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.global_clubs TO anon, authenticated;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON public.global_profiles TO anon, authenticated;
+        `
+      },
+      {
+        label: 'Recreate posts: read public policy with strict university isolation',
+        sql: `
+          ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
+          DROP POLICY IF EXISTS "posts: read public" ON public.posts;
+          CREATE POLICY "posts: read public" ON public.posts
+            FOR SELECT
+            TO authenticated, anon
+            USING (
+              posted_to_global_hub = true OR 
+              (posted_to_global_hub = false AND author_id IN (
+                SELECT id FROM public.profiles WHERE university_id = (
+                  SELECT university_id FROM public.profiles WHERE id = auth.uid()
+                )
+              ))
+            );
+        `
+      },
+      {
+        label: 'Reload PostgREST schema cache (final)',
+        sql: `NOTIFY pgrst, 'reload schema';`
       }
     ];
 
