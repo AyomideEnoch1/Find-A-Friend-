@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
 import * as React from "react";
 import { useState } from "react";
 import { supportsVideoStories } from "../../lib/featureFlags";
@@ -580,18 +579,29 @@ export default function PostCard({ post }: PostCardProps) {
                     style={{ width: "100%", height: "100%" }}
                   >
                     {images.map((imgUrl, idx) => (
-                      <TouchableOpacity
+                      <View
                         key={idx}
-                        activeOpacity={0.95}
-                        onPress={() => setSelectedImage(imgUrl)}
                         style={{ width: containerWidth || 300, height: "100%" }}
                       >
-                        <Image
-                          source={{ uri: imgUrl }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode="cover"
-                        />
-                      </TouchableOpacity>
+                        {imgUrl.match(/\.(mp4|mov|webm|m4v|3gp)$/i) ? (
+                          <InlineVideoPlayer
+                            sourceUrl={imgUrl}
+                            style={{ width: "100%", height: "100%", backgroundColor: "black" }}
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            activeOpacity={0.95}
+                            onPress={() => setSelectedImage(imgUrl)}
+                            style={{ width: "100%", height: "100%" }}
+                          >
+                            <Image
+                              source={{ uri: imgUrl }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="cover"
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     ))}
                   </ScrollView>
 
@@ -1072,14 +1082,16 @@ function InlineVideoPlayer({
     );
   }
 
-  const { useVideoPlayer, VideoView } = require("expo-video");
-  const player = useVideoPlayer(sourceUrl, (p: any) => {
+  // Dynamic require is intentional: expo-video may not be available on older
+  // native builds. supportsVideoStories() already guards the call above.
+  const expoVideo = require("expo-video");
+  const player = expoVideo.useVideoPlayer(sourceUrl, (p: any) => {
     p.loop = false;
   });
 
   return (
     <View style={[style, { overflow: "hidden", backgroundColor: "black" }]}>
-      <VideoView
+      <expoVideo.VideoView
         player={player}
         style={StyleSheet.absoluteFill}
         contentFit="contain"

@@ -22,9 +22,8 @@ import { router, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import { createPost } from '../lib/feed'
 import { getClubs } from '../lib/clubs'
-import { client } from '../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
 import { uploadFile } from '../lib/upload'
+import { supabase } from '../lib/supabase'
 import type { Club } from '../lib/clubs'
 import { useTheme } from '../lib/theme'
 import { useFeedStore } from '../store/feedStore'
@@ -46,6 +45,7 @@ export default function CreatePostScreen() {
   const { clubId } = useLocalSearchParams<{ clubId?: string }>()
   const [body, setBody] = useState('')
   const [imageUris, setImageUris] = useState<string[]>([])
+  const [videoUris, setVideoUris] = useState<Set<string>>(new Set())
   const [postType, setPostType] = useState<PostType>('feed')
   const [clubs, setClubs] = useState<Club[]>([])
   const [selectedClub, setSelectedClub] = useState<Club | null>(null)
@@ -92,17 +92,22 @@ export default function CreatePostScreen() {
       quality: 0.75,
     })
     if (!result.canceled) {
-      const selected = result.assets.map(asset => asset.uri)
-      setImageUris(prev => [...prev, ...selected].slice(0, 4))
+      const newUris = result.assets.map(a => a.uri)
+      const newVideoSet = new Set(videoUris)
+      result.assets.forEach(a => {
+        if (a.type === 'video') newVideoSet.add(a.uri)
+      })
+      setVideoUris(newVideoSet)
+      setImageUris(prev => [...prev, ...newUris].slice(0, 4))
     }
   }
 
   const uploadMedia = async (uri: string): Promise<string> => {
-    const user = await getCurrentUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg'
     const randomStr = Math.random().toString(36).substring(7)
-    const path = `${user.userId}/${Date.now()}-${randomStr}.${ext}`
+    const path = `${user.id}/${Date.now()}-${randomStr}.${ext}`
     const isVideo = ['mp4', 'mov', 'm4v', '3gp'].includes(ext)
     const mimeType = isVideo ? `video/${ext === 'mov' ? 'quicktime' : 'mp4'}` : `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
@@ -272,20 +277,34 @@ export default function CreatePostScreen() {
           {imageUris.length > 0 && (
             <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                {imageUris.map((uri, index) => (
-                  <View key={index} style={{ position: 'relative', width: 90, height: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 0.5, borderColor: theme.border }}>
-                    <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
-                    <TouchableOpacity
-                      style={{
-                        position: 'absolute', top: 4, right: 4,
-                        backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
-                        width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
-                      }}
-                      onPress={() => setImageUris(prev => prev.filter((_, idx) => idx !== index))}>
-                      <Ionicons name="close" size={14} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {imageUris.map((uri, index) => {
+                  const isVid = videoUris.has(uri)
+                  return (
+                    <View key={index} style={{ position: 'relative', width: 90, height: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 0.5, borderColor: theme.border, backgroundColor: '#000' }}>
+                      {isVid ? (
+                        // Video thumbnail — show a dark background with play icon
+                        <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>
+                          <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.85)" />
+                          <Text style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', marginTop: 4, fontFamily: typography.fontMedium }}>Video</Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} />
+                      )}
+                      <TouchableOpacity
+                        style={{
+                          position: 'absolute', top: 4, right: 4,
+                          backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
+                          width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
+                        }}
+                        onPress={() => {
+                          setVideoUris(prev => { const s = new Set(prev); s.delete(uri); return s })
+                          setImageUris(prev => prev.filter((_, idx) => idx !== index))
+                        }}>
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
                 {imageUris.length < 4 && (
                   <TouchableOpacity
                     onPress={pickImage}
@@ -307,7 +326,7 @@ export default function CreatePostScreen() {
           {imageUris.length === 0 && (
             <TouchableOpacity style={[s.mediaBtn, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={pickImage}>
               <Ionicons name="image-outline" size={18} color={theme.textMuted} />
-              <Text style={[s.mediaBtnText, { color: theme.textMuted }]}>Add photo (4 max)</Text>
+              <Text style={[s.mediaBtnText, { color: theme.textMuted }]}>Add photo or video (4 max)</Text>
             </TouchableOpacity>
           )}
         </ScrollView>

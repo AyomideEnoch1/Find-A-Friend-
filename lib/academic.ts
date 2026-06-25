@@ -405,26 +405,23 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
     const ext = payload.fileName.split('.').pop() ?? 'pdf'
     const storagePath = `${user.id}/${Date.now()}_${payload.fileName}`
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('Not authenticated')
+    // Upload to Supabase Storage (which is rewritten to the direct Supabase URL)
+    const fileBody = new FormData() as any
+    fileBody.append('file', {
+      uri: payload.fileUri,
+      name: payload.fileName,
+      type: payload.mimeType,
+    })
 
-    const formData = new FormData()
-    formData.append('file', { uri: payload.fileUri, name: payload.fileName, type: payload.mimeType } as any)
+    const { error: uploadError } = await supabase.storage
+      .from('academic-resources')
+      .upload(storagePath, fileBody, {
+        upsert: false
+      })
 
-    const uploadRes = await fetch(
-      `https://vcbtvhociaioeyhhsczh.supabase.co/storage/v1/object/academic-resources/${storagePath}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
-        body: formData,
-      }
-    )
-    if (!uploadRes.ok) {
-      const msg = await uploadRes.text().catch(() => uploadRes.status.toString())
-      throw new Error(`Upload failed: ${msg}`)
-    }
+    if (uploadError) throw uploadError
 
-    // For private bucket, store the storage path (signed URLs generated on demand)
+    // Store the relative path in the database (file_url)
     const { data, error: insertError } = await supabase
       .from('academic_resources')
       .insert({
@@ -448,7 +445,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
 }
 
 /**
- * Returns a 1-hour signed URL for a private academic resource.
+ * Returns S3 download URL for the academic resource.
  * Also increments the download count via RPC.
  */
 export async function getResourceSignedUrl(
@@ -456,9 +453,18 @@ export async function getResourceSignedUrl(
   expiresInSeconds = 3600
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
+    let path = resource.file_url
+    if (path.startsWith('http')) {
+      const searchStr = 'academic-resources/'
+      const idx = path.indexOf(searchStr)
+      if (idx !== -1) {
+        path = path.substring(idx + searchStr.length)
+      }
+    }
+
     const { data, error } = await supabase.storage
       .from('academic-resources')
-      .createSignedUrl(resource.file_url, expiresInSeconds)
+      .createSignedUrl(path, expiresInSeconds)
 
     if (error) throw error
 

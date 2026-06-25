@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 
 
 const AWS_REGION = process.env.EXPO_PUBLIC_AWS_REGION || 'us-east-1';
-const COGNITO_CLIENT_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID!;
-const COGNITO_USER_POOL_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID!;
-const API_URL = process.env.EXPO_PUBLIC_API_URL!; // Points to AWS Application Load Balancer
+const COGNITO_CLIENT_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID || '2ulu29kbdgu0q79ij50cpc18ro';
+const COGNITO_USER_POOL_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID || 'us-east-1_TQnhz1Jug';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.fafcampus.site';
 
 const STORAGE_KEY = 'faf-cognito-session';
 
@@ -189,6 +189,7 @@ export class CognitoAuthAdapter {
         access_token: authResult.IdToken, // ID Token contains the standard claims for authentication
         refresh_token: authResult.RefreshToken,
         user,
+        expires_in: authResult.ExpiresIn as number,
         expires_at: Math.floor(Date.now() / 1000) + authResult.ExpiresIn,
       };
 
@@ -255,7 +256,8 @@ export class CognitoAuthAdapter {
       const refreshedSession = {
         ...this.currentSession,
         access_token: authResult.IdToken,
-        expires_at: Math.floor(Date.now() / 1000) + authResult.ExpiresIn,
+        expires_in: (authResult.ExpiresIn ?? this.currentSession.expires_in) as number,
+        expires_at: Math.floor(Date.now() / 1000) + (authResult.ExpiresIn ?? this.currentSession.expires_in),
       };
 
       await this.saveSessionToStorage(refreshedSession);
@@ -394,8 +396,17 @@ const baseSupabase = createClient(API_URL, 'aws-anonymous-key', {
 
       // The Supabase JS client appends /rest/v1/ to the base URL for all DB queries,
       // but our PostgREST instance serves tables from the root /. Strip the prefix.
+      // Additionally, route storage requests directly to the Supabase endpoint since ECS PostgREST does not serve storage.
       const urlStr = url.toString();
-      const rewrittenUrl = API_URL ? urlStr.replace(`${API_URL}/rest/v1`, API_URL) : urlStr;
+      let rewrittenUrl = urlStr;
+      if (API_URL) {
+        if (urlStr.includes('/storage/v1')) {
+          const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vcbtvhociaioeyhhsczh.supabase.co';
+          rewrittenUrl = urlStr.replace(`${API_URL}/storage/v1`, `${supabaseUrl}/storage/v1`);
+        } else {
+          rewrittenUrl = urlStr.replace(`${API_URL}/rest/v1`, API_URL);
+        }
+      }
       
       return fetch(rewrittenUrl, {
         ...options,

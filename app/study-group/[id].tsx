@@ -50,6 +50,7 @@ export default function StudyGroupDetailScreen() {
 
   const [commentText, setCommentText] = useState('')
   const [posting, setPosting] = useState(false)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (id) loadGroup()
@@ -143,14 +144,17 @@ export default function StudyGroupDetailScreen() {
 
       // Check membership
       const { data: { user } } = await supabase.auth.getUser()
-      if (user && found) {
-        const { data: membership } = await supabase
-          .from('study_group_members')
-          .select('user_id')
-          .eq('group_id', id)
-          .eq('user_id', user.id)
-          .maybeSingle()
-        setIsMember(!!membership)
+      if (user) {
+        setMyUserId(user.id)
+        if (found) {
+          const { data: membership } = await supabase
+            .from('study_group_members')
+            .select('user_id')
+            .eq('group_id', id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+          setIsMember(!!membership)
+        }
       }
     } catch {
       // Non-fatal
@@ -228,6 +232,33 @@ export default function StudyGroupDetailScreen() {
   const onRefresh = useCallback(() => {
     if (group) loadTabData(activeTab)
   }, [activeTab, group])
+
+  const handleDeleteGroup = () => {
+    Alert.alert(
+      'Delete Study Group',
+      'Are you sure you want to permanently delete this study group? This action cannot be undone and will delete all discussions and member history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('study_groups')
+                .delete()
+                .eq('id', id)
+              if (error) throw error
+              Alert.alert('Success', 'Study group deleted successfully.')
+              router.back()
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete study group.')
+            }
+          }
+        }
+      ]
+    )
+  }
 
   if (loading) {
     return (
@@ -425,25 +456,36 @@ export default function StudyGroupDetailScreen() {
               <Text style={[s.groupCourse, { color: theme.accent, fontFamily: typography.fontMedium }]}>{group.courses.code}</Text>
             )}
           </View>
-          <TouchableOpacity
-            style={[
-              s.joinBtn,
-              { backgroundColor: theme.accent },
-              isMember && { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 0.5, borderColor: 'rgba(239,68,68,0.3)' },
-              (isFull && !isMember) && { backgroundColor: theme.border, opacity: 0.5 }
-            ]}
-            onPress={handleJoinLeave}
-            disabled={joinLoading || (isFull && !isMember)}>
-            {joinLoading
-              ? <ActivityIndicator size="small" color={isMember ? theme.danger : '#fff'} />
-              : <Text style={[
-                  s.joinText,
-                  { color: '#fff', fontFamily: typography.fontSemiBold },
-                  isMember && { color: theme.danger }
-                ]}>
-                  {isMember ? 'Leave' : isFull ? 'Full' : 'Join'}
-                </Text>}
-          </TouchableOpacity>
+          {myUserId === group.created_by ? (
+            <TouchableOpacity
+              style={[
+                s.joinBtn,
+                { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 0.5, borderColor: '#ef4444' }
+              ]}
+              onPress={handleDeleteGroup}>
+              <Text style={[s.joinText, { color: '#ef4444', fontFamily: typography.fontSemiBold }]}>Delete</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                s.joinBtn,
+                { backgroundColor: theme.accent },
+                isMember && { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 0.5, borderColor: 'rgba(239,68,68,0.3)' },
+                (isFull && !isMember) && { backgroundColor: theme.border, opacity: 0.5 }
+              ]}
+              onPress={handleJoinLeave}
+              disabled={joinLoading || (isFull && !isMember)}>
+              {joinLoading
+                ? <ActivityIndicator size="small" color={isMember ? theme.danger : '#fff'} />
+                : <Text style={[
+                    s.joinText,
+                    { color: '#fff', fontFamily: typography.fontSemiBold },
+                    isMember && { color: theme.danger }
+                  ]}>
+                    {isMember ? 'Leave' : isFull ? 'Full' : 'Join'}
+                  </Text>}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tab bar */}

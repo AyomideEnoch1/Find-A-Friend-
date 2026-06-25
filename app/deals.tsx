@@ -258,6 +258,7 @@ export default function DealsScreen() {
                   key={deal.id}
                   style={[
                     s.dealCard,
+                    theme.cardShadow,
                     { backgroundColor: theme.card, borderColor: theme.border },
                   ]}
                 >
