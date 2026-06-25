@@ -56,6 +56,9 @@ function AppStack() {
     } = supabase.auth.onAuthStateChange((_event, session) =>
       setSession(session),
     );
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

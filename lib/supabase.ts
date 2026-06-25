@@ -189,6 +189,7 @@ export class CognitoAuthAdapter {
         access_token: authResult.IdToken, // ID Token contains the standard claims for authentication
         refresh_token: authResult.RefreshToken,
         user,
+        expires_in: authResult.ExpiresIn as number,
         expires_at: Math.floor(Date.now() / 1000) + authResult.ExpiresIn,
       };
 
@@ -255,7 +256,8 @@ export class CognitoAuthAdapter {
       const refreshedSession = {
         ...this.currentSession,
         access_token: authResult.IdToken,
-        expires_at: Math.floor(Date.now() / 1000) + authResult.ExpiresIn,
+        expires_in: (authResult.ExpiresIn ?? this.currentSession.expires_in) as number,
+        expires_at: Math.floor(Date.now() / 1000) + (authResult.ExpiresIn ?? this.currentSession.expires_in),
       };
 
       await this.saveSessionToStorage(refreshedSession);

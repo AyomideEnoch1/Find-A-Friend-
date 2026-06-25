@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
 import * as React from "react";
 import { useState } from "react";
 import { supportsVideoStories } from "../../lib/featureFlags";
@@ -1083,14 +1082,16 @@ function InlineVideoPlayer({
     );
   }
 
-  const { useVideoPlayer, VideoView } = require("expo-video");
-  const player = useVideoPlayer(sourceUrl, (p: any) => {
+  // Dynamic require is intentional: expo-video may not be available on older
+  // native builds. supportsVideoStories() already guards the call above.
+  const expoVideo = require("expo-video");
+  const player = expoVideo.useVideoPlayer(sourceUrl, (p: any) => {
     p.loop = false;
   });
 
   return (
     <View style={[style, { overflow: "hidden", backgroundColor: "black" }]}>
-      <VideoView
+      <expoVideo.VideoView
         player={player}
         style={StyleSheet.absoluteFill}
         contentFit="contain"
