@@ -63,7 +63,13 @@ function AppStack() {
 
   useEffect(() => {
     if (!session?.user?.id) {
+      // Reset both university context and feedMode so the next login always
+      // starts in local mode — prevents residual 'global' mode from a previous
+      // session causing global posts to appear on the next login.
       useThemeStore.getState().setActiveUniversity(null);
+      useThemeStore.getState().setFeedMode('local');
+      // Wipe stale feed posts so they can't flash on the next login.
+      useFeedStore.getState().reset();
       return;
     }
     const loadUserUniversity = async () => {
