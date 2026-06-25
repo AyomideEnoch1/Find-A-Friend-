@@ -63,6 +63,7 @@ export default function HomeScreen() {
 
   const feedMode = useThemeStore((s) => s.feedMode);
   const activeUniversity = useThemeStore((s) => s.activeUniversity);
+  const hydrated = useThemeStore((s) => s.hydrated);
 
   const { unreadCount, loadUnreadCount } = useNotificationsStore();
   const { currentStreak, hasLoaded } = useStreakStore();
@@ -207,8 +208,12 @@ export default function HomeScreen() {
   }, [loadUnreadCount, refreshProfile]);
 
   useEffect(() => {
+    // Wait until themeStore has finished hydrating (activeUniversity resolved)
+    // before loading the feed — prevents the race that shows global posts
+    // while still in local mode on first launch.
+    if (!hydrated) return
     loadFeed();
-  }, [loadFeed, activeUniversity?.id]);
+  }, [loadFeed, hydrated, activeUniversity?.id]);
 
   useEffect(() => {
     if (!loading) {
@@ -229,10 +234,11 @@ export default function HomeScreen() {
   const renderHeader = useCallback(
     () => (
       <View>
-        <StoriesRow />
+        {/* StoriesRow only appears on the Following tab */}
+        {activeTab === 'following' && <StoriesRow />}
       </View>
     ),
-    [],
+    [activeTab],
   );
 
   const renderFooter = useCallback(
@@ -303,6 +309,21 @@ export default function HomeScreen() {
           )}
         </View>
       </View>
+      {/* Compact Global Hub chip — shown inline in header when in local mode */}
+      {feedMode === 'local' && activeUniversity && (
+        <TouchableOpacity
+          style={[
+            s.compactReturnBtn,
+            { backgroundColor: 'rgba(167,139,250,0.12)', borderColor: 'rgba(167,139,250,0.35)' }
+          ]}
+          onPress={() => setFeedMode('global')}
+        >
+          <Text style={{ fontSize: 13, marginRight: 3 }}>🌐</Text>
+          <Text style={[s.compactReturnText, { color: theme.accent }]}>
+            Global Hub
+          </Text>
+        </TouchableOpacity>
+      )}
       <View style={s.headerRight}>
         {Platform.OS !== "android" && (
           <TouchableOpacity
@@ -349,6 +370,7 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
       </View>
+
     </View>
   );
 
@@ -495,34 +517,7 @@ export default function HomeScreen() {
     >
       <NeuralBackground intensity="light" />
       {header}
-      {feedMode === 'local' && activeUniversity && (
-        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
-          <View style={[s.toggleTrack, { backgroundColor: theme.card2, borderColor: theme.border2 }]}>
-            <TouchableOpacity
-              style={[
-                s.toggleBtn,
-                { backgroundColor: theme.accent }
-              ]}
-              onPress={() => setFeedMode('local')}
-            >
-              <Text style={[s.toggleBtnText, { color: '#ffffff' }]}>
-                {activeUniversity.short_name} Campus
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                s.toggleBtn,
-                { backgroundColor: 'transparent' }
-              ]}
-              onPress={() => setFeedMode('global')}
-            >
-              <Text style={[s.toggleBtnText, { color: theme.textMuted }]}>
-                Global Hub 🌐
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+
 
       {feedMode === 'global' && profile && !profile.joined_global_hub ? (
         renderGlobalHubGate()
