@@ -443,7 +443,6 @@ function AppStack() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
-        <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
         <Stack.Screen name="post/[id]" />
         <Stack.Screen name="create-post" />
         <Stack.Screen name="hashtag/[tag]" />

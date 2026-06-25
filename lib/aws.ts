@@ -4,8 +4,8 @@ import { generateClient } from 'aws-amplify/data';
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID!,
-      userPoolClientId: process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID!,
+      userPoolId: process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID || 'us-east-1_TQnhz1Jug',
+      userPoolClientId: process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID || '2ulu29kbdgu0q79ij50cpc18ro',
       identityPoolId: '', // To be filled if using identity pools for storage
       loginWith: {
         email: true,

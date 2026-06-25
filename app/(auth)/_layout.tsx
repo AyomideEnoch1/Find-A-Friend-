@@ -6,6 +6,7 @@ export default function AuthLayout() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="verify" />
       <Stack.Screen name="onboarding" />
+      <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
     </Stack>
   )
 }

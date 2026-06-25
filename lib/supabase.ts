@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 
 
 const AWS_REGION = process.env.EXPO_PUBLIC_AWS_REGION || 'us-east-1';
-const COGNITO_CLIENT_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID!;
-const COGNITO_USER_POOL_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID!;
-const API_URL = process.env.EXPO_PUBLIC_API_URL!; // Points to AWS Application Load Balancer
+const COGNITO_CLIENT_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_CLIENT_ID || '2ulu29kbdgu0q79ij50cpc18ro';
+const COGNITO_USER_POOL_ID = process.env.EXPO_PUBLIC_AWS_COGNITO_USER_POOL_ID || 'us-east-1_TQnhz1Jug';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.fafcampus.site';
 
 const STORAGE_KEY = 'faf-cognito-session';
 
