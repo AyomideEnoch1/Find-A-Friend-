@@ -270,6 +270,7 @@ export default function EventsScreen() {
         storageKey="guide_dismissed_events"
         title="Campus Events 📅"
         message="Discover what's happening on campus, RSVP to events you're interested in, and see who else is attending. Tap '+' to host a new event!"
+        topOffset={120}
       />
 
       <View style={[s.tabBar, { backgroundColor: theme.card, borderColor: theme.border }]}>

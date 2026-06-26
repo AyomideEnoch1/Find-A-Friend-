@@ -26,6 +26,7 @@ import { createStory } from "../../lib/stories";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useFeedStore } from "../../store/feedStore";
+import SharedInlineVideoPlayer from "../ui/InlineVideoPlayer";
 import VerifiedBadge from "../ui/VerifiedBadge";
 
 import { useThemeStore } from "../../store/themeStore";
@@ -1106,114 +1107,12 @@ function InlineVideoPlayer({
   borderRadius?: number;
   borderColor?: string;
 }) {
-  const theme = useTheme();
-  const [containerWidth, setContainerWidth] = React.useState(0);
-  const [aspectRatio, setAspectRatio] = React.useState<number | null>(null);
-
-  if (!supportsVideoStories()) {
-    return (
-      <View
-        style={{
-          width: "100%",
-          minHeight: 160,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: theme.bg || "#1a1a24",
-          borderRadius,
-          borderWidth: borderColor ? 0.5 : 0,
-          borderColor,
-          gap: 6,
-          padding: 12,
-        }}
-      >
-        <Ionicons
-          name="play-circle-outline"
-          size={32}
-          color={theme.textMuted || "#888"}
-        />
-        <Text
-          style={{
-            fontSize: 11,
-            color: theme.textMuted || "#888",
-            fontFamily: typography.fontMedium,
-            textAlign: "center",
-          }}
-        >
-          Video requires app update
-        </Text>
-      </View>
-    );
-  }
-
-  const expoVideo = require("expo-video");
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const player = expoVideo.useVideoPlayer(sourceUrl, (p: any) => {
-    p.loop = false;
-  });
-
-  // expo-video 3.x: listen for videoTrackUpdate to get natural size.
-  // useEvent is the correct API — addListener does not exist on the player object.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const videoSize = expoVideo.useEvent
-    ? // eslint-disable-next-line react-hooks/rules-of-hooks
-      expoVideo.useEvent(player, "videoTrackUpdate", {
-        videoTrack: player?.videoTrack ?? null,
-      })?.videoTrack?.size
-    : null;
-
-  // Also try reading directly in case the track is already loaded (cache hit)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  React.useEffect(() => {
-    const size = videoSize ?? player?.videoTrack?.size;
-    if (size?.width > 0 && size?.height > 0) {
-      setAspectRatio(size.height / size.width);
-    }
-  }, [videoSize, player?.videoTrack?.size]);
-
-  const knownHeight =
-    containerWidth > 0 && aspectRatio !== null
-      ? containerWidth * aspectRatio
-      : null;
-
   return (
-    <View
-      style={{
-        width: "100%",
-        height:
-          knownHeight ??
-          (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220),
-        backgroundColor: "black",
-        borderRadius,
-        borderWidth: borderColor ? 0.5 : 0,
-        borderColor,
-        overflow: "hidden",
-      }}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-    >
-      {knownHeight === null && (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { justifyContent: "center", alignItems: "center" },
-          ]}
-        >
-          <Ionicons
-            name="play-circle-outline"
-            size={36}
-            color="rgba(255,255,255,0.25)"
-          />
-        </View>
-      )}
-      <expoVideo.VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={true}
-        allowsFullscreen={true}
-        showsTimecodes={true}
-      />
-    </View>
+    <SharedInlineVideoPlayer
+      sourceUrl={sourceUrl}
+      borderRadius={borderRadius}
+      borderColor={borderColor}
+    />
   );
 }
 

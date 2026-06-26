@@ -420,6 +420,7 @@ export default function DiscoverScreen() {
         storageKey="guide_dismissed_discover"
         title="Discover New Friends 🔍"
         message="Browse cards of students with matching interests. Swipe right or click Connect to follow them. Use filters to search by department."
+        topOffset={125}
       />
 
       {/* Search Bar */}

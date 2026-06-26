@@ -9,6 +9,9 @@ import { showTabBar, tabBarTranslateY } from "../../lib/tabBarAnim";
 import { glowShadow, useTheme } from "../../lib/theme";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
+import { useAuthStore } from "../../store/authStore";
+import { useFeedStore } from "../../store/feedStore";
+import { useThemeStore } from "../../store/themeStore";
 
 function TabIcon({
   name,
@@ -34,6 +37,14 @@ export default function TabLayout() {
   const theme = useTheme();
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
   const { counts, syncCounts } = useBadgesStore();
+
+  const authLoading = useAuthStore((s) => s.loading);
+  const feedLoading = useFeedStore((s) => s.loading);
+  const postsCount = useFeedStore((s) => s.posts.length);
+  const themeHydrated = useThemeStore((s) => s.hydrated);
+
+  const shouldHideTabBar =
+    authLoading || !themeHydrated || (feedLoading && postsCount === 0);
 
   useEffect(() => {
     syncCounts();
@@ -84,6 +95,7 @@ export default function TabLayout() {
           paddingTop: 4,
           elevation: 0,
           transform: [{ translateY: tabBarTranslateY }],
+          display: shouldHideTabBar ? "none" : "flex",
         },
         tabBarBackground: () =>
           Platform.OS === "ios" ? (
@@ -211,3 +223,4 @@ const styles = StyleSheet.create({
     ...glowShadow,
   },
 });
+

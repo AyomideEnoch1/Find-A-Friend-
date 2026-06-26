@@ -367,6 +367,7 @@ export default function AcademicScreen() {
         storageKey="guide_dismissed_academic"
         title="Academic Hub 📚"
         message="Join course study groups, share files/notes/resources, and ask questions on the course discussion boards."
+        topOffset={120}
       />
 
       {/* Tab bar */}

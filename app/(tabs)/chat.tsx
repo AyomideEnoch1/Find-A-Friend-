@@ -496,6 +496,7 @@ export default function ChatScreen() {
         storageKey="guide_dismissed_chat"
         title="Real-time Chat 💬"
         message="Message friends, chat inside study groups, and keep your daily streak alive by texting daily!"
+        topOffset={70}
       />
 
       {/* ── New chat picker ── */}
