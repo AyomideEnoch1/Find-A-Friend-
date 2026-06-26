@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as React from "react";
 import { useState } from "react";
-import { supportsVideoStories } from "../../lib/featureFlags";
 import {
   Alert,
   Image,
@@ -19,6 +18,7 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import { supportsVideoStories } from "../../lib/featureFlags";
 import type { FeedPost } from "../../lib/feed";
 import { reportPost } from "../../lib/feed";
 import { getInitials, getTimeAgo } from "../../lib/matching";
@@ -63,6 +63,7 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  // Check this  out
   const onContainerLayout = (event: any) => {
     const { width } = event.nativeEvent.layout;
     setContainerWidth(width);
@@ -86,7 +87,9 @@ export default function PostCard({ post }: PostCardProps) {
   const rawName = isAnon
     ? "Anonymous"
     : isGlobalPost
-      ? ((post.profiles as any)?.global_full_name || post.profiles?.full_name || "User")
+      ? (post.profiles as any)?.global_full_name ||
+        post.profiles?.full_name ||
+        "User"
       : (post.profiles?.full_name ?? "User");
   const displayName = rawName;
   const handle = isAnon ? "@anonymous" : toHandle(rawName);
@@ -94,7 +97,7 @@ export default function PostCard({ post }: PostCardProps) {
   const rawAvatarUrl = isAnon
     ? null
     : isGlobalPost
-      ? ((post.profiles as any)?.global_avatar_url || post.profiles?.avatar_url)
+      ? (post.profiles as any)?.global_avatar_url || post.profiles?.avatar_url
       : post.profiles?.avatar_url;
 
   const isRepost = !!(post.repost_of && post.original_post);
@@ -105,7 +108,9 @@ export default function PostCard({ post }: PostCardProps) {
     ? orig.is_anonymous
       ? "Anonymous"
       : isOrigGlobal
-        ? ((orig.profiles as any)?.global_full_name || orig.profiles?.full_name || "User")
+        ? (orig.profiles as any)?.global_full_name ||
+          orig.profiles?.full_name ||
+          "User"
         : (orig.profiles?.full_name ?? "User")
     : "User";
 
@@ -113,7 +118,7 @@ export default function PostCard({ post }: PostCardProps) {
     ? orig.is_anonymous
       ? null
       : isOrigGlobal
-        ? ((orig.profiles as any)?.global_avatar_url || orig.profiles?.avatar_url)
+        ? (orig.profiles as any)?.global_avatar_url || orig.profiles?.avatar_url
         : orig.profiles?.avatar_url
     : null;
 
@@ -401,10 +406,7 @@ export default function PostCard({ post }: PostCardProps) {
             ]}
           >
             {!isAnon && rawAvatarUrl ? (
-              <Image
-                source={{ uri: rawAvatarUrl }}
-                style={s.avatar}
-              />
+              <Image source={{ uri: rawAvatarUrl }} style={s.avatar} />
             ) : (
               <View
                 style={[s.avatarFallback, { backgroundColor: theme.cardSolid }]}
@@ -586,7 +588,11 @@ export default function PostCard({ post }: PostCardProps) {
                         {imgUrl.match(/\.(mp4|mov|webm|m4v|3gp)$/i) ? (
                           <InlineVideoPlayer
                             sourceUrl={imgUrl}
-                            style={{ width: "100%", height: "100%", backgroundColor: "black" }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              backgroundColor: "black",
+                            }}
                           />
                         ) : (
                           <TouchableOpacity
@@ -713,17 +719,13 @@ export default function PostCard({ post }: PostCardProps) {
                     style={[s.repostAuthorName, { color: theme.text }]}
                     numberOfLines={1}
                   >
-                    {orig.is_anonymous
-                      ? "Anonymous"
-                      : origName}
+                    {orig.is_anonymous ? "Anonymous" : origName}
                   </Text>
                   <Text
                     style={[s.repostAuthorHandle, { color: theme.textMuted }]}
                     numberOfLines={1}
                   >
-                    {orig.is_anonymous
-                      ? "@anonymous"
-                      : toHandle(origName)}
+                    {orig.is_anonymous ? "@anonymous" : toHandle(origName)}
                   </Text>
                   <Text
                     style={[s.repostAuthorHandle, { color: theme.textFaint }]}
@@ -1073,9 +1075,31 @@ function InlineVideoPlayer({
   const theme = useTheme();
   if (!supportsVideoStories()) {
     return (
-      <View style={[style, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg || '#1a1a24', gap: 6, padding: 12 }]}>
-        <Ionicons name="play-circle-outline" size={32} color={theme.textMuted || '#888'} />
-        <Text style={{ fontSize: 11, color: theme.textMuted || '#888', fontFamily: typography.fontMedium, textAlign: 'center' }}>
+      <View
+        style={[
+          style,
+          {
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: theme.bg || "#1a1a24",
+            gap: 6,
+            padding: 12,
+          },
+        ]}
+      >
+        <Ionicons
+          name="play-circle-outline"
+          size={32}
+          color={theme.textMuted || "#888"}
+        />
+        <Text
+          style={{
+            fontSize: 11,
+            color: theme.textMuted || "#888",
+            fontFamily: typography.fontMedium,
+            textAlign: "center",
+          }}
+        >
           Video requires app update
         </Text>
       </View>

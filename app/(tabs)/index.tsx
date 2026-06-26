@@ -329,7 +329,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {feedMode === "global" ? (
+          {feedMode === "global" && (
             <TouchableOpacity
               style={[
                 s.compactReturnBtn,
@@ -347,7 +347,8 @@ export default function HomeScreen() {
                 Return to Campus
               </Text>
             </TouchableOpacity>
-          ) : (
+          )}
+          {/* : (
             firstName && (
               <Text
                 style={[s.greeting, { color: theme.textMuted, marginLeft: 8 }]}
@@ -355,7 +356,7 @@ export default function HomeScreen() {
                 {getGreeting()}, {firstName} 👋
               </Text>
             )
-          )}
+          ) */}
         </View>
       </View>
 
