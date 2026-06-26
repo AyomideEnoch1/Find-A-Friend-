@@ -1,24 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  Alert,
-  TextInput,
-  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import AdCarousel from "../../components/feed/AdCarousel";
 import PostCard from "../../components/feed/PostCard";
 import StoriesRow from "../../components/feed/StoriesRow";
@@ -26,13 +28,11 @@ import NeuralBackground from "../../components/NeuralBackground";
 import ScreenLoader from "../../components/ScreenLoader";
 import StoryViewer from "../../components/stories/StoryViewer";
 import type { FeedPost } from "../../lib/feed";
-import { getCurrentProfile, updateProfile, Profile } from "../../lib/profiles";
-import { uploadFile } from "../../lib/upload";
-import * as ImagePicker from "expo-image-picker";
-import Toast from "react-native-toast-message";
+import { getCurrentProfile, Profile, updateProfile } from "../../lib/profiles";
 import { hideTabBar, showTabBar } from "../../lib/tabBarAnim";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
+import { uploadFile } from "../../lib/upload";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useFeedStore } from "../../store/feedStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
@@ -128,16 +128,16 @@ export default function HomeScreen() {
         global_full_name: profile.full_name || "Global User",
         global_bio: profile.bio || "",
         global_avatar_url: profile.avatar_url || null,
-        global_interests: profile.interests || []
+        global_interests: profile.interests || [],
       });
       if (error) {
-        const msg = typeof error === 'string' ? error : error.message;
+        const msg = typeof error === "string" ? error : error.message;
         throw new Error(msg);
       }
       Toast.show({
-        type: 'success',
-        text1: 'Welcome to the Global Hub!',
-        text2: 'Your profile has been created.',
+        type: "success",
+        text1: "Welcome to the Global Hub!",
+        text2: "Your profile has been created.",
       });
       await refreshProfile();
       await loadFeed();
@@ -148,8 +148,11 @@ export default function HomeScreen() {
 
   const handlePickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow access to gallery to pick an avatar.');
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Allow access to gallery to pick an avatar.",
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -162,10 +165,15 @@ export default function HomeScreen() {
       setUploadingAvatar(true);
       try {
         const filename = `avatar_${Date.now()}.jpg`;
-        const url = await uploadFile('profiles', `${profile?.id || 'anon'}/${filename}`, result.assets[0].uri, 'image/jpeg');
+        const url = await uploadFile(
+          "profiles",
+          `${profile?.id || "anon"}/${filename}`,
+          result.assets[0].uri,
+          "image/jpeg",
+        );
         setGlobalAvatar(url);
       } catch (err: any) {
-        Alert.alert('Upload failed', err.message);
+        Alert.alert("Upload failed", err.message);
       } finally {
         setUploadingAvatar(false);
       }
@@ -183,16 +191,16 @@ export default function HomeScreen() {
         global_full_name: globalName.trim(),
         global_bio: globalBio.trim(),
         global_avatar_url: globalAvatar,
-        global_interests: profile?.interests || []
+        global_interests: profile?.interests || [],
       });
       if (error) {
-        const msg = typeof error === 'string' ? error : error.message;
+        const msg = typeof error === "string" ? error : error.message;
         throw new Error(msg);
       }
       Toast.show({
-        type: 'success',
-        text1: 'Persona Created!',
-        text2: 'Welcome to the Global Hub.',
+        type: "success",
+        text1: "Persona Created!",
+        text2: "Welcome to the Global Hub.",
       });
       setIsEditingPersona(false);
       await refreshProfile();
@@ -211,7 +219,7 @@ export default function HomeScreen() {
     // Wait until themeStore has finished hydrating (activeUniversity resolved)
     // before loading the feed — prevents the race that shows global posts
     // while still in local mode on first launch.
-    if (!hydrated) return
+    if (!hydrated) return;
     loadFeed();
   }, [loadFeed, hydrated, activeUniversity?.id]);
 
@@ -235,7 +243,7 @@ export default function HomeScreen() {
     () => (
       <View>
         {/* StoriesRow only appears on the Following tab */}
-        {activeTab === 'following' && <StoriesRow />}
+        {activeTab === "following" && <StoriesRow />}
       </View>
     ),
     [activeTab],
@@ -280,50 +288,77 @@ export default function HomeScreen() {
 
   const header = (
     <View style={[s.header, { borderBottomColor: theme.border }]}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={{ width: 32, height: 32, marginBottom: 2 }}
-            resizeMode="contain"
-          />
-          {feedMode === 'global' ? (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: feedMode === "global" ? "row" : "column",
+            alignItems: "flex-start",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={{ width: 32, height: 32, marginBottom: 2 }}
+              resizeMode="contain"
+            />
+
+            {/* Compact Global Hub chip — shown inline in header when in local mode */}
+            {feedMode === "local" && activeUniversity && (
+              <TouchableOpacity
+                style={[
+                  s.compactReturnBtn,
+                  {
+                    backgroundColor: "rgba(167,139,250,0.12)",
+                    borderColor: "rgba(167,139,250,0.35)",
+                  },
+                ]}
+                onPress={() => setFeedMode("global")}
+              >
+                <Text style={{ fontSize: 13, marginRight: 3 }}>🌐</Text>
+                {/* <Text style={[s.compactReturnText, { color: theme.accent }]}>
+            Global Hub
+          </Text> */}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {feedMode === "global" ? (
             <TouchableOpacity
               style={[
                 s.compactReturnBtn,
-                { backgroundColor: theme.card, borderColor: theme.border }
+                { backgroundColor: theme.card, borderColor: theme.border },
               ]}
-              onPress={() => setFeedMode('local')}
+              onPress={() => setFeedMode("local")}
             >
-              <Ionicons name="school-outline" size={14} color={theme.accent} style={{ marginRight: 4 }} />
+              <Ionicons
+                name="school-outline"
+                size={14}
+                color={theme.accent}
+                style={{ marginRight: 4 }}
+              />
               <Text style={[s.compactReturnText, { color: theme.text }]}>
                 Return to Campus
               </Text>
             </TouchableOpacity>
           ) : (
             firstName && (
-              <Text style={[s.greeting, { color: theme.textMuted, marginLeft: 8 }]}>
+              <Text
+                style={[s.greeting, { color: theme.textMuted, marginLeft: 8 }]}
+              >
                 {getGreeting()}, {firstName} 👋
               </Text>
             )
           )}
         </View>
       </View>
-      {/* Compact Global Hub chip — shown inline in header when in local mode */}
-      {feedMode === 'local' && activeUniversity && (
-        <TouchableOpacity
-          style={[
-            s.compactReturnBtn,
-            { backgroundColor: 'rgba(167,139,250,0.12)', borderColor: 'rgba(167,139,250,0.35)' }
-          ]}
-          onPress={() => setFeedMode('global')}
-        >
-          <Text style={{ fontSize: 13, marginRight: 3 }}>🌐</Text>
-          <Text style={[s.compactReturnText, { color: theme.accent }]}>
-            Global Hub
-          </Text>
-        </TouchableOpacity>
-      )}
+
       <View style={s.headerRight}>
         {Platform.OS !== "android" && (
           <TouchableOpacity
@@ -370,20 +405,28 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
       </View>
-
     </View>
   );
 
   const renderGlobalHubGate = () => {
     if (isEditingPersona) {
       return (
-        <ScrollView contentContainerStyle={s.gateScroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={s.gateScroll}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={s.gateCard}>
             <Text style={s.gateTitle}>Customize Global Profile</Text>
-            <Text style={s.gateSubtitle}>Create a unique persona for the Global Hub</Text>
-            
+            <Text style={s.gateSubtitle}>
+              Create a unique persona for the Global Hub
+            </Text>
+
             <View style={s.avatarContainer}>
-              <TouchableOpacity onPress={handlePickAvatar} style={s.avatarBtn} disabled={uploadingAvatar}>
+              <TouchableOpacity
+                onPress={handlePickAvatar}
+                style={s.avatarBtn}
+                disabled={uploadingAvatar}
+              >
                 {globalAvatar ? (
                   <Image source={{ uri: globalAvatar }} style={s.gateAvatar} />
                 ) : (
@@ -407,7 +450,14 @@ export default function HomeScreen() {
             <View style={s.inputGroup}>
               <Text style={s.inputLabel}>DISPLAY NAME</Text>
               <TextInput
-                style={[s.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card2 }]}
+                style={[
+                  s.input,
+                  {
+                    color: theme.text,
+                    borderColor: theme.border,
+                    backgroundColor: theme.card2,
+                  },
+                ]}
                 value={globalName}
                 onChangeText={setGlobalName}
                 placeholder="Enter display name"
@@ -418,7 +468,15 @@ export default function HomeScreen() {
             <View style={s.inputGroup}>
               <Text style={s.inputLabel}>GLOBAL BIO</Text>
               <TextInput
-                style={[s.input, s.textArea, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card2 }]}
+                style={[
+                  s.input,
+                  s.textArea,
+                  {
+                    color: theme.text,
+                    borderColor: theme.border,
+                    backgroundColor: theme.card2,
+                  },
+                ]}
                 value={globalBio}
                 onChangeText={setGlobalBio}
                 placeholder="Tell the global community about yourself..."
@@ -432,7 +490,10 @@ export default function HomeScreen() {
               <Text style={s.primaryBtnText}>Save & Join Hub</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.secondaryBtn} onPress={() => setIsEditingPersona(false)}>
+            <TouchableOpacity
+              style={s.secondaryBtn}
+              onPress={() => setIsEditingPersona(false)}
+            >
               <Text style={s.secondaryBtnText}>Back</Text>
             </TouchableOpacity>
           </View>
@@ -448,7 +509,8 @@ export default function HomeScreen() {
           </View>
           <Text style={s.gateTitle}>Welcome to the Global Hub</Text>
           <Text style={s.gateSubtitle}>
-            A central space interconnecting all independent campus communities. Discover and interact with students everywhere!
+            A central space interconnecting all independent campus communities.
+            Discover and interact with students everywhere!
           </Text>
 
           {/* Option 1: Instant Join */}
@@ -459,24 +521,39 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.optionTitle}>Use Campus Profile</Text>
               <Text style={s.optionDesc}>
-                Instantly copy your full name, bio, and avatar from your local university profile to join.
+                Instantly copy your full name, bio, and avatar from your local
+                university profile to join.
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textFaint} style={{ marginLeft: 8 }} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textFaint}
+              style={{ marginLeft: 8 }}
+            />
           </TouchableOpacity>
 
           {/* Option 2: Custom Persona */}
-          <TouchableOpacity style={s.optionCard} onPress={() => setIsEditingPersona(true)}>
+          <TouchableOpacity
+            style={s.optionCard}
+            onPress={() => setIsEditingPersona(true)}
+          >
             <View style={s.optionIconBg}>
               <Ionicons name="create-outline" size={24} color="#c084fc" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.optionTitle}>Create Custom Persona</Text>
               <Text style={s.optionDesc}>
-                Set up a new display name, bio, and avatar unique to the Global Hub.
+                Set up a new display name, bio, and avatar unique to the Global
+                Hub.
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textFaint} style={{ marginLeft: 8 }} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textFaint}
+              style={{ marginLeft: 8 }}
+            />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -518,8 +595,7 @@ export default function HomeScreen() {
       <NeuralBackground intensity="light" />
       {header}
 
-
-      {feedMode === 'global' && profile && !profile.joined_global_hub ? (
+      {feedMode === "global" && profile && !profile.joined_global_hub ? (
         renderGlobalHubGate()
       ) : (
         <>
@@ -536,13 +612,18 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Text
-                    style={[s.tabText, { color: theme.accent, fontWeight: "700" }]}
+                    style={[
+                      s.tabText,
+                      { color: theme.accent, fontWeight: "700" },
+                    ]}
                   >
                     For You
                   </Text>
                 </View>
               ) : (
-                <Text style={[s.tabText, { color: theme.textMuted }]}>For You</Text>
+                <Text style={[s.tabText, { color: theme.textMuted }]}>
+                  For You
+                </Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity style={s.tab} onPress={() => setTab("following")}>
@@ -557,7 +638,10 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Text
-                    style={[s.tabText, { color: theme.accent, fontWeight: "700" }]}
+                    style={[
+                      s.tabText,
+                      { color: theme.accent, fontWeight: "700" },
+                    ]}
                   >
                     Following
                   </Text>

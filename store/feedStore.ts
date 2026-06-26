@@ -48,6 +48,7 @@ interface FeedState {
   incrementCommentCount: (postId: string) => void
   repostPost: (postId: string) => Promise<{ error: Error | null }>
   deletePost: (postId: string) => Promise<{ error: Error | null }>
+  reset: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -71,12 +72,28 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   // -------------------------------------------------------------------------
   loadFeed: async () => {
     if (get().loading) return
+
+    const themeState = useThemeStore.getState()
+    const feedMode = themeState.feedMode
+    const activeUniversity = themeState.activeUniversity
+
+    // ── Race-condition guard ──────────────────────────────────────────────
+    // In local mode the university context is loaded asynchronously after
+    // login.  If it hasn't arrived yet, uniId would be undefined, causing
+    // getFeed to fall into the "posted_to_global_hub = true" branch and
+    // returning global posts in local mode.  We bail out here and wait;
+    // the useEffect in index.tsx re-fires when activeUniversity resolves.
+    if (feedMode === 'local' && !activeUniversity?.id) {
+      set({ loading: false, error: null })
+      return
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     set({ loading: true, error: null })
 
     try {
       const { activeTab } = get()
-      const feedMode = useThemeStore.getState().feedMode
-      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const uniId = feedMode === 'local' ? activeUniversity?.id : undefined
       const { data, error } = activeTab === 'following'
         ? await getFollowingFeed(undefined, 20, uniId)
         : await getFeed(undefined, 20, uniId)
@@ -112,12 +129,21 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   // Pull-to-refresh
   // -------------------------------------------------------------------------
   refresh: async () => {
+    const themeState = useThemeStore.getState()
+    const feedMode = themeState.feedMode
+    const activeUniversity = themeState.activeUniversity
+
+    // Same guard as loadFeed: don't refresh into global content in local mode
+    if (feedMode === 'local' && !activeUniversity?.id) {
+      set({ refreshing: false })
+      return
+    }
+
     set({ refreshing: true, error: null })
 
     try {
       const { activeTab } = get()
-      const feedMode = useThemeStore.getState().feedMode
-      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const uniId = feedMode === 'local' ? activeUniversity?.id : undefined
       const { data, error } = activeTab === 'following'
         ? await getFollowingFeed(undefined, 20, uniId)
         : await getFeed(undefined, 20, uniId)
@@ -156,12 +182,18 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     const { loading, refreshing, hasMore, cursor } = get()
     if (loading || refreshing || !hasMore || !cursor) return
 
+    const themeState = useThemeStore.getState()
+    const feedMode = themeState.feedMode
+    const activeUniversity = themeState.activeUniversity
+
+    // Same guard: don't paginate global content while in local mode
+    if (feedMode === 'local' && !activeUniversity?.id) return
+
     set({ loading: true })
 
     try {
       const { activeTab } = get()
-      const feedMode = useThemeStore.getState().feedMode
-      const uniId = feedMode === 'local' ? useThemeStore.getState().activeUniversity?.id : undefined
+      const uniId = feedMode === 'local' ? activeUniversity?.id : undefined
       const { data, error } = activeTab === 'following'
         ? await getFollowingFeed(cursor, 20, uniId)
         : await getFeed(cursor, 20, uniId)
@@ -401,5 +433,22 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       return { error }
     }
     return { error: null }
+  },
+
+  // -------------------------------------------------------------------------
+  // Reset — call on sign-out to wipe stale feed state
+  // -------------------------------------------------------------------------
+  reset: () => {
+    set({
+      posts: [],
+      loading: false,
+      refreshing: false,
+      hasMore: true,
+      cursor: null,
+      likedPostIds: new Set(),
+      bookmarkedPostIds: new Set(),
+      activeTab: 'forYou',
+      error: null,
+    })
   },
 }))
