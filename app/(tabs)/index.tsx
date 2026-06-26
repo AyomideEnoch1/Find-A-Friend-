@@ -607,8 +607,7 @@ export default function HomeScreen() {
                   style={[
                     s.tabPill,
                     {
-                      backgroundColor: theme.accentBg,
-                      borderColor: theme.accentBorder,
+                      borderBottomColor: theme.accentBorder,
                     },
                   ]}
                 >
@@ -633,7 +632,6 @@ export default function HomeScreen() {
                   style={[
                     s.tabPill,
                     {
-                      backgroundColor: theme.accentBg,
                       borderColor: theme.accentBorder,
                     },
                   ]}
@@ -753,9 +751,8 @@ const s = StyleSheet.create({
   },
   tabText: { fontSize: 12, fontFamily: typography.fontMedium },
   tabPill: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 18,
+    borderBottomWidth: 2,
+    paddingHorizontal: 20,
     paddingVertical: 5,
   },
   streakBadge: {

@@ -8,18 +8,18 @@
     "scheme": "faf",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/logo.svg",
       "resizeMode": "contain",
       "backgroundColor": "#0d0d14"
     },
     "ios": {
-      "icon": "./assets/images/actual-icon.jpg",
+      "icon": "./assets/images/logo.jpg",
       "supportsTablet": false,
       "bundleIdentifier": "com.faf.campus"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#0d0d14"
       },
       "package": "com.ayomideenoch.faf",
