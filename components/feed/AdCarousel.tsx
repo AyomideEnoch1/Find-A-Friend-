@@ -182,9 +182,9 @@ export default function AdCarousel() {
     const textColor = item.text_color || "#ffffff";
     const overlayOpacity = item.overlay_opacity !== undefined && item.overlay_opacity !== null ? item.overlay_opacity : 20;
 
-    const alignSelf = (textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start") as const;
+    const alignSelf = (textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start") as "center" | "flex-start" | "flex-end";
     const textContainerAlign = {
-      alignItems: (textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start") as const,
+      alignItems: (textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start") as "center" | "flex-start" | "flex-end",
     };
 
     return (
