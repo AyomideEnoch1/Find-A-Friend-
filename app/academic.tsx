@@ -24,6 +24,7 @@ import { getTimeAgo } from '../lib/matching'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 import { useBadgesStore } from '../store/badgesStore'
+import GuideBanner from '../components/ui/GuideBanner'
 
 type Tab = 'courses' | 'groups' | 'resources'
 
@@ -362,6 +363,8 @@ export default function AcademicScreen() {
         </TouchableOpacity>
       </View>
 
+
+
       {/* Tab bar */}
       <View style={[s.tabBar, { borderBottomColor: theme.border2 }]}>
         {(['courses', 'groups', 'resources'] as Tab[]).map(tab => (
@@ -408,6 +411,12 @@ export default function AcademicScreen() {
           <Ionicons name="add" size={26} color="#fff" />
         </TouchableOpacity>
       )}
+      <GuideBanner
+        storageKey="guide_dismissed_academic"
+        title="Academic Hub 📚"
+        message="Join course study groups, share files/notes/resources, and ask questions on the course discussion boards."
+        topOffset={120}
+      />
     </SafeAreaView>
   )
 }

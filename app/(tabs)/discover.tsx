@@ -31,6 +31,7 @@ import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useThemeStore } from "../../store/themeStore";
+import GuideBanner from "../../components/ui/GuideBanner";
 
 export default function DiscoverScreen() {
   const [deck, setDeck] = useState<FollowProfile[]>([]);
@@ -298,7 +299,12 @@ export default function DiscoverScreen() {
 
   // Filter and Search logic
   const getFilteredDeck = () => {
-    let filtered = deck;
+    let filtered = deck.filter(
+      (u) =>
+        u.id !== userProfile?.id &&
+        statuses[u.id] !== "connected" &&
+        statuses[u.id] !== "requested_sent"
+    );
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -607,6 +613,12 @@ export default function DiscoverScreen() {
           </View>
         )}
       </ScrollView>
+      <GuideBanner
+        storageKey="guide_dismissed_discover"
+        title="Discover New Friends 🔍"
+        message="Browse cards of students with matching interests. Swipe right or click Connect to follow them. Use filters to search by department."
+        topOffset={125}
+      />
     </SafeAreaView>
   );
 }
