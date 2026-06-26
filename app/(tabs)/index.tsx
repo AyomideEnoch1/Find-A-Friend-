@@ -329,7 +329,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {feedMode === "global" ? (
+          {feedMode === "global" && (
             <TouchableOpacity
               style={[
                 s.compactReturnBtn,
@@ -347,7 +347,8 @@ export default function HomeScreen() {
                 Return to Campus
               </Text>
             </TouchableOpacity>
-          ) : (
+          )}
+          {/* : (
             firstName && (
               <Text
                 style={[s.greeting, { color: theme.textMuted, marginLeft: 8 }]}
@@ -355,7 +356,7 @@ export default function HomeScreen() {
                 {getGreeting()}, {firstName} 👋
               </Text>
             )
-          )}
+          ) */}
         </View>
       </View>
 
@@ -606,8 +607,7 @@ export default function HomeScreen() {
                   style={[
                     s.tabPill,
                     {
-                      backgroundColor: theme.accentBg,
-                      borderColor: theme.accentBorder,
+                      borderBottomColor: theme.accentBorder,
                     },
                   ]}
                 >
@@ -632,7 +632,6 @@ export default function HomeScreen() {
                   style={[
                     s.tabPill,
                     {
-                      backgroundColor: theme.accentBg,
                       borderColor: theme.accentBorder,
                     },
                   ]}
@@ -752,9 +751,8 @@ const s = StyleSheet.create({
   },
   tabText: { fontSize: 12, fontFamily: typography.fontMedium },
   tabPill: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 18,
+    borderBottomWidth: 2,
+    paddingHorizontal: 20,
     paddingVertical: 5,
   },
   streakBadge: {

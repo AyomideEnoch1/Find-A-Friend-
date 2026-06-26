@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as React from "react";
 import { useState } from "react";
-import { supportsVideoStories } from "../../lib/featureFlags";
 import {
   Alert,
   Image,
@@ -19,6 +18,7 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import { supportsVideoStories } from "../../lib/featureFlags";
 import type { FeedPost } from "../../lib/feed";
 import { reportPost } from "../../lib/feed";
 import { getInitials, getTimeAgo } from "../../lib/matching";
@@ -63,6 +63,7 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  // Check this  out
   const onContainerLayout = (event: any) => {
     const { width } = event.nativeEvent.layout;
     setContainerWidth(width);
@@ -86,7 +87,9 @@ export default function PostCard({ post }: PostCardProps) {
   const rawName = isAnon
     ? "Anonymous"
     : isGlobalPost
-      ? ((post.profiles as any)?.global_full_name || post.profiles?.full_name || "User")
+      ? (post.profiles as any)?.global_full_name ||
+        post.profiles?.full_name ||
+        "User"
       : (post.profiles?.full_name ?? "User");
   const displayName = rawName;
   const handle = isAnon ? "@anonymous" : toHandle(rawName);
@@ -94,7 +97,7 @@ export default function PostCard({ post }: PostCardProps) {
   const rawAvatarUrl = isAnon
     ? null
     : isGlobalPost
-      ? ((post.profiles as any)?.global_avatar_url || post.profiles?.avatar_url)
+      ? (post.profiles as any)?.global_avatar_url || post.profiles?.avatar_url
       : post.profiles?.avatar_url;
 
   const isRepost = !!(post.repost_of && post.original_post);
@@ -105,7 +108,9 @@ export default function PostCard({ post }: PostCardProps) {
     ? orig.is_anonymous
       ? "Anonymous"
       : isOrigGlobal
-        ? ((orig.profiles as any)?.global_full_name || orig.profiles?.full_name || "User")
+        ? (orig.profiles as any)?.global_full_name ||
+          orig.profiles?.full_name ||
+          "User"
         : (orig.profiles?.full_name ?? "User")
     : "User";
 
@@ -113,7 +118,7 @@ export default function PostCard({ post }: PostCardProps) {
     ? orig.is_anonymous
       ? null
       : isOrigGlobal
-        ? ((orig.profiles as any)?.global_avatar_url || orig.profiles?.avatar_url)
+        ? (orig.profiles as any)?.global_avatar_url || orig.profiles?.avatar_url
         : orig.profiles?.avatar_url
     : null;
 
@@ -387,8 +392,16 @@ export default function PostCard({ post }: PostCardProps) {
         </View>
       )}
 
-      <View style={[s.row, isRepost && { paddingTop: 6 }]}>
-        {/* Avatar with accent ring */}
+      {/* ── Avatar row: only author info + body text ─────────────────────── */}
+      {/* s.row */}
+      <View
+        style={[
+          s.row,
+          isRepost && {
+            paddingTop: 6,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={handleAuthorPress}
           disabled={isAnon}
@@ -401,10 +414,7 @@ export default function PostCard({ post }: PostCardProps) {
             ]}
           >
             {!isAnon && rawAvatarUrl ? (
-              <Image
-                source={{ uri: rawAvatarUrl }}
-                style={s.avatar}
-              />
+              <Image source={{ uri: rawAvatarUrl }} style={s.avatar} />
             ) : (
               <View
                 style={[s.avatarFallback, { backgroundColor: theme.cardSolid }]}
@@ -426,7 +436,7 @@ export default function PostCard({ post }: PostCardProps) {
         </TouchableOpacity>
 
         <View style={s.content}>
-          {/* Author row */}
+          {/* Author / meta row */}
           <View style={s.authorRow}>
             <TouchableOpacity
               onPress={handleAuthorPress}
@@ -495,9 +505,8 @@ export default function PostCard({ post }: PostCardProps) {
                       { flexDirection: "row", alignItems: "center" },
                     ]}
                     onPress={() => {
-                      if (post.club_id) {
+                      if (post.club_id)
                         router.push(`/club/${post.club_id}` as any);
-                      }
                     }}
                   >
                     <Text style={[s.badgeText, { color: theme.accent }]}>
@@ -526,68 +535,87 @@ export default function PostCard({ post }: PostCardProps) {
             </TouchableOpacity>
           </View>
 
+          <View
+        
+      >
+        <Text>
+          {/* Post body text */}
           {quoteText ? renderBody(quoteText) : null}
+        </Text>
+      </View>
+        </View>
+      </View>
 
-          {/* Media with accent border */}
-          {images.length > 0 && !isRepost ? (
-            images.length === 1 ? (
-              images[0].match(/\.(mp4|mov|webm)$/i) ? (
+      
+
+      {/* ── Full-width media (images / video) ──────────────────────────────
+           Outside the avatar row so there is no left offset. */}
+      {images.length > 0 && !isRepost ? (
+        <View style={s.mediaSection}>
+          {images.length === 1 ? (
+            images[0].match(/\.(mp4|mov|webm|m4v|3gp)$/i) ? (
+              <Pressable onPress={(e) => e.stopPropagation()}>
                 <InlineVideoPlayer
                   sourceUrl={images[0]}
+                  borderRadius={12}
+                  borderColor={theme.border}
+                />
+              </Pressable>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setSelectedImage(images[0])}
+                activeOpacity={0.95}
+              >
+                <Image
+                  source={{ uri: images[0] }}
                   style={[
                     s.media,
-                    {
-                      borderColor: theme.border,
-                      height: 240,
-                      backgroundColor: "black",
-                      borderRadius: 12,
-                    },
+                    { borderColor: theme.border, width: "100%" },
                   ]}
+                  resizeMode="cover"
                 />
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setSelectedImage(images[0])}
-                  activeOpacity={0.95}
+              </TouchableOpacity>
+            )
+          ) : (
+            /* Multi-image carousel — fixed height is fine here since
+               the user is swiping through mixed media */
+            <View style={{ marginBottom: 10 }}>
+              <View
+                onLayout={onContainerLayout}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: 240,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  borderWidth: 0.5,
+                  borderColor: theme.border,
+                }}
+              >
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  style={{ width: "100%", height: "100%" }}
                 >
-                  <Image
-                    source={{ uri: images[0] }}
-                    style={[s.media, { borderColor: theme.border }]}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              )
-            ) : (
-              <View style={{ marginBottom: 10 }}>
-                <View
-                  onLayout={onContainerLayout}
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: 240,
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    borderWidth: 0.5,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <ScrollView
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    onScroll={handleScroll}
-                    scrollEventThrottle={16}
-                    style={{ width: "100%", height: "100%" }}
-                  >
-                    {images.map((imgUrl, idx) => (
+                  {images.map((imgUrl, idx) => {
+                    const isVideo = !!imgUrl.match(
+                      /\.(mp4|mov|webm|m4v|3gp)$/i,
+                    );
+                    return (
                       <View
                         key={idx}
                         style={{ width: containerWidth || 300, height: "100%" }}
                       >
-                        {imgUrl.match(/\.(mp4|mov|webm|m4v|3gp)$/i) ? (
-                          <InlineVideoPlayer
-                            sourceUrl={imgUrl}
-                            style={{ width: "100%", height: "100%", backgroundColor: "black" }}
-                          />
+                        {isVideo ? (
+                          <Pressable
+                            onPress={(e) => e.stopPropagation()}
+                            style={{ flex: 1 }}
+                          >
+                            <InlineVideoPlayer sourceUrl={imgUrl} />
+                          </Pressable>
                         ) : (
                           <TouchableOpacity
                             activeOpacity={0.95}
@@ -602,201 +630,181 @@ export default function PostCard({ post }: PostCardProps) {
                           </TouchableOpacity>
                         )}
                       </View>
-                    ))}
-                  </ScrollView>
-
-                  {/* Page Indicator (e.g. 1/3) */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 12,
-                      right: 12,
-                      backgroundColor: "rgba(0, 0, 0, 0.6)",
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "#fff",
-                        fontSize: 11,
-                        fontFamily: typography.fontMedium,
-                      }}
-                    >
-                      {activeIndex + 1}/{images.length}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Dots Indicator */}
+                    );
+                  })}
+                </ScrollView>
                 <View
                   style={{
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginTop: 8,
-                    gap: 5,
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    backgroundColor: "rgba(0,0,0,0.6)",
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
                   }}
                 >
-                  {images.map((_, idx) => (
-                    <View
-                      key={idx}
-                      style={{
-                        width: activeIndex === idx ? 6 : 4,
-                        height: activeIndex === idx ? 6 : 4,
-                        borderRadius: 3,
-                        backgroundColor:
-                          activeIndex === idx ? theme.accent : theme.textFaint,
-                      }}
-                    />
-                  ))}
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 11,
+                      fontFamily: typography.fontMedium,
+                    }}
+                  >
+                    {activeIndex + 1}/{images.length}
+                  </Text>
                 </View>
               </View>
-            )
-          ) : null}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginTop: 8,
+                  gap: 5,
+                }}
+              >
+                {images.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={{
+                      width: activeIndex === idx ? 6 : 4,
+                      height: activeIndex === idx ? 6 : 4,
+                      borderRadius: 3,
+                      backgroundColor:
+                        activeIndex === idx ? theme.accent : theme.textFaint,
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      ) : null}
 
-          {/* Nested original post card (X/Twitter Quote style) */}
-          {isRepost && orig ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
+      {/* ── Full-width repost nested card ────────────────────────────────── */}
+      {isRepost && orig ? (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[
+            s.repostCard,
+            {
+              borderColor: theme.border,
+              backgroundColor: "rgba(255,255,255,0.015)",
+            },
+          ]}
+          onPress={handleOrigPress}
+        >
+          <View style={s.repostCardHeader}>
+            <View
               style={[
-                s.repostCard,
+                s.repostAvatarRing,
                 {
-                  borderColor: theme.border,
-                  backgroundColor: "rgba(255, 255, 255, 0.015)",
+                  borderColor: orig.is_anonymous
+                    ? theme.border
+                    : theme.accentBorder,
                 },
               ]}
-              onPress={handleOrigPress}
             >
-              <View style={s.repostCardHeader}>
+              {!orig.is_anonymous && origAvatarUrl ? (
+                <Image source={{ uri: origAvatarUrl }} style={s.repostAvatar} />
+              ) : (
                 <View
                   style={[
-                    s.repostAvatarRing,
-                    {
-                      borderColor: orig.is_anonymous
-                        ? theme.border
-                        : theme.accentBorder,
-                    },
+                    s.repostAvatarFallback,
+                    { backgroundColor: theme.cardSolid },
                   ]}
                 >
-                  {!orig.is_anonymous && origAvatarUrl ? (
-                    <Image
-                      source={{ uri: origAvatarUrl }}
-                      style={s.repostAvatar}
+                  {orig.is_anonymous ? (
+                    <Ionicons
+                      name="eye-off-outline"
+                      size={10}
+                      color={theme.textMuted}
                     />
                   ) : (
-                    <View
-                      style={[
-                        s.repostAvatarFallback,
-                        { backgroundColor: theme.cardSolid },
-                      ]}
-                    >
-                      {orig.is_anonymous ? (
-                        <Ionicons
-                          name="eye-off-outline"
-                          size={10}
-                          color={theme.textMuted}
-                        />
-                      ) : (
-                        <Text
-                          style={[s.repostAvatarText, { color: theme.accent }]}
-                        >
-                          {getInitials(origName ?? "U")}
-                        </Text>
-                      )}
-                    </View>
+                    <Text style={[s.repostAvatarText, { color: theme.accent }]}>
+                      {getInitials(origName ?? "U")}
+                    </Text>
                   )}
                 </View>
-                <View style={s.repostMetaRow}>
-                  <Text
-                    style={[s.repostAuthorName, { color: theme.text }]}
-                    numberOfLines={1}
-                  >
-                    {orig.is_anonymous
-                      ? "Anonymous"
-                      : origName}
-                  </Text>
-                  <Text
-                    style={[s.repostAuthorHandle, { color: theme.textMuted }]}
-                    numberOfLines={1}
-                  >
-                    {orig.is_anonymous
-                      ? "@anonymous"
-                      : toHandle(origName)}
-                  </Text>
-                  <Text
-                    style={[s.repostAuthorHandle, { color: theme.textFaint }]}
-                  >
-                    · {getTimeAgo(orig.created_at)}
-                  </Text>
-                </View>
-              </View>
-              {orig.body ? renderBody(orig.body, true) : null}
-              {orig.image_url ? (
-                orig.image_url.match(/\.(mp4|mov|webm)$/i) ? (
-                  <InlineVideoPlayer
-                    sourceUrl={orig.image_url!}
-                    style={[
-                      s.repostMedia,
-                      {
-                        borderColor: theme.border,
-                        height: 140,
-                        backgroundColor: "black",
-                        borderRadius: 8,
-                      },
-                    ]}
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: orig.image_url }}
-                    style={[s.repostMedia, { borderColor: theme.border }]}
-                    resizeMode="cover"
-                  />
-                )
-              ) : null}
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Action row */}
-          <View style={s.actions}>
-            <Action
-              icon="chatbubble-outline"
-              count={post.comments_count}
-              onPress={handleComment}
-              activeColor={theme.cyan}
-              inactiveColor={theme.textMuted}
-            />
-            <Action
-              icon="repeat-outline"
-              count={post.repost_count ?? 0}
-              onPress={handleRepost}
-              activeColor="#34d399"
-              inactiveColor={theme.textMuted}
-            />
-            <Action
-              icon={post.is_liked ? "heart" : "heart-outline"}
-              count={post.likes_count}
-              onPress={handleLike}
-              active={post.is_liked}
-              activeColor="#f472b6"
-              inactiveColor={theme.textMuted}
-            />
-            <Action
-              icon={post.is_bookmarked ? "bookmark" : "bookmark-outline"}
-              onPress={handleBookmark}
-              active={post.is_bookmarked}
-              activeColor={theme.accent}
-              inactiveColor={theme.textMuted}
-            />
-            <Action
-              icon="share-outline"
-              onPress={handleShare}
-              activeColor={theme.accent}
-              inactiveColor={theme.textMuted}
-            />
+              )}
+            </View>
+            <View style={s.repostMetaRow}>
+              <Text
+                style={[s.repostAuthorName, { color: theme.text }]}
+                numberOfLines={1}
+              >
+                {orig.is_anonymous ? "Anonymous" : origName}
+              </Text>
+              <Text
+                style={[s.repostAuthorHandle, { color: theme.textMuted }]}
+                numberOfLines={1}
+              >
+                {orig.is_anonymous ? "@anonymous" : toHandle(origName)}
+              </Text>
+              <Text style={[s.repostAuthorHandle, { color: theme.textFaint }]}>
+                · {getTimeAgo(orig.created_at)}
+              </Text>
+            </View>
           </View>
-        </View>
+          {orig.body ? renderBody(orig.body, true) : null}
+          {orig.image_url ? (
+            orig.image_url.match(/\.(mp4|mov|webm|m4v|3gp)$/i) ? (
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <InlineVideoPlayer
+                  sourceUrl={orig.image_url!}
+                  borderRadius={8}
+                  borderColor={theme.border}
+                />
+              </Pressable>
+            ) : (
+              <Image
+                source={{ uri: orig.image_url }}
+                style={[s.repostMedia, { borderColor: theme.border }]}
+                resizeMode="cover"
+              />
+            )
+          ) : null}
+        </TouchableOpacity>
+      ) : null}
+
+      {/* ── Actions row — always the last element in the card ───────────── */}
+      <View style={s.actions}>
+        <Action
+          icon="chatbubble-outline"
+          count={post.comments_count}
+          onPress={handleComment}
+          activeColor={theme.cyan}
+          inactiveColor={theme.textMuted}
+        />
+        <Action
+          icon="repeat-outline"
+          count={post.repost_count ?? 0}
+          onPress={handleRepost}
+          activeColor="#34d399"
+          inactiveColor={theme.textMuted}
+        />
+        <Action
+          icon={post.is_liked ? "heart" : "heart-outline"}
+          count={post.likes_count}
+          onPress={handleLike}
+          active={post.is_liked}
+          activeColor="#f472b6"
+          inactiveColor={theme.textMuted}
+        />
+        <Action
+          icon={post.is_bookmarked ? "bookmark" : "bookmark-outline"}
+          onPress={handleBookmark}
+          active={post.is_bookmarked}
+          activeColor={theme.accent}
+          inactiveColor={theme.textMuted}
+        />
+        <Action
+          icon="share-outline"
+          onPress={handleShare}
+          activeColor={theme.accent}
+          inactiveColor={theme.textMuted}
+        />
       </View>
 
       {selectedImage ? (
@@ -948,11 +956,19 @@ const s = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
   },
+  // Wrapper for media placed outside the avatar-offset row so it goes edge-to-edge
+  mediaSection: {
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+  },
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 10,
     marginTop: 4,
-    paddingRight: 8,
+    marginHorizontal: 45,
   },
   actionBtn: {
     flexDirection: "row",
@@ -991,6 +1007,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
+    marginHorizontal: 14,
     marginTop: 6,
     marginBottom: 10,
   },
@@ -1063,34 +1080,121 @@ const s = StyleSheet.create({
   },
 });
 
+/**
+ * InlineVideoPlayer
+ *
+ * Self-sizing video player.  The container height is computed from the
+ * video's natural aspect ratio once the player emits a videoTrackUpdate
+ * event (expo-video >= 2.x / 3.x).  Until then a 16:9 skeleton is shown.
+ */
 function InlineVideoPlayer({
   sourceUrl,
-  style,
+  borderRadius = 0,
+  borderColor,
 }: {
   sourceUrl: string;
-  style: any;
+  borderRadius?: number;
+  borderColor?: string;
 }) {
   const theme = useTheme();
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [aspectRatio, setAspectRatio] = React.useState<number | null>(null);
+
   if (!supportsVideoStories()) {
     return (
-      <View style={[style, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg || '#1a1a24', gap: 6, padding: 12 }]}>
-        <Ionicons name="play-circle-outline" size={32} color={theme.textMuted || '#888'} />
-        <Text style={{ fontSize: 11, color: theme.textMuted || '#888', fontFamily: typography.fontMedium, textAlign: 'center' }}>
+      <View
+        style={{
+          width: "100%",
+          minHeight: 160,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.bg || "#1a1a24",
+          borderRadius,
+          borderWidth: borderColor ? 0.5 : 0,
+          borderColor,
+          gap: 6,
+          padding: 12,
+        }}
+      >
+        <Ionicons
+          name="play-circle-outline"
+          size={32}
+          color={theme.textMuted || "#888"}
+        />
+        <Text
+          style={{
+            fontSize: 11,
+            color: theme.textMuted || "#888",
+            fontFamily: typography.fontMedium,
+            textAlign: "center",
+          }}
+        >
           Video requires app update
         </Text>
       </View>
     );
   }
 
-  // Dynamic require is intentional: expo-video may not be available on older
-  // native builds. supportsVideoStories() already guards the call above.
   const expoVideo = require("expo-video");
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const player = expoVideo.useVideoPlayer(sourceUrl, (p: any) => {
     p.loop = false;
   });
 
+  // expo-video 3.x: listen for videoTrackUpdate to get natural size.
+  // useEvent is the correct API — addListener does not exist on the player object.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const videoSize = expoVideo.useEvent
+    ? // eslint-disable-next-line react-hooks/rules-of-hooks
+      expoVideo.useEvent(player, "videoTrackUpdate", {
+        videoTrack: player?.videoTrack ?? null,
+      })?.videoTrack?.size
+    : null;
+
+  // Also try reading directly in case the track is already loaded (cache hit)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  React.useEffect(() => {
+    const size = videoSize ?? player?.videoTrack?.size;
+    if (size?.width > 0 && size?.height > 0) {
+      setAspectRatio(size.height / size.width);
+    }
+  }, [videoSize, player?.videoTrack?.size]);
+
+  const knownHeight =
+    containerWidth > 0 && aspectRatio !== null
+      ? containerWidth * aspectRatio
+      : null;
+
   return (
-    <View style={[style, { overflow: "hidden", backgroundColor: "black" }]}>
+    <View
+      style={{
+        width: "100%",
+        height:
+          knownHeight ??
+          (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220),
+        backgroundColor: "black",
+        borderRadius,
+        borderWidth: borderColor ? 0.5 : 0,
+        borderColor,
+        overflow: "hidden",
+      }}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      {knownHeight === null && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <Ionicons
+            name="play-circle-outline"
+            size={36}
+            color="rgba(255,255,255,0.25)"
+          />
+        </View>
+      )}
       <expoVideo.VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -1101,4 +1205,77 @@ function InlineVideoPlayer({
       />
     </View>
   );
+}
+
+/**
+ * AspectRatioImage
+ *
+ * Wraps a remote image in a container whose height is derived from the
+ * image's natural aspect ratio (via Image.getSize).  Same pattern as
+ * InlineVideoPlayer so the visual behaviour is consistent.
+ */
+function AspectRatioImage({
+  uri,
+  borderRadius = 0,
+  borderColor,
+  onPress,
+}: {
+  uri: string;
+  borderRadius?: number;
+  borderColor?: string;
+  onPress?: () => void;
+}) {
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [aspectRatio, setAspectRatio] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!uri) return;
+    Image.getSize(
+      uri,
+      (w, h) => {
+        if (w > 0) setAspectRatio(h / w);
+      },
+      () => {
+        /* failed to load — stay at default */
+      },
+    );
+  }, [uri]);
+
+  const knownHeight =
+    containerWidth > 0 && aspectRatio !== null
+      ? containerWidth * aspectRatio
+      : null;
+
+  const content = (
+    <View
+      style={{
+        width: "100%",
+        height:
+          knownHeight ??
+          (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220),
+        borderRadius,
+        borderWidth: borderColor ? 0.5 : 0,
+        borderColor,
+        overflow: "hidden",
+        backgroundColor: "#0d0d14",
+        marginBottom: 10,
+      }}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      <Image
+        source={{ uri }}
+        style={StyleSheet.absoluteFill}
+        resizeMode="contain"
+      />
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity activeOpacity={0.95} onPress={onPress}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
 }
