@@ -189,24 +189,36 @@ export default function AdCarousel() {
 
     return (
       <View style={[s.itemContainer, { width: ITEM_WIDTH }]}>
-        <View style={[s.card, !hasGradient && { backgroundColor: item.color }]}>
+        <View style={[s.card, !item.image_url && !hasGradient && { backgroundColor: item.color }]}>
+          {/* 1. Base Background Image */}
+          {item.image_url && (
+            <Image
+              source={{ uri: item.image_url }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+          )}
+
+          {/* 2. Solid Color Overlay (only when image is present and there's no gradient) */}
+          {item.image_url && !hasGradient && (
+            <View
+              style={[
+                StyleSheet.absoluteFillObject,
+                { backgroundColor: item.color, opacity: overlayOpacity / 100 }
+              ]}
+            />
+          )}
+
+          {/* 3. Gradient Overlay */}
           {hasGradient && (
             <LinearGradient
               colors={[item.color, item.gradient_end!]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-          )}
-
-          {item.image_url && (
-            <Image
-              source={{ uri: item.image_url }}
               style={[
                 StyleSheet.absoluteFillObject,
-                { opacity: overlayOpacity / 100 },
+                item.image_url ? { opacity: overlayOpacity / 100 } : {}
               ]}
-              resizeMode="cover"
             />
           )}
 
