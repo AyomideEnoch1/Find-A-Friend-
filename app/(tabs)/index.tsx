@@ -50,6 +50,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { getInitials } from "../../lib/matching";
 import VerifiedBadge from "../../components/ui/VerifiedBadge";
+import GuideBanner from "../../components/ui/GuideBanner";
 
 function PostSkeleton() {
   const theme = useTheme();
@@ -391,6 +392,50 @@ export default function HomeScreen() {
           <PostSkeleton />
           <PostSkeleton />
         </View>
+      ) : feedMode === "local" ? (
+        <View style={s.empty}>
+          <Ionicons
+            name="planet-outline"
+            size={52}
+            color={theme.accent}
+            style={{ marginBottom: 8 }}
+          />
+          <Text style={[s.emptyTitle, { color: theme.text, textAlign: "center" }]}>
+            Your Campus Feed is Quiet
+          </Text>
+          <Text style={[s.emptyText, { color: theme.textMuted, textAlign: "center", marginBottom: 12 }]}>
+            It looks like you are one of the first on this campus! No posts have been made here yet.
+          </Text>
+          <TouchableOpacity
+            style={[s.emptyBtn, { backgroundColor: theme.accent, alignSelf: "stretch", alignItems: "center" }]}
+            onPress={() => setFeedMode("global")}
+          >
+            <Text style={s.emptyBtnText}>🌐 Go to Global Hub</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              s.emptyBtn,
+              {
+                borderColor: theme.border,
+                borderWidth: 1,
+                alignSelf: "stretch",
+                alignItems: "center",
+                marginTop: 8,
+              },
+            ]}
+            onPress={() => router.push("/create-post" as any)}
+          >
+            <Text
+              style={{
+                color: theme.text,
+                fontFamily: typography.fontSemiBold,
+                fontSize: 13,
+              }}
+            >
+              Create First Campus Post
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={s.empty}>
           <Ionicons
@@ -412,7 +457,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       ),
-    [loading, theme],
+    [loading, theme, feedMode],
   );
 
   const header = (
@@ -976,6 +1021,12 @@ export default function HomeScreen() {
     >
       <NeuralBackground intensity="light" />
       {header}
+
+      <GuideBanner
+        storageKey="guide_dismissed_home"
+        title="Welcome to Find-A-Friend! 🌐"
+        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+      />
 
       {feedMode === "global" && profile && !profile.joined_global_hub ? (
         renderGlobalHubGate()

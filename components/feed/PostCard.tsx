@@ -28,6 +28,7 @@ import { typography } from "../../lib/typography";
 import { useFeedStore } from "../../store/feedStore";
 import VerifiedBadge from "../ui/VerifiedBadge";
 
+import { useThemeStore } from "../../store/themeStore";
 import { supabase } from "../../lib/supabase";
 
 interface PostCardProps {
@@ -46,6 +47,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const theme = useTheme();
+  const feedMode = useThemeStore((s) => s.feedMode);
 
   React.useEffect(() => {
     supabase.auth
@@ -454,7 +456,7 @@ export default function PostCard({ post }: PostCardProps) {
                     size={14}
                   />
                 )}
-                {!isAnon && post.profiles?.universities && (
+                {!isAnon && feedMode === "global" && post.profiles?.universities && (
                   <View
                     style={[
                       s.uniBadge,
@@ -470,7 +472,7 @@ export default function PostCard({ post }: PostCardProps) {
                         { color: post.profiles.universities.primary_color },
                       ]}
                     >
-                      🏫 {post.profiles.universities.short_name}
+                      {post.profiles.universities.short_name}
                     </Text>
                   </View>
                 )}

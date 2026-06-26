@@ -31,6 +31,7 @@ import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useThemeStore } from "../../store/themeStore";
+import GuideBanner from "../../components/ui/GuideBanner";
 
 export default function DiscoverScreen() {
   const [deck, setDeck] = useState<FollowProfile[]>([]);
@@ -415,7 +416,11 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-
+      <GuideBanner
+        storageKey="guide_dismissed_discover"
+        title="Discover New Friends 🔍"
+        message="Browse cards of students with matching interests. Swipe right or click Connect to follow them. Use filters to search by department."
+      />
 
       {/* Search Bar */}
       <View

@@ -402,7 +402,12 @@ const baseSupabase = createClient(API_URL, 'aws-anonymous-key', {
       if (API_URL) {
         if (urlStr.includes('/storage/v1')) {
           const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vcbtvhociaioeyhhsczh.supabase.co';
+          const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'aws-anonymous-key';
           rewrittenUrl = urlStr.replace(`${API_URL}/storage/v1`, `${supabaseUrl}/storage/v1`);
+          
+          // Storage requests must use the Supabase Anon Key rather than Cognito access token
+          headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+          headers.set('apikey', supabaseAnonKey);
         } else {
           rewrittenUrl = urlStr.replace(`${API_URL}/rest/v1`, API_URL);
         }
