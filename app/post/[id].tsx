@@ -24,6 +24,7 @@ import { StickerPicker } from '../../components/StickerPicker'
 import { ReplyBanner } from '../../components/chat/ReplyUI'
 import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
+import SharedInlineVideoPlayer from '../../components/ui/InlineVideoPlayer'
 
 function toHandle(name: string | null | undefined) {
   if (!name) return '@user'
@@ -1079,33 +1080,10 @@ function InlineVideoPlayer({
   sourceUrl: string
   style: any
 }) {
-  const theme = useTheme()
-  if (!supportsVideoStories()) {
-    return (
-      <View style={[style, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg || '#1a1a24', gap: 6, padding: 12 }]}>
-        <Ionicons name="play-circle-outline" size={32} color={theme.textMuted || '#888'} />
-        <Text style={{ fontSize: 11, color: theme.textMuted || '#888', fontFamily: typography.fontMedium, textAlign: 'center' }}>
-          Video requires app update
-        </Text>
-      </View>
-    )
-  }
-
-  const { useVideoPlayer, VideoView } = require('expo-video')
-  const player = useVideoPlayer(sourceUrl, (p: any) => {
-    p.loop = false
-  })
-
   return (
-    <View style={[style, { overflow: 'hidden', backgroundColor: 'black' }]}>
-      <VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={true}
-        allowsFullscreen={true}
-        showsTimecodes={true}
-      />
-    </View>
+    <SharedInlineVideoPlayer
+      sourceUrl={sourceUrl}
+      style={style}
+    />
   )
 }

@@ -18,6 +18,7 @@ import { useBadgesStore } from '../../store/badgesStore'
 import { useThemeStore } from '../../store/themeStore'
 import type { Event } from '../../lib/events'
 import { supabase } from '../../lib/supabase'
+import GuideBanner from '../../components/ui/GuideBanner'
 
 type Tab = 'upcoming' | 'rsvps' | 'past'
 
@@ -265,6 +266,8 @@ export default function EventsScreen() {
         </TouchableOpacity>
       </View>
 
+
+
       <View style={[s.tabBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {TABS.map(tab => (
           <TouchableOpacity
@@ -317,6 +320,12 @@ export default function EventsScreen() {
         onPress={() => router.push('/create-event' as any)}>
         <Ionicons name="add" size={26} color="#fff" />
       </TouchableOpacity>
+      <GuideBanner
+        storageKey="guide_dismissed_events"
+        title="Campus Events 📅"
+        message="Discover what's happening on campus, RSVP to events you're interested in, and see who else is attending. Tap '+' to host a new event!"
+        topOffset={120}
+      />
     </SafeAreaView>
   )
 }

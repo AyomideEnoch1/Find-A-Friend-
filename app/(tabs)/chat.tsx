@@ -23,6 +23,7 @@ import { usePresenceStore } from '../../store/presenceStore'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import Toast from 'react-native-toast-message'
 import { useBadgesStore } from '../../store/badgesStore'
+import GuideBanner from '../../components/ui/GuideBanner'
 
 // ─── Pulsing online dot ───────────────────────────────────────────────────────
 function PulseOnlineDot({ style }: { style?: object }) {
@@ -491,6 +492,8 @@ export default function ChatScreen() {
         </View>
       </View>
 
+
+
       {/* ── New chat picker ── */}
       {showNewChat ? (
         <View style={{ flex: 1 }}>
@@ -646,6 +649,12 @@ export default function ChatScreen() {
           )}
         </>
       )}
+      <GuideBanner
+        storageKey="guide_dismissed_chat"
+        title="Real-time Chat 💬"
+        message="Message friends, chat inside study groups, and keep your daily streak alive by texting daily!"
+        topOffset={70}
+      />
     </SafeAreaView>
   )
 }

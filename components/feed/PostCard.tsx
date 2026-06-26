@@ -26,8 +26,10 @@ import { createStory } from "../../lib/stories";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useFeedStore } from "../../store/feedStore";
+import SharedInlineVideoPlayer from "../ui/InlineVideoPlayer";
 import VerifiedBadge from "../ui/VerifiedBadge";
 
+import { useThemeStore } from "../../store/themeStore";
 import { supabase } from "../../lib/supabase";
 
 interface PostCardProps {
@@ -46,6 +48,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const theme = useTheme();
+  const feedMode = useThemeStore((s) => s.feedMode);
 
   React.useEffect(() => {
     supabase.auth
@@ -374,14 +377,22 @@ export default function PostCard({ post }: PostCardProps) {
               backgroundColor: "rgba(25, 10, 55, 0.5)",
               borderWidth: 1.5,
             }
-          : { borderColor: theme.border, backgroundColor: theme.card },
-        !isGlobalPost && theme.cardShadow,
+          : {
+              borderColor: "transparent",
+              backgroundColor: "transparent",
+              borderWidth: 0,
+              borderBottomWidth: 0.5,
+              borderBottomColor: theme.border,
+              marginHorizontal: 0,
+              borderRadius: 0,
+              marginVertical: 0,
+            },
       ]}
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
     >
       {/* Subtle top-edge tint */}
-      <View style={s.cardGradient} pointerEvents="none" />
+      {isGlobalPost && <View style={s.cardGradient} pointerEvents="none" />}
 
       {isRepost && (
         <View style={s.repostHeaderRow}>
@@ -454,7 +465,7 @@ export default function PostCard({ post }: PostCardProps) {
                     size={14}
                   />
                 )}
-                {!isAnon && post.profiles?.universities && (
+                {!isAnon && feedMode === "global" && post.profiles?.universities && (
                   <View
                     style={[
                       s.uniBadge,
@@ -470,7 +481,7 @@ export default function PostCard({ post }: PostCardProps) {
                         { color: post.profiles.universities.primary_color },
                       ]}
                     >
-                      🏫 {post.profiles.universities.short_name}
+                      {post.profiles.universities.short_name}
                     </Text>
                   </View>
                 )}
@@ -1096,114 +1107,12 @@ function InlineVideoPlayer({
   borderRadius?: number;
   borderColor?: string;
 }) {
-  const theme = useTheme();
-  const [containerWidth, setContainerWidth] = React.useState(0);
-  const [aspectRatio, setAspectRatio] = React.useState<number | null>(null);
-
-  if (!supportsVideoStories()) {
-    return (
-      <View
-        style={{
-          width: "100%",
-          minHeight: 160,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: theme.bg || "#1a1a24",
-          borderRadius,
-          borderWidth: borderColor ? 0.5 : 0,
-          borderColor,
-          gap: 6,
-          padding: 12,
-        }}
-      >
-        <Ionicons
-          name="play-circle-outline"
-          size={32}
-          color={theme.textMuted || "#888"}
-        />
-        <Text
-          style={{
-            fontSize: 11,
-            color: theme.textMuted || "#888",
-            fontFamily: typography.fontMedium,
-            textAlign: "center",
-          }}
-        >
-          Video requires app update
-        </Text>
-      </View>
-    );
-  }
-
-  const expoVideo = require("expo-video");
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const player = expoVideo.useVideoPlayer(sourceUrl, (p: any) => {
-    p.loop = false;
-  });
-
-  // expo-video 3.x: listen for videoTrackUpdate to get natural size.
-  // useEvent is the correct API — addListener does not exist on the player object.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const videoSize = expoVideo.useEvent
-    ? // eslint-disable-next-line react-hooks/rules-of-hooks
-      expoVideo.useEvent(player, "videoTrackUpdate", {
-        videoTrack: player?.videoTrack ?? null,
-      })?.videoTrack?.size
-    : null;
-
-  // Also try reading directly in case the track is already loaded (cache hit)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  React.useEffect(() => {
-    const size = videoSize ?? player?.videoTrack?.size;
-    if (size?.width > 0 && size?.height > 0) {
-      setAspectRatio(size.height / size.width);
-    }
-  }, [videoSize, player?.videoTrack?.size]);
-
-  const knownHeight =
-    containerWidth > 0 && aspectRatio !== null
-      ? containerWidth * aspectRatio
-      : null;
-
   return (
-    <View
-      style={{
-        width: "100%",
-        height:
-          knownHeight ??
-          (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220),
-        backgroundColor: "black",
-        borderRadius,
-        borderWidth: borderColor ? 0.5 : 0,
-        borderColor,
-        overflow: "hidden",
-      }}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-    >
-      {knownHeight === null && (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { justifyContent: "center", alignItems: "center" },
-          ]}
-        >
-          <Ionicons
-            name="play-circle-outline"
-            size={36}
-            color="rgba(255,255,255,0.25)"
-          />
-        </View>
-      )}
-      <expoVideo.VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="contain"
-        nativeControls={true}
-        allowsFullscreen={true}
-        showsTimecodes={true}
-      />
-    </View>
+    <SharedInlineVideoPlayer
+      sourceUrl={sourceUrl}
+      borderRadius={borderRadius}
+      borderColor={borderColor}
+    />
   );
 }
 

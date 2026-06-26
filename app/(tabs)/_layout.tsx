@@ -9,6 +9,9 @@ import { showTabBar, tabBarTranslateY } from "../../lib/tabBarAnim";
 import { glowShadow, useTheme } from "../../lib/theme";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
+import { useAuthStore } from "../../store/authStore";
+import { useFeedStore } from "../../store/feedStore";
+import { useThemeStore } from "../../store/themeStore";
 
 function TabIcon({
   name,
@@ -16,14 +19,27 @@ function TabIcon({
   size,
   focused,
 }: {
-  name: any;
+  name: string;
   color: string;
   size: number;
   focused: boolean;
 }) {
+  let iconName: any = name;
+  if (name === "home") {
+    iconName = focused ? "home" : "home-outline";
+  } else if (name === "search") {
+    iconName = focused ? "compass" : "compass-outline";
+  } else if (name === "calendar") {
+    iconName = focused ? "calendar" : "calendar-outline";
+  } else if (name === "chatbubbles") {
+    iconName = focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline";
+  } else if (name === "grid") {
+    iconName = focused ? "grid" : "grid-outline";
+  }
+
   return (
     <View style={styles.iconWrap}>
-      <Ionicons name={name} size={size} color={color} />
+      <Ionicons name={iconName} size={size} color={color} />
       {focused && <View style={styles.activeDot} />}
     </View>
   );
@@ -34,6 +50,14 @@ export default function TabLayout() {
   const theme = useTheme();
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
   const { counts, syncCounts } = useBadgesStore();
+
+  const authLoading = useAuthStore((s) => s.loading);
+  const feedLoading = useFeedStore((s) => s.loading);
+  const postsCount = useFeedStore((s) => s.posts.length);
+  const themeHydrated = useThemeStore((s) => s.hydrated);
+
+  const shouldHideTabBar =
+    authLoading || !themeHydrated || (feedLoading && postsCount === 0);
 
   useEffect(() => {
     syncCounts();
@@ -84,6 +108,7 @@ export default function TabLayout() {
           paddingTop: 4,
           elevation: 0,
           transform: [{ translateY: tabBarTranslateY }],
+          display: shouldHideTabBar ? "none" : "flex",
         },
         tabBarBackground: () =>
           Platform.OS === "ios" ? (
@@ -180,6 +205,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="more"
         options={{
+          href: null,
           title: "More",
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="grid" color={color} size={size} focused={focused} />
@@ -210,3 +236,4 @@ const styles = StyleSheet.create({
     ...glowShadow,
   },
 });
+

@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -17,9 +18,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import AdCarousel from "../../components/feed/AdCarousel";
 import PostCard from "../../components/feed/PostCard";
@@ -28,7 +30,7 @@ import NeuralBackground from "../../components/NeuralBackground";
 import ScreenLoader from "../../components/ScreenLoader";
 import StoryViewer from "../../components/stories/StoryViewer";
 import type { FeedPost } from "../../lib/feed";
-import { getCurrentProfile, Profile, updateProfile } from "../../lib/profiles";
+import { getCurrentProfile, Profile, updateProfile, getProfileStats, ProfileStats } from "../../lib/profiles";
 import { hideTabBar, showTabBar } from "../../lib/tabBarAnim";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
@@ -38,6 +40,58 @@ import { useFeedStore } from "../../store/feedStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
 import { useStreakStore } from "../../store/streakStore";
 import { useThemeStore } from "../../store/themeStore";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  Easing,
+  runOnJS,
+} from "react-native-reanimated";
+import { getInitials } from "../../lib/matching";
+import VerifiedBadge from "../../components/ui/VerifiedBadge";
+import GuideBanner from "../../components/ui/GuideBanner";
+
+function PostSkeleton() {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        borderRadius: 16,
+        borderWidth: 0.5,
+        borderColor: theme.border,
+        backgroundColor: theme.card,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: theme.dark ? 0.2 : 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ marginLeft: 12, flex: 1, gap: 6 }}>
+          <View style={{ width: 100, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.6 }} />
+          <View style={{ width: 60, height: 8, borderRadius: 4, backgroundColor: theme.card2, opacity: 0.4 }} />
+        </View>
+      </View>
+      <View style={{ gap: 8, marginBottom: 14 }}>
+        <View style={{ width: "90%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ width: "95%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ width: "40%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.4 }} />
+      </View>
+      <View style={{ height: 160, borderRadius: 12, backgroundColor: theme.card2, opacity: 0.3, marginBottom: 14 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 }}>
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 30, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+      </View>
+    </View>
+  );
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -69,6 +123,8 @@ export default function HomeScreen() {
   const { currentStreak, hasLoaded } = useStreakStore();
   const theme = useTheme();
   const markSeen = useBadgesStore((s) => s.markSeen);
+  const counts = useBadgesStore((s) => s.counts);
+  const insets = useSafeAreaInsets();
 
   const [firstName, setFirstName] = useState<string | null>(null);
   const lastScrollY = useRef(0);
@@ -79,6 +135,73 @@ export default function HomeScreen() {
   const [globalBio, setGlobalBio] = useState("");
   const [globalAvatar, setGlobalAvatar] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Sidebar and Stats States
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [stats, setStats] = useState<ProfileStats>({
+    posts: 0,
+    friends: 0,
+    followers: 0,
+    following: 0,
+    clubs: 0,
+  });
+
+  // Reanimated Shared Values
+  const sidebarX = useSharedValue(-300);
+  const backdropOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(1);
+
+  // Logo Periodic Animation (every 4.5 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      logoScale.value = withSequence(
+        withTiming(1.15, { duration: 300, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+        withTiming(0.92, { duration: 180, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+        withTiming(1.05, { duration: 150, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+        withTiming(1, { duration: 150, easing: Easing.bezier(0.25, 0.1, 0.25, 1) })
+      );
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Animated Styles
+  const sidebarAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: sidebarX.value }],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const animatedLogoStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
+  }));
+
+  // Sidebar control functions
+  const openSidebar = () => {
+    setSidebarVisible(true);
+    sidebarX.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic) });
+    backdropOpacity.value = withTiming(1, { duration: 250 });
+  };
+
+  const closeSidebar = () => {
+    sidebarX.value = withTiming(-300, { duration: 220, easing: Easing.in(Easing.cubic) }, (finished) => {
+      if (finished) {
+        runOnJS(setSidebarVisible)(false);
+      }
+    });
+    backdropOpacity.value = withTiming(0, { duration: 220 });
+  };
+
+  const refreshStats = useCallback(async () => {
+    try {
+      const s = await getProfileStats();
+      setStats(s);
+    } catch (e) {
+      console.log("Error loading stats:", e);
+    }
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     const p = await getCurrentProfile();
@@ -95,10 +218,11 @@ export default function HomeScreen() {
     useCallback(() => {
       markSeen("home");
       refreshProfile();
+      refreshStats();
       if (posts.length === 0) {
         showTabBar();
       }
-    }, [markSeen, posts.length, refreshProfile]),
+    }, [markSeen, posts.length, refreshProfile, refreshStats]),
   );
 
   const onScroll = useCallback(
@@ -262,7 +386,57 @@ export default function HomeScreen() {
 
   const renderEmpty = useCallback(
     () =>
-      !loading ? (
+      loading ? (
+        <View style={{ gap: 12 }}>
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </View>
+      ) : feedMode === "local" ? (
+        <View style={s.empty}>
+          <Ionicons
+            name="planet-outline"
+            size={52}
+            color={theme.accent}
+            style={{ marginBottom: 8 }}
+          />
+          <Text style={[s.emptyTitle, { color: theme.text, textAlign: "center" }]}>
+            Your Campus Feed is Quiet
+          </Text>
+          <Text style={[s.emptyText, { color: theme.textMuted, textAlign: "center", marginBottom: 12 }]}>
+            It looks like you are one of the first on this campus! No posts have been made here yet.
+          </Text>
+          <TouchableOpacity
+            style={[s.emptyBtn, { backgroundColor: theme.accent, alignSelf: "stretch", alignItems: "center" }]}
+            onPress={() => setFeedMode("global")}
+          >
+            <Text style={s.emptyBtnText}>🌐 Go to Global Hub</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              s.emptyBtn,
+              {
+                borderColor: theme.border,
+                borderWidth: 1,
+                alignSelf: "stretch",
+                alignItems: "center",
+                marginTop: 8,
+              },
+            ]}
+            onPress={() => router.push("/create-post" as any)}
+          >
+            <Text
+              style={{
+                color: theme.text,
+                fontFamily: typography.fontSemiBold,
+                fontSize: 13,
+              }}
+            >
+              Create First Campus Post
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
         <View style={s.empty}>
           <Ionicons
             name="newspaper-outline"
@@ -282,8 +456,8 @@ export default function HomeScreen() {
             <Text style={s.emptyBtnText}>Create first post</Text>
           </TouchableOpacity>
         </View>
-      ) : null,
-    [loading, theme],
+      ),
+    [loading, theme, feedMode],
   );
 
   const header = (
@@ -303,11 +477,13 @@ export default function HomeScreen() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={{ width: 32, height: 32, marginBottom: 2 }}
-              resizeMode="contain"
-            />
+            <TouchableOpacity onPress={openSidebar} activeOpacity={0.7}>
+              <Animated.Image
+                source={require("../../assets/images/logo.png")}
+                style={[{ width: 32, height: 32, marginBottom: 2 }, animatedLogoStyle]}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
 
             {/* Compact Global Hub chip — shown inline in header when in local mode */}
             {feedMode === "local" && activeUniversity && (
@@ -322,14 +498,11 @@ export default function HomeScreen() {
                 onPress={() => setFeedMode("global")}
               >
                 <Text style={{ fontSize: 13, marginRight: 3 }}>🌐</Text>
-                {/* <Text style={[s.compactReturnText, { color: theme.accent }]}>
-            Global Hub
-          </Text> */}
               </TouchableOpacity>
             )}
           </View>
 
-          {feedMode === "global" && (
+          {feedMode === "global" && activeUniversity && (
             <TouchableOpacity
               style={[
                 s.compactReturnBtn,
@@ -337,14 +510,8 @@ export default function HomeScreen() {
               ]}
               onPress={() => setFeedMode("local")}
             >
-              <Ionicons
-                name="school-outline"
-                size={14}
-                color={theme.accent}
-                style={{ marginRight: 4 }}
-              />
               <Text style={[s.compactReturnText, { color: theme.text }]}>
-                Return to Campus
+                {activeUniversity.short_name || activeUniversity.name}
               </Text>
             </TouchableOpacity>
           )}
@@ -561,9 +728,6 @@ export default function HomeScreen() {
     );
   };
 
-  if (loading && !posts.length) {
-    return <ScreenLoader message="Loading feed..." />;
-  }
 
   if (error && !posts.length) {
     return (
@@ -587,6 +751,268 @@ export default function HomeScreen() {
       </SafeAreaView>
     );
   }
+
+  const renderSidebar = () => {
+    if (!sidebarVisible) return null;
+
+    const statItems = [
+      { label: "Posts", value: stats?.posts ?? 0 },
+      { label: "Followers", value: stats?.followers ?? 0 },
+      { label: "Following", value: stats?.following ?? 0 },
+      { label: "Clubs", value: stats?.clubs ?? 0 },
+    ];
+
+    const featureBadges: Record<string, number> = {
+      "/academic": counts?.academic || 0,
+      "/clubs": counts?.clubs_feature || 0,
+      "/games": counts?.games || 0,
+      "/anonymous": counts?.anonymous || 0,
+      "/vendors": counts?.vendors || 0,
+    };
+
+    const featuresList = [
+      {
+        iconName: "map-outline",
+        title: "Campus map",
+        subtitle: "Events & friends nearby",
+        route: "/map",
+      },
+      {
+        iconName: "book-outline",
+        title: "Academic hub",
+        subtitle: "Courses, study groups & notes",
+        route: "/academic",
+      },
+      {
+        iconName: "people-outline",
+        title: "Clubs",
+        subtitle: "Join clubs & announcements",
+        route: "/clubs",
+      },
+      {
+        iconName: "game-controller-outline",
+        title: "Games",
+        subtitle: "Pool · Trivia · Word Duel",
+        route: "/games",
+      },
+      {
+        iconName: "megaphone-outline",
+        title: "Confession board",
+        subtitle: "Anonymous campus posts",
+        route: "/anonymous",
+      },
+      {
+        iconName: "chatbubble-ellipses-outline",
+        title: "Feedback",
+        subtitle: "Report issues & suggestions",
+        route: "/feedback",
+      },
+      {
+        iconName: "pricetag-outline",
+        title: "Campus deals",
+        subtitle: "Student-only discounts",
+        route: "/vendors",
+      },
+      {
+        iconName: "person-outline",
+        title: "Edit profile",
+        subtitle: "Bio, photo & interests",
+        route: "/edit-profile",
+      },
+    ];
+
+    return (
+      <Modal
+        transparent={true}
+        visible={sidebarVisible}
+        onRequestClose={closeSidebar}
+        animationType="none"
+      >
+        <View style={s.modalContainer}>
+          {/* Backdrop */}
+          <TouchableWithoutFeedback onPress={closeSidebar}>
+            <Animated.View
+              style={[
+                s.sidebarBackdrop,
+                backdropAnimatedStyle,
+              ]}
+            />
+          </TouchableWithoutFeedback>
+
+          {/* Sidebar Panel */}
+          <Animated.View
+            style={[
+              s.sidebarPanel,
+              sidebarAnimatedStyle,
+              {
+                backgroundColor: theme.bg,
+                borderColor: theme.border,
+                paddingTop: insets.top + 16,
+                paddingBottom: insets.bottom + 16,
+              },
+            ]}
+          >
+            <View style={s.sidebarHeader}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Image
+                  source={require("../../assets/images/logo.png")}
+                  style={{ width: 28, height: 28 }}
+                  resizeMode="contain"
+                />
+                <Text style={[s.sidebarTitle, { color: theme.text }]}>
+                  Find-A-Friend
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  closeSidebar();
+                  router.push("/settings" as any);
+                }}
+                style={s.sidebarSettingsBtn}
+              >
+                <Ionicons name="settings-outline" size={22} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Profile Card */}
+              <TouchableOpacity
+                style={[
+                  s.sidebarProfileCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+                onPress={() => {
+                  closeSidebar();
+                  router.push("/profile" as any);
+                }}
+              >
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={s.sidebarAvatarImg} />
+                ) : (
+                  <View style={[s.sidebarAvatarWrap, { backgroundColor: theme.card2 }]}>
+                    <Text style={s.sidebarAvatarInitials}>
+                      {getInitials(profile?.full_name ?? profile?.email ?? "??")}
+                    </Text>
+                  </View>
+                )}
+                <View style={s.sidebarProfileInfo}>
+                  <View style={s.sidebarProfileNameRow}>
+                    <Text style={[s.sidebarProfileName, { color: theme.text }]} numberOfLines={1}>
+                      {profile?.full_name ?? "Your name"}
+                    </Text>
+                    <VerifiedBadge
+                      type={profile?.badge_type}
+                      customColor={profile?.badge_color}
+                      size={14}
+                    />
+                  </View>
+                  <Text style={[s.sidebarProfileDept, { color: theme.textMuted }]} numberOfLines={1}>
+                    {profile?.department ?? "Department"}
+                    {profile?.level ? " · " + profile.level : ""}
+                  </Text>
+                  <Text style={[s.sidebarProfileEmail, { color: theme.textMuted }]} numberOfLines={1}>
+                    {profile?.email ?? ""}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Stats */}
+              <View style={s.sidebarStatsRow}>
+                {statItems.map((stat, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={[
+                      s.sidebarStatCard,
+                      { backgroundColor: theme.card, borderColor: theme.border },
+                    ]}
+                    onPress={() => {
+                      closeSidebar();
+                      if (stat.label === "Followers")
+                        router.push(`/followers/${profile?.id}` as any);
+                      else if (stat.label === "Following")
+                        router.push(`/following/${profile?.id}` as any);
+                    }}
+                  >
+                    <Text style={s.sidebarStatValue}>{stat.value}</Text>
+                    <Text style={[s.sidebarStatLabel, { color: theme.textMuted }]}>
+                      {stat.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Divider */}
+              <View style={[s.sidebarDivider, { backgroundColor: theme.border }]} />
+
+              {/* Feature List */}
+              <Text style={[s.sidebarSectionTitle, { color: theme.textMuted }]}>
+                Features
+              </Text>
+              <View
+                style={[
+                  s.sidebarFeaturesList,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              >
+                {featuresList.map((feature, i) => {
+                  const badgeCount = featureBadges[feature.route] || 0;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        s.sidebarFeatureRow,
+                        i === featuresList.length - 1 && { borderBottomWidth: 0 },
+                        { borderBottomColor: theme.border2 },
+                      ]}
+                      onPress={() => {
+                        closeSidebar();
+                        router.push(feature.route as any);
+                      }}
+                    >
+                      <View
+                        style={[
+                          s.sidebarFeatureIconWrap,
+                          {
+                            backgroundColor: theme.border,
+                            borderColor: theme.border2,
+                            borderWidth: 0.5,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={feature.iconName as any}
+                          size={18}
+                          color={theme.text}
+                        />
+                      </View>
+                      <View style={s.sidebarFeatureTextWrap}>
+                        <Text style={[s.sidebarFeatureTitle, { color: theme.text }]}>
+                          {feature.title}
+                        </Text>
+                        <Text style={[s.sidebarFeatureSub, { color: theme.textMuted }]} numberOfLines={1}>
+                          {feature.subtitle}
+                        </Text>
+                      </View>
+                      {badgeCount > 0 && (
+                        <View style={s.sidebarBadge}>
+                          <Text style={s.sidebarBadgeText}>
+                            {badgeCount > 9 ? "9+" : badgeCount}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={[s.sidebarFeatureArrow, { color: theme.textMuted }]}>
+                        ›
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  };
 
   return (
     <SafeAreaView
@@ -686,6 +1112,13 @@ export default function HomeScreen() {
       )}
 
       <StoryViewer />
+      {renderSidebar()}
+      <GuideBanner
+        storageKey="guide_dismissed_home"
+        title="Welcome to Find-A-Friend! 🌐"
+        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+        topOffset={70}
+      />
     </SafeAreaView>
   );
 }
@@ -1023,5 +1456,175 @@ const s = StyleSheet.create({
     color: "rgba(207, 198, 245, 0.8)",
     fontSize: 14,
     fontFamily: typography.fontSemiBold,
+  },
+  modalContainer: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  sidebarBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  sidebarPanel: {
+    width: 300,
+    height: "100%",
+    borderRightWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 16,
+  },
+  sidebarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  sidebarTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  sidebarSettingsBtn: {
+    padding: 6,
+  },
+  sidebarProfileCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 0.5,
+  },
+  sidebarAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "#a78bfa",
+  },
+  sidebarAvatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#a78bfa",
+  },
+  sidebarAvatarInitials: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#c4b5fd",
+  },
+  sidebarProfileInfo: {
+    flex: 1,
+  },
+  sidebarProfileNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  sidebarProfileName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  sidebarProfileDept: {
+    fontSize: 11,
+    marginBottom: 1,
+  },
+  sidebarProfileEmail: {
+    fontSize: 10,
+  },
+  sidebarStatsRow: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 6,
+  },
+  sidebarStatCard: {
+    flex: 1,
+    borderRadius: 10,
+    padding: 8,
+    alignItems: "center",
+    borderWidth: 0.5,
+  },
+  sidebarStatValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#a78bfa",
+    marginBottom: 1,
+  },
+  sidebarStatLabel: {
+    fontSize: 9,
+  },
+  sidebarDivider: {
+    height: 0.5,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  sidebarSectionTitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  sidebarFeaturesList: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 0.5,
+    overflow: "hidden",
+  },
+  sidebarFeatureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 0.5,
+  },
+  sidebarFeatureIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 0.5,
+  },
+  sidebarFeatureTextWrap: {
+    flex: 1,
+  },
+  sidebarFeatureTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 1,
+  },
+  sidebarFeatureSub: {
+    fontSize: 10,
+  },
+  sidebarFeatureArrow: {
+    fontSize: 18,
+  },
+  sidebarBadge: {
+    backgroundColor: "#ef4444",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 8,
+    marginRight: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sidebarBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "700",
   },
 });
