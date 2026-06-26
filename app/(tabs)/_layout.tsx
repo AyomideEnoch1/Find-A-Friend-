@@ -180,6 +180,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="more"
         options={{
+          href: null,
           title: "More",
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="grid" color={color} size={size} focused={focused} />
