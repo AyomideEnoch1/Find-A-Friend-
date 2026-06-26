@@ -376,14 +376,22 @@ export default function PostCard({ post }: PostCardProps) {
               backgroundColor: "rgba(25, 10, 55, 0.5)",
               borderWidth: 1.5,
             }
-          : { borderColor: theme.border, backgroundColor: theme.card },
-        !isGlobalPost && theme.cardShadow,
+          : {
+              borderColor: "transparent",
+              backgroundColor: "transparent",
+              borderWidth: 0,
+              borderBottomWidth: 0.5,
+              borderBottomColor: theme.border,
+              marginHorizontal: 0,
+              borderRadius: 0,
+              marginVertical: 0,
+            },
       ]}
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
     >
       {/* Subtle top-edge tint */}
-      <View style={s.cardGradient} pointerEvents="none" />
+      {isGlobalPost && <View style={s.cardGradient} pointerEvents="none" />}
 
       {isRepost && (
         <View style={s.repostHeaderRow}>

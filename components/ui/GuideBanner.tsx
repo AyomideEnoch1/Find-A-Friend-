@@ -46,8 +46,8 @@ export default function GuideBanner({ storageKey, title, message }: GuideBannerP
       style={[
         styles.container,
         {
-          backgroundColor: theme.dark ? "rgba(167, 139, 250, 0.06)" : "rgba(167, 139, 250, 0.08)",
-          borderColor: theme.dark ? "rgba(167, 139, 250, 0.2)" : "rgba(167, 139, 250, 0.35)",
+          backgroundColor: theme.card,
+          borderColor: theme.dark ? "rgba(167, 139, 250, 0.4)" : "rgba(167, 139, 250, 0.6)",
         },
       ]}
     >
@@ -70,19 +70,21 @@ export default function GuideBanner({ storageKey, title, message }: GuideBannerP
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
+    position: "absolute",
+    top: 12,
+    left: 16,
+    right: 16,
+    zIndex: 9999,
     padding: 14,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     flexDirection: "row",
     gap: 10,
     shadowColor: "#a78bfa",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
   },
   iconContainer: {
     paddingTop: 1,
