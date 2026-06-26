@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, type ComponentProps } 
 import { useFocusEffect } from 'expo-router'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  TextInput, ActivityIndicator, Alert, Image,
+  TextInput, ActivityIndicator, Alert, Image, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -55,6 +55,7 @@ export default function ProfileScreen() {
   const [bio,      setBio]      = useState('')
   const [interests, setInterests] = useState<string[]>([])
   const [universities, setUniversities] = useState<any[]>([])
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const activeUniversity = useThemeStore((s) => s.activeUniversity)
   const setActiveUniversity = useThemeStore((s) => s.setActiveUniversity)
@@ -281,17 +282,17 @@ export default function ProfileScreen() {
             ) : null}
 
             {profile && universities.length > 0 && (
-              <View style={{ marginTop: 14, alignItems: 'center', width: '100%' }}>
-                <Text style={{ fontSize: 11, fontFamily: typography.fontSemiBold, textTransform: 'uppercase', color: theme.accent, letterSpacing: 0.8, marginBottom: 8 }}>
+              <View style={{ marginTop: 14, width: '100%', paddingHorizontal: 20, zIndex: 100 }}>
+                <Text style={{ fontSize: 11, fontFamily: typography.fontSemiBold, textTransform: 'uppercase', color: theme.accent, letterSpacing: 0.8, marginBottom: 8, textAlign: 'center' }}>
                   Select / Switch Active Campus
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                  {universities.map((uni) => {
-                    const isSelected = activeUniversity?.id === uni.id;
-                    return (
-                      <TouchableOpacity
-                        key={uni.id}
-                        onPress={async () => {
+                {Platform.OS === 'web' ? (
+                  <View style={{ position: 'relative', width: '100%' }}>
+                    <select
+                      value={activeUniversity?.id || ''}
+                      onChange={async (e) => {
+                        const uni = universities.find(u => u.id === e.target.value);
+                        if (uni) {
                           setActiveUniversity(uni);
                           await supabase
                             .from('profiles')
@@ -304,23 +305,103 @@ export default function ProfileScreen() {
                             text1: 'Campus Switched',
                             text2: `Branding active for ${uni.name}`,
                           });
-                        }}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 7,
-                          borderRadius: 14,
-                          borderWidth: 1,
-                          borderColor: isSelected ? uni.primary_color : theme.border,
-                          backgroundColor: isSelected ? `${uni.primary_color}18` : theme.cardSolid,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontFamily: typography.fontSemiBold, color: isSelected ? theme.text : theme.textMuted }}>
-                          {uni.short_name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.card,
+                        color: theme.text,
+                        fontSize: 14,
+                        fontFamily: typography.fontSemiBold,
+                        outline: 'none',
+                        appearance: 'none',
+                      }}
+                    >
+                      <option value="" disabled>Select a campus...</option>
+                      {universities.map((uni) => (
+                        <option key={uni.id} value={uni.id}>
+                          {uni.name} ({uni.short_name})
+                        </option>
+                      ))}
+                    </select>
+                    <View style={{ position: 'absolute', right: 12, top: 14, pointerEvents: 'none' }}>
+                      <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
+                    </View>
+                  </View>
+                ) : (
+                  <View>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.card,
+                        width: '100%',
+                      }}
+                      onPress={() => setDropdownOpen(!dropdownOpen)}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: typography.fontSemiBold, color: activeUniversity ? theme.text : theme.textFaint }}>
+                        {activeUniversity ? `${activeUniversity.name} (${activeUniversity.short_name})` : 'Select a campus...'}
+                      </Text>
+                      <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.textMuted} />
+                    </TouchableOpacity>
+                    {dropdownOpen && (
+                      <View style={{
+                        marginTop: 4,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.card,
+                        overflow: 'hidden',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 4,
+                        width: '100%',
+                      }}>
+                        {universities.map((uni) => (
+                          <TouchableOpacity
+                            key={uni.id}
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 0.5,
+                              borderBottomColor: theme.border,
+                              backgroundColor: activeUniversity?.id === uni.id ? `${uni.primary_color}12` : 'transparent',
+                            }}
+                            onPress={async () => {
+                              setDropdownOpen(false);
+                              setActiveUniversity(uni);
+                              await supabase
+                                .from('profiles')
+                                .update({ university_id: uni.id })
+                                .eq('id', profile.id);
+                              useFeedStore.getState().refresh();
+                              loadAll();
+                              Toast.show({
+                                type: 'success',
+                                text1: 'Campus Switched',
+                                text2: `Branding active for ${uni.name}`,
+                              });
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                              {uni.name} ({uni.short_name})
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
           </View>

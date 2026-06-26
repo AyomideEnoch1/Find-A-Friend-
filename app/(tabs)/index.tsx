@@ -39,6 +39,47 @@ import { useNotificationsStore } from "../../store/notificationsStore";
 import { useStreakStore } from "../../store/streakStore";
 import { useThemeStore } from "../../store/themeStore";
 
+function PostSkeleton() {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        borderRadius: 16,
+        borderWidth: 0.5,
+        borderColor: theme.border,
+        backgroundColor: theme.card,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: theme.dark ? 0.2 : 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ marginLeft: 12, flex: 1, gap: 6 }}>
+          <View style={{ width: 100, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.6 }} />
+          <View style={{ width: 60, height: 8, borderRadius: 4, backgroundColor: theme.card2, opacity: 0.4 }} />
+        </View>
+      </View>
+      <View style={{ gap: 8, marginBottom: 14 }}>
+        <View style={{ width: "90%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ width: "95%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
+        <View style={{ width: "40%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.4 }} />
+      </View>
+      <View style={{ height: 160, borderRadius: 12, backgroundColor: theme.card2, opacity: 0.3, marginBottom: 14 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 }}>
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+        <View style={{ width: 30, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+      </View>
+    </View>
+  );
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -262,7 +303,13 @@ export default function HomeScreen() {
 
   const renderEmpty = useCallback(
     () =>
-      !loading ? (
+      loading ? (
+        <View style={{ gap: 12 }}>
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </View>
+      ) : (
         <View style={s.empty}>
           <Ionicons
             name="newspaper-outline"
@@ -282,7 +329,7 @@ export default function HomeScreen() {
             <Text style={s.emptyBtnText}>Create first post</Text>
           </TouchableOpacity>
         </View>
-      ) : null,
+      ),
     [loading, theme],
   );
 
@@ -561,9 +608,6 @@ export default function HomeScreen() {
     );
   };
 
-  if (loading && !posts.length) {
-    return <ScreenLoader message="Loading feed..." />;
-  }
 
   if (error && !posts.length) {
     return (

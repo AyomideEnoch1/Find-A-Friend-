@@ -298,7 +298,12 @@ export default function DiscoverScreen() {
 
   // Filter and Search logic
   const getFilteredDeck = () => {
-    let filtered = deck;
+    let filtered = deck.filter(
+      (u) =>
+        u.id !== userProfile?.id &&
+        statuses[u.id] !== "connected" &&
+        statuses[u.id] !== "requested_sent"
+    );
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -38,6 +39,7 @@ export default function CompleteProfileScreen() {
   const [gender, setGender] = useState<Gender | null>(null)
   const [universities, setUniversities] = useState<University[]>([])
   const [selectedUni, setSelectedUni] = useState<University | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [idCardImage, setIdCardImage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [email, setEmail] = useState('')
@@ -236,32 +238,97 @@ export default function CompleteProfileScreen() {
             <Text style={[s.stepSub, { color: theme.textMuted }]}>
               You'll be placed into your school's dedicated campus interface.
             </Text>
-            <View style={s.uniList}>
-              {filteredUnis.map((uni) => {
-                const isSelected = selectedUni?.id === uni.id
-                return (
-                  <TouchableOpacity
-                    key={uni.id}
-                    onPress={() => setSelectedUni(uni)}
-                    style={[
-                      s.uniCard,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                      isSelected && { borderColor: uni.primary_color },
-                    ]}
+            <View style={{ marginBottom: 20, zIndex: 10 }}>
+              {Platform.OS === 'web' ? (
+                <View style={{ position: 'relative', width: '100%' }}>
+                  <select
+                    value={selectedUni?.id || ''}
+                    onChange={(e) => {
+                      const found = filteredUnis.find(u => u.id === e.target.value);
+                      if (found) setSelectedUni(found);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      fontSize: 14,
+                      fontFamily: typography.fontSemiBold,
+                      outline: 'none',
+                      appearance: 'none',
+                    }}
                   >
-                    <View style={[s.uniSwatch, { backgroundColor: uni.primary_color }]}>
-                      <Text style={s.uniSwatchText}>{uni.short_name.slice(0, 2)}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.uniName, { color: theme.text }]}>{uni.name}</Text>
-                      <Text style={[s.uniShort, { color: theme.textMuted }]}>{uni.short_name}</Text>
-                    </View>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={22} color={uni.primary_color} />
-                    )}
+                    <option value="" disabled>Select a university...</option>
+                    {filteredUnis.map((uni) => (
+                      <option key={uni.id} value={uni.id}>
+                        {uni.name} ({uni.short_name})
+                      </option>
+                    ))}
+                  </select>
+                  <View style={{ position: 'absolute', right: 14, top: 16, pointerEvents: 'none' }}>
+                    <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
+                  </View>
+                </View>
+              ) : (
+                <View style={{ zIndex: 1000 }}>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.card,
+                    }}
+                    onPress={() => setDropdownOpen(!dropdownOpen)}
+                  >
+                    <Text style={{ fontSize: 14, fontFamily: typography.fontSemiBold, color: selectedUni ? theme.text : theme.textMuted }}>
+                      {selectedUni ? `${selectedUni.name} (${selectedUni.short_name})` : 'Select a university...'}
+                    </Text>
+                    <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.textMuted} />
                   </TouchableOpacity>
-                )
-              })}
+                  {dropdownOpen && (
+                    <View style={{
+                      marginTop: 4,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.card,
+                      overflow: 'hidden',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 4,
+                    }}>
+                      {filteredUnis.map((uni) => (
+                        <TouchableOpacity
+                          key={uni.id}
+                          style={{
+                            padding: 14,
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: theme.border,
+                            backgroundColor: selectedUni?.id === uni.id ? `${uni.primary_color}12` : 'transparent',
+                          }}
+                          onPress={() => {
+                            setSelectedUni(uni);
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                            {uni.name} ({uni.short_name})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
             <View style={s.rowBtns}>
               <TouchableOpacity

@@ -40,11 +40,14 @@ function Orb({ x, y, size, color, delay }: { x: number; y: number; size: number;
   }, [])
   const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }))
   return (
-    <Animated.View style={[{
-      position: 'absolute', left: x - size / 2, top: y - size / 2,
-      width: size, height: size, borderRadius: size / 2,
-      backgroundColor: color,
-    }, style]} />
+    <Animated.View 
+      pointerEvents="none"
+      style={[{
+        position: 'absolute', left: x - size / 2, top: y - size / 2,
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: color,
+      }, style]} 
+    />
   )
 }
 
