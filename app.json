@@ -4,22 +4,22 @@
     "slug": "faf",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.svg",
+    "icon": "./assets/images/logo.png",
     "scheme": "faf",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/logo.svg",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#0d0d14"
     },
     "ios": {
-      "icon": "./assets/images/logo.svg",
+      "icon": "./assets/images/logo.png",
       "supportsTablet": false,
       "bundleIdentifier": "com.faf.campus"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.svg",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#0d0d14"
       },
       "package": "com.ayomideenoch.faf",
