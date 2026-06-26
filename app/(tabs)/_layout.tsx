@@ -19,14 +19,27 @@ function TabIcon({
   size,
   focused,
 }: {
-  name: any;
+  name: string;
   color: string;
   size: number;
   focused: boolean;
 }) {
+  let iconName: any = name;
+  if (name === "home") {
+    iconName = focused ? "home" : "home-outline";
+  } else if (name === "search") {
+    iconName = focused ? "compass" : "compass-outline";
+  } else if (name === "calendar") {
+    iconName = focused ? "calendar" : "calendar-outline";
+  } else if (name === "chatbubbles") {
+    iconName = focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline";
+  } else if (name === "grid") {
+    iconName = focused ? "grid" : "grid-outline";
+  }
+
   return (
     <View style={styles.iconWrap}>
-      <Ionicons name={name} size={size} color={color} />
+      <Ionicons name={iconName} size={size} color={color} />
       {focused && <View style={styles.activeDot} />}
     </View>
   );

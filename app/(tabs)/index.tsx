@@ -1022,13 +1022,6 @@ export default function HomeScreen() {
       <NeuralBackground intensity="light" />
       {header}
 
-      <GuideBanner
-        storageKey="guide_dismissed_home"
-        title="Welcome to Find-A-Friend! 🌐"
-        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
-        topOffset={70}
-      />
-
       {feedMode === "global" && profile && !profile.joined_global_hub ? (
         renderGlobalHubGate()
       ) : (
@@ -1120,6 +1113,12 @@ export default function HomeScreen() {
 
       <StoryViewer />
       {renderSidebar()}
+      <GuideBanner
+        storageKey="guide_dismissed_home"
+        title="Welcome to Find-A-Friend! 🌐"
+        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+        topOffset={70}
+      />
     </SafeAreaView>
   );
 }

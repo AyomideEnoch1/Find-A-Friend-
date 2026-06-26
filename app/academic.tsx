@@ -363,12 +363,7 @@ export default function AcademicScreen() {
         </TouchableOpacity>
       </View>
 
-      <GuideBanner
-        storageKey="guide_dismissed_academic"
-        title="Academic Hub 📚"
-        message="Join course study groups, share files/notes/resources, and ask questions on the course discussion boards."
-        topOffset={120}
-      />
+
 
       {/* Tab bar */}
       <View style={[s.tabBar, { borderBottomColor: theme.border2 }]}>
@@ -416,6 +411,12 @@ export default function AcademicScreen() {
           <Ionicons name="add" size={26} color="#fff" />
         </TouchableOpacity>
       )}
+      <GuideBanner
+        storageKey="guide_dismissed_academic"
+        title="Academic Hub 📚"
+        message="Join course study groups, share files/notes/resources, and ask questions on the course discussion boards."
+        topOffset={120}
+      />
     </SafeAreaView>
   )
 }

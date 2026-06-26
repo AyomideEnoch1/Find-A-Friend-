@@ -416,12 +416,7 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      <GuideBanner
-        storageKey="guide_dismissed_discover"
-        title="Discover New Friends 🔍"
-        message="Browse cards of students with matching interests. Swipe right or click Connect to follow them. Use filters to search by department."
-        topOffset={125}
-      />
+
 
       {/* Search Bar */}
       <View
@@ -618,6 +613,12 @@ export default function DiscoverScreen() {
           </View>
         )}
       </ScrollView>
+      <GuideBanner
+        storageKey="guide_dismissed_discover"
+        title="Discover New Friends 🔍"
+        message="Browse cards of students with matching interests. Swipe right or click Connect to follow them. Use filters to search by department."
+        topOffset={125}
+      />
     </SafeAreaView>
   );
 }
