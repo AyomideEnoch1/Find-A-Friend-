@@ -673,12 +673,11 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
                         style={{ width: containerWidth || 300, height: "100%" }}
                       >
                         {isVideo ? (
-                          <Pressable
-                            onPress={(e) => e.stopPropagation()}
-                            style={{ flex: 1 }}
-                          >
-                            <InlineVideoPlayer sourceUrl={imgUrl} paused={isViewable === false} />
-                          </Pressable>
+                          <InlineVideoPlayer
+                            sourceUrl={imgUrl}
+                            paused={isViewable === false}
+                            style={{ width: "100%", height: "100%" }}
+                          />
                         ) : (
                           <TouchableOpacity
                             activeOpacity={0.95}
@@ -1156,11 +1155,13 @@ function InlineVideoPlayer({
   borderRadius = 0,
   borderColor,
   paused,
+  style,
 }: {
   sourceUrl: string;
   borderRadius?: number;
   borderColor?: string;
   paused?: boolean;
+  style?: any;
 }) {
   return (
     <SharedInlineVideoPlayer
@@ -1168,6 +1169,7 @@ function InlineVideoPlayer({
       borderRadius={borderRadius}
       borderColor={borderColor}
       paused={paused}
+      style={style}
     />
   );
 }

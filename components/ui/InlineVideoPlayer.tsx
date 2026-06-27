@@ -194,10 +194,12 @@ export default function InlineVideoPlayer({
       ? containerWidth * aspectRatio
       : null;
 
-  const computedHeight = hasHeightInStyle
+  const baseHeight = hasHeightInStyle
     ? flattenedStyle.height
     : knownHeight ??
       (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220);
+
+  const computedHeight = Math.min(baseHeight, 360);
 
   return (
     <View
@@ -206,7 +208,6 @@ export default function InlineVideoPlayer({
         {
           width: flattenedStyle.width || "100%",
           height: computedHeight,
-          maxHeight: 360,
           backgroundColor: "black",
           borderRadius,
           borderWidth: borderColor ? 0.5 : 0,
