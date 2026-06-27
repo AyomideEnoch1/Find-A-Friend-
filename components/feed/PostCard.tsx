@@ -41,6 +41,26 @@ function toHandle(name: string | null | undefined): string {
   return "@" + name.toLowerCase().replace(/\s+/g, "");
 }
 
+function getContrastColor(hexColor: string | null | undefined, defaultColor: string = "#ffffff"): string {
+  if (!hexColor) return defaultColor;
+  const cleanHex = hexColor.replace("#", "");
+  if (cleanHex.length !== 6 && cleanHex.length !== 3) return defaultColor;
+  
+  let r = 0, g = 0, b = 0;
+  if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.substring(0, 2), 16);
+    g = parseInt(cleanHex.substring(2, 4), 16);
+    b = parseInt(cleanHex.substring(4, 6), 16);
+  } else {
+    r = parseInt(cleanHex.substring(0, 1) + cleanHex.substring(0, 1), 16);
+    g = parseInt(cleanHex.substring(1, 2) + cleanHex.substring(1, 2), 16);
+    b = parseInt(cleanHex.substring(2, 3) + cleanHex.substring(2, 3), 16);
+  }
+  
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  return luminance >= 128 ? "#111111" : "#ffffff";
+}
+
 export default function PostCard({ post }: PostCardProps) {
   const { toggleLike, toggleBookmark, repostPost, deletePost } = useFeedStore();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -371,28 +391,20 @@ export default function PostCard({ post }: PostCardProps) {
     <Pressable
       style={[
         s.card,
-        isGlobalPost
-          ? {
-              borderColor: "rgba(124, 58, 237, 0.35)",
-              backgroundColor: "rgba(25, 10, 55, 0.5)",
-              borderWidth: 1.5,
-            }
-          : {
-              borderColor: "transparent",
-              backgroundColor: "transparent",
-              borderWidth: 0,
-              borderBottomWidth: 0.5,
-              borderBottomColor: theme.border,
-              marginHorizontal: 0,
-              borderRadius: 0,
-              marginVertical: 0,
-            },
+        {
+          borderColor: "transparent",
+          backgroundColor: "transparent",
+          borderWidth: 0,
+          borderBottomWidth: 0.5,
+          borderBottomColor: theme.border,
+          marginHorizontal: 0,
+          borderRadius: 0,
+          marginVertical: 0,
+        },
       ]}
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
     >
-      {/* Subtle top-edge tint */}
-      {isGlobalPost && <View style={s.cardGradient} pointerEvents="none" />}
 
       {isRepost && (
         <View style={s.repostHeaderRow}>
@@ -470,15 +482,15 @@ export default function PostCard({ post }: PostCardProps) {
                     style={[
                       s.uniBadge,
                       {
-                        backgroundColor: `${post.profiles.universities.primary_color}15`,
-                        borderColor: `${post.profiles.universities.primary_color}45`,
+                        backgroundColor: post.profiles.universities.primary_color || theme.primary,
+                        borderColor: post.profiles.universities.primary_color || theme.primary,
                       },
                     ]}
                   >
                     <Text
                       style={[
                         s.uniBadgeText,
-                        { color: post.profiles.universities.primary_color },
+                        { color: getContrastColor(post.profiles.universities.primary_color, "#ffffff") },
                       ]}
                     >
                       {post.profiles.universities.short_name}
