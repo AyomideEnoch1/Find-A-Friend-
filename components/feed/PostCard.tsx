@@ -73,6 +73,26 @@ function toHandle(name: string | null | undefined): string {
   return "@" + name.toLowerCase().replace(/\s+/g, "");
 }
 
+function getContrastColor(hexColor: string | null | undefined, defaultColor: string = "#ffffff"): string {
+  if (!hexColor) return defaultColor;
+  const cleanHex = hexColor.replace("#", "");
+  if (cleanHex.length !== 6 && cleanHex.length !== 3) return defaultColor;
+  
+  let r = 0, g = 0, b = 0;
+  if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.substring(0, 2), 16);
+    g = parseInt(cleanHex.substring(2, 4), 16);
+    b = parseInt(cleanHex.substring(4, 6), 16);
+  } else {
+    r = parseInt(cleanHex.substring(0, 1) + cleanHex.substring(0, 1), 16);
+    g = parseInt(cleanHex.substring(1, 2) + cleanHex.substring(1, 2), 16);
+    b = parseInt(cleanHex.substring(2, 3) + cleanHex.substring(2, 3), 16);
+  }
+  
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  return luminance >= 128 ? "#111111" : "#ffffff";
+}
+
 export default function PostCard({ post, isViewable = true }: PostCardProps) {
   const { toggleLike, toggleBookmark, repostPost, deletePost } = useFeedStore();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -423,7 +443,7 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
     >
-      {/* Subtle top-edge tint */}
+
 
       {isRepost && (
         <View style={s.repostHeaderRow}>
@@ -501,15 +521,15 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
                     style={[
                       s.uniBadge,
                       {
-                        backgroundColor: `${adjustColorForContrast(post.profiles.universities.primary_color, theme.dark, theme.accent)}1a`,
-                        borderColor: `${adjustColorForContrast(post.profiles.universities.primary_color, theme.dark, theme.accent)}4d`,
+                        backgroundColor: post.profiles.universities.primary_color || theme.accent,
+                        borderColor: post.profiles.universities.primary_color || theme.accent,
                       },
                     ]}
                   >
                     <Text
                       style={[
                         s.uniBadgeText,
-                        { color: adjustColorForContrast(post.profiles.universities.primary_color, theme.dark, theme.accent) },
+                        { color: getContrastColor(post.profiles.universities.primary_color, "#ffffff") },
                       ]}
                     >
                       {post.profiles.universities.short_name}
