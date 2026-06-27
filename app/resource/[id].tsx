@@ -41,7 +41,12 @@ export default function ResourceDetailScreen() {
     setDownloading(true)
     try {
       const { data: signedUrl, error } = await getResourceSignedUrl(resource)
-      if (error) throw error
+      if (error) {
+        if (error.message && (error.message.includes('Object not found') || error.message.includes('not_found'))) {
+          throw new Error('This seeded resource file does not exist in the database storage. Please upload your own files to the academic hub to test downloading/previewing.')
+        }
+        throw error
+      }
       if (signedUrl) {
         // Increment count locally
         setResource(prev => prev ? { ...prev, download_count: prev.download_count + 1 } : prev)

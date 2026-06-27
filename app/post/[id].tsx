@@ -25,6 +25,7 @@ import { ReplyBanner } from '../../components/chat/ReplyUI'
 import { AttachmentSheet, type AttachmentOptionKey } from '../../components/AttachmentSheet'
 import { useStickerStore } from '../../store/stickerStore'
 import SharedInlineVideoPlayer from '../../components/ui/InlineVideoPlayer'
+import { Skeleton } from '../../components/ui/Skeleton'
 
 function toHandle(name: string | null | undefined) {
   if (!name) return '@user'
@@ -474,8 +475,62 @@ export default function PostDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
-        <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={theme.accent} />
+        {/* Header placeholder */}
+        <View style={{ height: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: theme.border }}>
+          <Skeleton width={32} height={32} borderRadius={16} />
+          <Skeleton width={80} height={18} style={{ marginLeft: 16 }} />
+        </View>
+
+        {/* Main Post Card Shimmer */}
+        <View style={{ padding: 16, gap: 12 }}>
+          {/* Author info */}
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <Skeleton width={46} height={46} borderRadius={23} />
+            <View style={{ gap: 4, flex: 1 }}>
+              <Skeleton width="45%" height={14} />
+              <Skeleton width="25%" height={10} />
+            </View>
+          </View>
+          
+          {/* Body text */}
+          <View style={{ gap: 6, marginTop: 6 }}>
+            <Skeleton width="100%" height={14} />
+            <Skeleton width="90%" height={14} />
+            <Skeleton width="40%" height={14} />
+          </View>
+
+          {/* Media placeholder */}
+          <Skeleton width="100%" height={220} borderRadius={8} style={{ marginTop: 8 }} />
+
+          {/* Timestamp & stats */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, borderTopWidth: 0.5, borderTopColor: theme.border, paddingTop: 12 }}>
+            <Skeleton width={100} height={10} />
+            <Skeleton width={60} height={10} />
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View style={{ height: 8, backgroundColor: theme.card2 || '#f1f5f9' }} />
+
+        {/* Comments section title */}
+        <View style={{ padding: 16 }}>
+          <Skeleton width={120} height={14} />
+        </View>
+
+        {/* Comments placeholders */}
+        <View style={{ paddingHorizontal: 16, gap: 16 }}>
+          {[1, 2].map(i => (
+            <View key={i} style={{ flexDirection: 'row', gap: 10 }}>
+              <Skeleton width={32} height={32} borderRadius={16} />
+              <View style={{ gap: 6, flex: 1, backgroundColor: theme.card, borderRadius: 12, padding: 10, borderWidth: 0.5, borderColor: theme.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Skeleton width={60} height={10} />
+                  <Skeleton width={30} height={8} />
+                </View>
+                <Skeleton width="90%" height={12} />
+              </View>
+            </View>
+          ))}
         </View>
       </SafeAreaView>
     )

@@ -160,27 +160,7 @@ export default function TabLayout() {
           tabBarBadgeStyle: { backgroundColor: "#ef4444", fontSize: 10 },
         }}
       />
-      <Tabs.Screen
-        name="events"
-        options={{
-          title: "Events",
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon
-              name="calendar"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
-          tabBarBadge:
-            counts?.events > 0
-              ? counts.events > 9
-                ? "9+"
-                : counts.events
-              : undefined,
-          tabBarBadgeStyle: { backgroundColor: "#ef4444", fontSize: 10 },
-        }}
-      />
+
       <Tabs.Screen
         name="chat"
         options={{
@@ -202,6 +182,29 @@ export default function TabLayout() {
           tabBarBadgeStyle: { backgroundColor: "#ef4444", fontSize: 10 },
         }}
       />
+
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: "Events",
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name="calendar"
+              color={color}
+              size={size}
+              focused={focused}
+            />
+          ),
+          tabBarBadge:
+            counts?.events > 0
+              ? counts.events > 9
+                ? "9+"
+                : counts.events
+              : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#ef4444", fontSize: 10 },
+        }}
+      />
+      
       <Tabs.Screen
         name="more"
         options={{

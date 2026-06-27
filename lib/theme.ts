@@ -54,8 +54,8 @@ export const DARK = {
   cardSolid: "#0f0f2a",
   card2: "#24243a",
   text: "#f0f0ff",
-  textMuted: "rgba(240,240,255,0.55)",
-  textFaint: "rgba(240,240,255,0.2)",
+  textMuted: "rgba(240, 240, 255, 0.68)",
+  textFaint: "rgba(240, 240, 255, 0.45)",
   border: "rgba(255,255,255,0.13)",
   border2: "rgba(255,255,255,0.07)",
   borderAccent: "rgba(167,139,250,0.3)",
@@ -85,8 +85,8 @@ export const DARKER = {
   cardSolid: "#08080f",
   card2: "#14141e",
   text: "#f0f0ff",
-  textMuted: "rgba(240,240,255,0.55)",
-  textFaint: "rgba(240,240,255,0.2)",
+  textMuted: "rgba(240, 240, 255, 0.68)",
+  textFaint: "rgba(240, 240, 255, 0.4)",
   border: "rgba(255,255,255,0.1)",
   border2: "rgba(255,255,255,0.05)",
   borderAccent: "rgba(167,139,250,0.25)",
@@ -140,6 +140,37 @@ export const COSMIC_THEME = {
   },
 };
 
+// Premium cosmic/galactic light mode theme specifically for the Global Hub
+export const COSMIC_LIGHT = {
+  bg: "#f3f0ff", // Soft pastel lavender background
+  card: "rgba(255, 255, 255, 0.75)", // Translucent white card
+  cardSolid: "#ffffff",
+  card2: "#eae5f9",
+  text: "#2e1065", // Deep space dark purple text
+  textMuted: "rgba(46, 16, 101, 0.65)",
+  textFaint: "rgba(46, 16, 101, 0.3)",
+  border: "rgba(167, 139, 250, 0.3)",
+  border2: "rgba(167, 139, 250, 0.15)",
+  borderAccent: "rgba(124, 58, 237, 0.45)",
+  accent: "#7c3aed", // Rich purple/violet
+  accentSecondary: "#4f46e5", // Indigo
+  accentBg: "rgba(167, 139, 250, 0.1)",
+  accentBorder: "rgba(167, 139, 250, 0.25)",
+  accentGlow: "rgba(124, 58, 237, 0.15)",
+  cyan: "#0891b2",
+  danger: "#ef4444",
+  success: "#10b981",
+  statusBar: "dark" as const,
+  dark: false,
+  cardShadow: {
+    shadowColor: "#7c3aed",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+};
+
 export type ThemeColors = {
   bg: string;
   card: string;
@@ -182,22 +213,62 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function adjustColorForContrast(
+  hexColor: string | null | undefined,
+  isDarkTheme: boolean,
+  defaultAccent = "#a78bfa"
+): string {
+  if (!hexColor || !hexColor.startsWith("#")) return defaultAccent;
+
+  const cleanHex = hexColor.slice(0, 7);
+  if (cleanHex.length < 7) return defaultAccent;
+
+  const r = parseInt(cleanHex.slice(1, 3), 16);
+  const g = parseInt(cleanHex.slice(3, 5), 16);
+  const b = parseInt(cleanHex.slice(5, 7), 16);
+
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return defaultAccent;
+
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+  if (isDarkTheme) {
+    if (brightness < 125) {
+      const newR = Math.round(r + (255 - r) * 0.6);
+      const newG = Math.round(g + (255 - g) * 0.6);
+      const newB = Math.round(b + (255 - b) * 0.6);
+      return `#${newR.toString(16).padStart(2, "0")}${newG.toString(16).padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`;
+    }
+  } else {
+    if (brightness > 195) {
+      const newR = Math.round(r * 0.55);
+      const newG = Math.round(g * 0.55);
+      const newB = Math.round(b * 0.55);
+      return `#${newR.toString(16).padStart(2, "0")}${newG.toString(16).padStart(2, "0")}${newB.toString(16).padStart(2, "0")}`;
+    }
+  }
+
+  return cleanHex;
+}
+
 export function useTheme(): ThemeColors {
   const theme = useContext(ThemeContext);
-  const { activeUniversity, feedMode } = useThemeStore();
+  const { activeUniversity, feedMode, mode } = useThemeStore();
 
   if (feedMode === 'global') {
-    return COSMIC_THEME;
+    return mode === 'light' ? COSMIC_LIGHT : COSMIC_THEME;
   }
 
   if (activeUniversity) {
+    const isDark = theme.dark;
+    const resolvedAccent = adjustColorForContrast(activeUniversity.primary_color, isDark, theme.accent);
+    const resolvedSecondary = adjustColorForContrast(activeUniversity.secondary_color, isDark, theme.accentSecondary);
     return {
       ...theme,
-      accent: activeUniversity.primary_color,
-      accentSecondary: activeUniversity.secondary_color,
-      accentBg: `${activeUniversity.primary_color}1a`, // Translucent background
-      accentBorder: `${activeUniversity.primary_color}4d`,
-      accentGlow: `${activeUniversity.primary_color}2b`,
+      accent: resolvedAccent,
+      accentSecondary: resolvedSecondary,
+      accentBg: `${resolvedAccent}1a`, // Translucent background
+      accentBorder: `${resolvedAccent}4d`,
+      accentGlow: `${resolvedAccent}2b`,
     };
   }
 

@@ -21,16 +21,35 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import AdCarousel from "../../components/feed/AdCarousel";
 import PostCard from "../../components/feed/PostCard";
 import StoriesRow from "../../components/feed/StoriesRow";
 import NeuralBackground from "../../components/NeuralBackground";
-import ScreenLoader from "../../components/ScreenLoader";
 import StoryViewer from "../../components/stories/StoryViewer";
+import GuideBanner from "../../components/ui/GuideBanner";
+import VerifiedBadge from "../../components/ui/VerifiedBadge";
 import type { FeedPost } from "../../lib/feed";
-import { getCurrentProfile, Profile, updateProfile, getProfileStats, ProfileStats } from "../../lib/profiles";
+import { getInitials } from "../../lib/matching";
+import {
+  getCurrentProfile,
+  getProfileStats,
+  Profile,
+  ProfileStats,
+  updateProfile,
+} from "../../lib/profiles";
 import { hideTabBar, showTabBar } from "../../lib/tabBarAnim";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
@@ -40,17 +59,6 @@ import { useFeedStore } from "../../store/feedStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
 import { useStreakStore } from "../../store/streakStore";
 import { useThemeStore } from "../../store/themeStore";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withTiming,
-  Easing,
-  runOnJS,
-} from "react-native-reanimated";
-import { getInitials } from "../../lib/matching";
-import VerifiedBadge from "../../components/ui/VerifiedBadge";
-import GuideBanner from "../../components/ui/GuideBanner";
 
 function PostSkeleton() {
   const theme = useTheme();
@@ -70,24 +78,120 @@ function PostSkeleton() {
         elevation: 2,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.card2, opacity: 0.6 }} />
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: theme.card2,
+            opacity: 0.6,
+          }}
+        />
         <View style={{ marginLeft: 12, flex: 1, gap: 6 }}>
-          <View style={{ width: 100, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.6 }} />
-          <View style={{ width: 60, height: 8, borderRadius: 4, backgroundColor: theme.card2, opacity: 0.4 }} />
+          <View
+            style={{
+              width: 100,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: theme.card2,
+              opacity: 0.6,
+            }}
+          />
+          <View
+            style={{
+              width: 60,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: theme.card2,
+              opacity: 0.4,
+            }}
+          />
         </View>
       </View>
       <View style={{ gap: 8, marginBottom: 14 }}>
-        <View style={{ width: "90%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
-        <View style={{ width: "95%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.6 }} />
-        <View style={{ width: "40%", height: 10, borderRadius: 5, backgroundColor: theme.card2, opacity: 0.4 }} />
+        <View
+          style={{
+            width: "90%",
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: theme.card2,
+            opacity: 0.6,
+          }}
+        />
+        <View
+          style={{
+            width: "95%",
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: theme.card2,
+            opacity: 0.6,
+          }}
+        />
+        <View
+          style={{
+            width: "40%",
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: theme.card2,
+            opacity: 0.4,
+          }}
+        />
       </View>
-      <View style={{ height: 160, borderRadius: 12, backgroundColor: theme.card2, opacity: 0.3, marginBottom: 14 }} />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 }}>
-        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
-        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
-        <View style={{ width: 50, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
-        <View style={{ width: 30, height: 12, borderRadius: 6, backgroundColor: theme.card2, opacity: 0.5 }} />
+      <View
+        style={{
+          height: 160,
+          borderRadius: 12,
+          backgroundColor: theme.card2,
+          opacity: 0.3,
+          marginBottom: 14,
+        }}
+      />
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: 4,
+        }}
+      >
+        <View
+          style={{
+            width: 50,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: theme.card2,
+            opacity: 0.5,
+          }}
+        />
+        <View
+          style={{
+            width: 50,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: theme.card2,
+            opacity: 0.5,
+          }}
+        />
+        <View
+          style={{
+            width: 50,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: theme.card2,
+            opacity: 0.5,
+          }}
+        />
+        <View
+          style={{
+            width: 30,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: theme.card2,
+            opacity: 0.5,
+          }}
+        />
       </View>
     </View>
   );
@@ -135,6 +239,15 @@ export default function HomeScreen() {
   const [globalBio, setGlobalBio] = useState("");
   const [globalAvatar, setGlobalAvatar] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [viewableItems, setViewableItems] = useState<string[]>([]);
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: any[] }) => {
+      setViewableItems(viewableItems.map((vi) => vi.item.id));
+    },
+  ).current;
 
   // Sidebar and Stats States
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -155,10 +268,22 @@ export default function HomeScreen() {
   useEffect(() => {
     const interval = setInterval(() => {
       logoScale.value = withSequence(
-        withTiming(1.15, { duration: 300, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-        withTiming(0.92, { duration: 180, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-        withTiming(1.05, { duration: 150, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
-        withTiming(1, { duration: 150, easing: Easing.bezier(0.25, 0.1, 0.25, 1) })
+        withTiming(1.15, {
+          duration: 300,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        }),
+        withTiming(0.92, {
+          duration: 180,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        }),
+        withTiming(1.05, {
+          duration: 150,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        }),
+        withTiming(1, {
+          duration: 150,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        }),
       );
     }, 4500);
 
@@ -181,16 +306,23 @@ export default function HomeScreen() {
   // Sidebar control functions
   const openSidebar = () => {
     setSidebarVisible(true);
-    sidebarX.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.cubic) });
+    sidebarX.value = withTiming(0, {
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+    });
     backdropOpacity.value = withTiming(1, { duration: 250 });
   };
 
   const closeSidebar = () => {
-    sidebarX.value = withTiming(-300, { duration: 220, easing: Easing.in(Easing.cubic) }, (finished) => {
-      if (finished) {
-        runOnJS(setSidebarVisible)(false);
-      }
-    });
+    sidebarX.value = withTiming(
+      -300,
+      { duration: 220, easing: Easing.in(Easing.cubic) },
+      (finished) => {
+        if (finished) {
+          runOnJS(setSidebarVisible)(false);
+        }
+      },
+    );
     backdropOpacity.value = withTiming(0, { duration: 220 });
   };
 
@@ -359,8 +491,10 @@ export default function HomeScreen() {
   }, [loading, hasMore, loadMore]);
 
   const renderPost = useCallback(
-    ({ item }: { item: FeedPost }) => <PostCard post={item} />,
-    [],
+    ({ item }: { item: FeedPost }) => (
+      <PostCard post={item} isViewable={viewableItems.includes(item.id)} />
+    ),
+    [viewableItems],
   );
 
   const renderHeader = useCallback(
@@ -400,14 +534,29 @@ export default function HomeScreen() {
             color={theme.accent}
             style={{ marginBottom: 8 }}
           />
-          <Text style={[s.emptyTitle, { color: theme.text, textAlign: "center" }]}>
+          <Text
+            style={[s.emptyTitle, { color: theme.text, textAlign: "center" }]}
+          >
             Your Campus Feed is Quiet
           </Text>
-          <Text style={[s.emptyText, { color: theme.textMuted, textAlign: "center", marginBottom: 12 }]}>
-            It looks like you are one of the first on this campus! No posts have been made here yet.
+          <Text
+            style={[
+              s.emptyText,
+              { color: theme.textMuted, textAlign: "center", marginBottom: 12 },
+            ]}
+          >
+            It looks like you are one of the first on this campus! No posts have
+            been made here yet.
           </Text>
           <TouchableOpacity
-            style={[s.emptyBtn, { backgroundColor: theme.accent, alignSelf: "stretch", alignItems: "center" }]}
+            style={[
+              s.emptyBtn,
+              {
+                backgroundColor: theme.accent,
+                alignSelf: "stretch",
+                alignItems: "center",
+              },
+            ]}
             onPress={() => setFeedMode("global")}
           >
             <Text style={s.emptyBtnText}>🌐 Go to Global Hub</Text>
@@ -480,7 +629,10 @@ export default function HomeScreen() {
             <TouchableOpacity onPress={openSidebar} activeOpacity={0.7}>
               <Animated.Image
                 source={require("../../assets/images/logo.png")}
-                style={[{ width: 32, height: 32, marginBottom: 2 }, animatedLogoStyle]}
+                style={[
+                  { width: 32, height: 32, marginBottom: 2 },
+                  animatedLogoStyle,
+                ]}
                 resizeMode="contain"
               />
             </TouchableOpacity>
@@ -728,7 +880,6 @@ export default function HomeScreen() {
     );
   };
 
-
   if (error && !posts.length) {
     return (
       <SafeAreaView style={[s.container, { backgroundColor: theme.bg }]}>
@@ -831,12 +982,7 @@ export default function HomeScreen() {
         <View style={s.modalContainer}>
           {/* Backdrop */}
           <TouchableWithoutFeedback onPress={closeSidebar}>
-            <Animated.View
-              style={[
-                s.sidebarBackdrop,
-                backdropAnimatedStyle,
-              ]}
-            />
+            <Animated.View style={[s.sidebarBackdrop, backdropAnimatedStyle]} />
           </TouchableWithoutFeedback>
 
           {/* Sidebar Panel */}
@@ -853,7 +999,9 @@ export default function HomeScreen() {
             ]}
           >
             <View style={s.sidebarHeader}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+              >
                 <Image
                   source={require("../../assets/images/logo.png")}
                   style={{ width: 28, height: 28 }}
@@ -870,7 +1018,11 @@ export default function HomeScreen() {
                 }}
                 style={s.sidebarSettingsBtn}
               >
-                <Ionicons name="settings-outline" size={22} color={theme.text} />
+                <Ionicons
+                  name="settings-outline"
+                  size={22}
+                  color={theme.text}
+                />
               </TouchableOpacity>
             </View>
 
@@ -887,17 +1039,30 @@ export default function HomeScreen() {
                 }}
               >
                 {profile?.avatar_url ? (
-                  <Image source={{ uri: profile.avatar_url }} style={s.sidebarAvatarImg} />
+                  <Image
+                    source={{ uri: profile.avatar_url }}
+                    style={s.sidebarAvatarImg}
+                  />
                 ) : (
-                  <View style={[s.sidebarAvatarWrap, { backgroundColor: theme.card2 }]}>
+                  <View
+                    style={[
+                      s.sidebarAvatarWrap,
+                      { backgroundColor: theme.card2 },
+                    ]}
+                  >
                     <Text style={s.sidebarAvatarInitials}>
-                      {getInitials(profile?.full_name ?? profile?.email ?? "??")}
+                      {getInitials(
+                        profile?.full_name ?? profile?.email ?? "??",
+                      )}
                     </Text>
                   </View>
                 )}
                 <View style={s.sidebarProfileInfo}>
                   <View style={s.sidebarProfileNameRow}>
-                    <Text style={[s.sidebarProfileName, { color: theme.text }]} numberOfLines={1}>
+                    <Text
+                      style={[s.sidebarProfileName, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
                       {profile?.full_name ?? "Your name"}
                     </Text>
                     <VerifiedBadge
@@ -906,11 +1071,17 @@ export default function HomeScreen() {
                       size={14}
                     />
                   </View>
-                  <Text style={[s.sidebarProfileDept, { color: theme.textMuted }]} numberOfLines={1}>
+                  <Text
+                    style={[s.sidebarProfileDept, { color: theme.textMuted }]}
+                    numberOfLines={1}
+                  >
                     {profile?.department ?? "Department"}
                     {profile?.level ? " · " + profile.level : ""}
                   </Text>
-                  <Text style={[s.sidebarProfileEmail, { color: theme.textMuted }]} numberOfLines={1}>
+                  <Text
+                    style={[s.sidebarProfileEmail, { color: theme.textMuted }]}
+                    numberOfLines={1}
+                  >
                     {profile?.email ?? ""}
                   </Text>
                 </View>
@@ -923,7 +1094,10 @@ export default function HomeScreen() {
                     key={i}
                     style={[
                       s.sidebarStatCard,
-                      { backgroundColor: theme.card, borderColor: theme.border },
+                      {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                      },
                     ]}
                     onPress={() => {
                       closeSidebar();
@@ -934,7 +1108,9 @@ export default function HomeScreen() {
                     }}
                   >
                     <Text style={s.sidebarStatValue}>{stat.value}</Text>
-                    <Text style={[s.sidebarStatLabel, { color: theme.textMuted }]}>
+                    <Text
+                      style={[s.sidebarStatLabel, { color: theme.textMuted }]}
+                    >
                       {stat.label}
                     </Text>
                   </TouchableOpacity>
@@ -942,17 +1118,16 @@ export default function HomeScreen() {
               </View>
 
               {/* Divider */}
-              <View style={[s.sidebarDivider, { backgroundColor: theme.border }]} />
+              <View
+                style={[s.sidebarDivider, { backgroundColor: theme.border }]}
+              />
 
               {/* Feature List */}
               <Text style={[s.sidebarSectionTitle, { color: theme.textMuted }]}>
                 Features
               </Text>
               <View
-                style={[
-                  s.sidebarFeaturesList,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                ]}
+                style={s.sidebarFeaturesList}
               >
                 {featuresList.map((feature, i) => {
                   const badgeCount = featureBadges[feature.route] || 0;
@@ -961,8 +1136,10 @@ export default function HomeScreen() {
                       key={i}
                       style={[
                         s.sidebarFeatureRow,
-                        i === featuresList.length - 1 && { borderBottomWidth: 0 },
-                        { borderBottomColor: theme.border2 },
+                        {
+                          backgroundColor: theme.card,
+                          borderColor: theme.border,
+                        },
                       ]}
                       onPress={() => {
                         closeSidebar();
@@ -976,6 +1153,7 @@ export default function HomeScreen() {
                             backgroundColor: theme.border,
                             borderColor: theme.border2,
                             borderWidth: 0.5,
+                            marginVertical: 10,
                           },
                         ]}
                       >
@@ -986,10 +1164,18 @@ export default function HomeScreen() {
                         />
                       </View>
                       <View style={s.sidebarFeatureTextWrap}>
-                        <Text style={[s.sidebarFeatureTitle, { color: theme.text }]}>
+                        <Text
+                          style={[s.sidebarFeatureTitle, { color: theme.text }]}
+                        >
                           {feature.title}
                         </Text>
-                        <Text style={[s.sidebarFeatureSub, { color: theme.textMuted }]} numberOfLines={1}>
+                        <Text
+                          style={[
+                            s.sidebarFeatureSub,
+                            { color: theme.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {feature.subtitle}
                         </Text>
                       </View>
@@ -1000,7 +1186,12 @@ export default function HomeScreen() {
                           </Text>
                         </View>
                       )}
-                      <Text style={[s.sidebarFeatureArrow, { color: theme.textMuted }]}>
+                      <Text
+                        style={[
+                          s.sidebarFeatureArrow,
+                          { color: theme.textMuted },
+                        ]}
+                      >
                         ›
                       </Text>
                     </TouchableOpacity>
@@ -1083,6 +1274,8 @@ export default function HomeScreen() {
             data={posts}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             ListHeaderComponent={renderHeader}
             ListFooterComponent={renderFooter}
             ListEmptyComponent={renderEmpty}
@@ -1579,17 +1772,16 @@ const s = StyleSheet.create({
   },
   sidebarFeaturesList: {
     marginHorizontal: 16,
-    borderRadius: 12,
     marginBottom: 24,
-    borderWidth: 0.5,
-    overflow: "hidden",
   },
   sidebarFeatureRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     gap: 10,
-    borderBottomWidth: 0.5,
+    borderWidth: 0.5,
+    borderRadius: 12,
+    marginBottom: 10,
   },
   sidebarFeatureIconWrap: {
     width: 32,

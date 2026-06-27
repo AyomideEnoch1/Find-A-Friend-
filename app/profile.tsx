@@ -19,6 +19,7 @@ import { typography } from '../lib/typography'
 import { supabase } from '../lib/supabase'
 import NeuralBackground from '../components/NeuralBackground'
 import ScreenLoader from '../components/ScreenLoader'
+import { Skeleton } from '../components/ui/Skeleton'
 import PostCard from '../components/feed/PostCard'
 import VerifiedBadge, { BADGE_COLORS, BADGE_LABELS } from '../components/ui/VerifiedBadge'
 import Toast from 'react-native-toast-message'
@@ -166,7 +167,76 @@ export default function ProfileScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (loading) {
-    return <ScreenLoader message="Loading profile..." />
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+        {/* Header bar placeholder */}
+        <View style={{ height: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, justifyContent: 'space-between' }}>
+          <Skeleton width={32} height={32} borderRadius={16} />
+          <Skeleton width={120} height={18} />
+          <Skeleton width={32} height={32} borderRadius={16} />
+        </View>
+        
+        {/* Cover image banner placeholder */}
+        <View style={{ height: 120, marginHorizontal: 16, borderRadius: 12, overflow: 'hidden', marginTop: 10 }}>
+          <Skeleton width="100%" height={120} borderRadius={12} />
+        </View>
+        
+        {/* Profile card placeholder */}
+        <View style={{ marginHorizontal: 16, marginTop: -40, borderRadius: 16, padding: 16, backgroundColor: theme.card, borderWidth: 0.5, borderColor: theme.border, alignItems: 'center' }}>
+          {/* Avatar */}
+          <Skeleton width={80} height={80} borderRadius={40} />
+          
+          {/* Name / Department */}
+          <View style={{ marginTop: 12, width: '100%', alignItems: 'center', gap: 6 }}>
+            <Skeleton width="60%" height={18} />
+            <Skeleton width="40%" height={12} />
+            <Skeleton width="50%" height={10} />
+          </View>
+
+          {/* Bio */}
+          <View style={{ marginTop: 12, width: '90%', gap: 4, alignItems: 'center' }}>
+            <Skeleton width="90%" height={10} />
+            <Skeleton width="75%" height={10} />
+          </View>
+        </View>
+        
+        {/* Stats Row */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginTop: 16 }}>
+          {[1, 2, 3, 4].map(i => (
+            <View key={i} style={{ alignItems: 'center', gap: 4 }}>
+              <Skeleton width={45} height={16} />
+              <Skeleton width={35} height={10} />
+            </View>
+          ))}
+        </View>
+
+        {/* Tabs */}
+        <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: theme.border, marginTop: 24 }}>
+          <View style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }}>
+            <Skeleton width="50%" height={14} />
+          </View>
+          <View style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }}>
+            <Skeleton width="50%" height={14} />
+          </View>
+        </View>
+
+        {/* Mock list items */}
+        <View style={{ padding: 16, gap: 16, marginTop: 10 }}>
+          {[1, 2].map(i => (
+            <View key={i} style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <Skeleton width={36} height={36} borderRadius={18} />
+                <View style={{ gap: 4, flex: 1 }}>
+                  <Skeleton width="40%" height={12} />
+                  <Skeleton width="20%" height={8} />
+                </View>
+              </View>
+              <Skeleton width="100%" height={50} />
+            </View>
+          ))}
+        </View>
+      </SafeAreaView>
+    )
   }
 
   const tabData = activeTab === 'posts' ? userPosts : bookmarks

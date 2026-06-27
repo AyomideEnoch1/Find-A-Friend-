@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { supportsVideoStories } from "../../lib/featureFlags";
@@ -10,6 +11,7 @@ interface InlineVideoPlayerProps {
   style?: any;
   borderRadius?: number;
   borderColor?: string;
+  paused?: boolean;
 }
 
 export default function InlineVideoPlayer({
@@ -17,11 +19,13 @@ export default function InlineVideoPlayer({
   style,
   borderRadius = 0,
   borderColor,
+  paused = false,
 }: InlineVideoPlayerProps) {
   const theme = useTheme();
   const videoRef = useRef<any>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const isFocused = useIsFocused();
 
   if (!supportsVideoStories()) {
     return (
@@ -83,6 +87,14 @@ export default function InlineVideoPlayer({
     }
   }, [videoSize, player?.videoTrack?.size]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!player) return;
+    if (paused || !isFocused) {
+      player.pause();
+    }
+  }, [paused, isFocused, player]);
+
   // Sync state variables
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const [isPlaying, setIsPlaying] = useState(false);
@@ -95,7 +107,10 @@ export default function InlineVideoPlayer({
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const [showControls, setShowControls] = useState(false);
   // eslint-disable-next-line react-hooks/rules-of-hooks
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [progressBarWidth, setProgressBarWidth] = useState(1);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [videoLoading, setVideoLoading] = useState(player?.status === "loading" || player?.buffering);
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -118,9 +133,14 @@ export default function InlineVideoPlayer({
     });
 
     const statusSub = player.addListener("statusChange", (event: any) => {
+      setVideoLoading(event.status === "loading" || player.buffering);
       if (event.status === "readyToPlay") {
         setDuration(player.duration);
       }
+    });
+
+    const bufferingSub = player.addListener("bufferingChange", (event: any) => {
+      setVideoLoading(player.status === "loading" || event.isBuffering);
     });
 
     const volumeSub = player.addListener("volumeChange", (event: any) => {
@@ -131,6 +151,7 @@ export default function InlineVideoPlayer({
       playingSub.remove();
       timeSub.remove();
       statusSub.remove();
+      bufferingSub.remove();
       volumeSub.remove();
     };
   }, [player]);
@@ -173,10 +194,12 @@ export default function InlineVideoPlayer({
       ? containerWidth * aspectRatio
       : null;
 
-  const computedHeight = hasHeightInStyle
+  const baseHeight = hasHeightInStyle
     ? flattenedStyle.height
     : knownHeight ??
       (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220);
+
+  const computedHeight = Math.min(baseHeight, 360);
 
   return (
     <View
@@ -212,19 +235,28 @@ export default function InlineVideoPlayer({
         onPress={() => setShowControls((prev) => !prev)}
       />
 
-      {/* Play/Pause circular button in the center (Always visible) */}
-      <TouchableOpacity
-        style={styles.playPauseBtn}
-        onPress={() => {
-          if (isPlaying) {
-            player.pause();
-          } else {
-            player.play();
-          }
-        }}
-      >
-        <Ionicons name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
-      </TouchableOpacity>
+      {/* Play/Pause circular button in the center (Always visible except when loading) */}
+      {!videoLoading && (
+        <TouchableOpacity
+          style={styles.playPauseBtn}
+          onPress={() => {
+            if (isPlaying) {
+              player.pause();
+            } else {
+              player.play();
+            }
+          }}
+        >
+          <Ionicons name={isPlaying ? "pause" : "play"} size={22} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Buffering/Loading Indicator */}
+      {videoLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={theme.accent} />
+        </View>
+      )}
 
       {/* Other controls (visible only on tap/interaction) */}
       {showControls && (
@@ -304,6 +336,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    alignSelf: "center",
+    top: "50%",
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
   },
   controlsContainer: {
     position: "absolute",

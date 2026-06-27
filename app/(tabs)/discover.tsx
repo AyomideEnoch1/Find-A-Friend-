@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import StudentCard from "../../components/discover/StudentCard";
 import NeuralBackground from "../../components/NeuralBackground";
 import ScreenLoader from "../../components/ScreenLoader";
+import { Skeleton } from "../../components/ui/Skeleton";
 import type { ConnectionStatus } from "../../lib/discoverLikes";
 import {
   getConnectionStatusesBulk,
@@ -563,12 +564,47 @@ export default function DiscoverScreen() {
         {loading ? (
           <View
             style={{
-              height: 250,
-              justifyContent: "center",
-              alignItems: "center",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              paddingHorizontal: 8,
+              paddingBottom: 120,
             }}
           >
-            <ScreenLoader message="Loading campus directory..." />
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <View key={i} style={{ width: "50%", padding: 6 }}>
+                <View
+                  style={{
+                    alignItems: "center",
+                    borderRadius: 12,
+                    padding: 14,
+                    borderWidth: 0.5,
+                    borderColor: theme.border,
+                    backgroundColor: theme.card,
+                    height: 200,
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Skeleton width={54} height={54} borderRadius={27} />
+                  <View style={{ alignItems: "center", width: "100%", gap: 6 }}>
+                    <Skeleton width="80%" height={12} />
+                    <Skeleton width="60%" height={10} />
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 4,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <Skeleton width={45} height={14} borderRadius={7} />
+                    <Skeleton width={45} height={14} borderRadius={7} />
+                  </View>
+                  <Skeleton width="90%" height={26} borderRadius={13} />
+                </View>
+              </View>
+            ))}
           </View>
         ) : remaining === 0 ? (
           <View style={s.center}>

@@ -16,6 +16,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { supportsVideoStories } from "../../lib/featureFlags";
@@ -23,7 +24,7 @@ import type { FeedPost } from "../../lib/feed";
 import { reportPost } from "../../lib/feed";
 import { getInitials, getTimeAgo } from "../../lib/matching";
 import { createStory } from "../../lib/stories";
-import { useTheme } from "../../lib/theme";
+import { useTheme, adjustColorForContrast } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useFeedStore } from "../../store/feedStore";
 import SharedInlineVideoPlayer from "../ui/InlineVideoPlayer";
@@ -32,8 +33,39 @@ import VerifiedBadge from "../ui/VerifiedBadge";
 import { useThemeStore } from "../../store/themeStore";
 import { supabase } from "../../lib/supabase";
 
+function ShimmerImage({
+  source,
+  style,
+  resizeMode,
+}: {
+  source: { uri: string };
+  style?: any;
+  resizeMode?: any;
+}) {
+  const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+
+  return (
+    <View style={StyleSheet.flatten([style, { overflow: "hidden", justifyContent: "center", alignItems: "center", position: "relative" }])}>
+      <Image
+        source={source}
+        style={StyleSheet.absoluteFill}
+        resizeMode={resizeMode}
+        onLoadStart={() => setLoading(true)}
+        onLoadEnd={() => setLoading(false)}
+      />
+      {loading && (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: "center", alignItems: "center", backgroundColor: theme.card2 || "rgba(0,0,0,0.1)" }]}>
+          <ActivityIndicator size="small" color={theme.accent} />
+        </View>
+      )}
+    </View>
+  );
+}
+
 interface PostCardProps {
   post: FeedPost;
+  isViewable?: boolean;
 }
 
 function toHandle(name: string | null | undefined): string {
@@ -61,7 +93,7 @@ function getContrastColor(hexColor: string | null | undefined, defaultColor: str
   return luminance >= 128 ? "#111111" : "#ffffff";
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, isViewable = true }: PostCardProps) {
   const { toggleLike, toggleBookmark, repostPost, deletePost } = useFeedStore();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -338,8 +370,11 @@ export default function PostCard({ post }: PostCardProps) {
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: "underline" }}
                 onPress={() => {
-                  if (Platform.OS !== "web")
+                  if (Platform.OS === "web") {
+                    window.open(`mailto:${part}`, "_blank");
+                  } else {
                     Linking.openURL(`mailto:${part}`).catch(() => {});
+                  }
                 }}
                 {...(Platform.OS === "web"
                   ? ({
@@ -366,8 +401,11 @@ export default function PostCard({ post }: PostCardProps) {
                 key={i}
                 style={{ color: theme.accent, textDecorationLine: "underline" }}
                 onPress={() => {
-                  if (Platform.OS !== "web")
+                  if (Platform.OS === "web") {
+                    window.open(url, "_blank");
+                  } else {
                     Linking.openURL(url).catch(() => {});
+                  }
                 }}
                 {...(Platform.OS === "web"
                   ? ({
@@ -405,6 +443,7 @@ export default function PostCard({ post }: PostCardProps) {
       onPress={() => router.push(`/post/${post.id}` as any)}
       android_ripple={{ color: "rgba(167,139,250,0.08)" }}
     >
+
 
       {isRepost && (
         <View style={s.repostHeaderRow}>
@@ -482,8 +521,8 @@ export default function PostCard({ post }: PostCardProps) {
                     style={[
                       s.uniBadge,
                       {
-                        backgroundColor: post.profiles.universities.primary_color || theme.primary,
-                        borderColor: post.profiles.universities.primary_color || theme.primary,
+                        backgroundColor: post.profiles.universities.primary_color || theme.accent,
+                        borderColor: post.profiles.universities.primary_color || theme.accent,
                       },
                     ]}
                   >
@@ -582,6 +621,7 @@ export default function PostCard({ post }: PostCardProps) {
                   sourceUrl={images[0]}
                   borderRadius={12}
                   borderColor={theme.border}
+                  paused={isViewable === false}
                 />
               </Pressable>
             ) : (
@@ -589,7 +629,7 @@ export default function PostCard({ post }: PostCardProps) {
                 onPress={() => setSelectedImage(images[0])}
                 activeOpacity={0.95}
               >
-                <Image
+                <ShimmerImage
                   source={{ uri: images[0] }}
                   style={[
                     s.media,
@@ -633,19 +673,18 @@ export default function PostCard({ post }: PostCardProps) {
                         style={{ width: containerWidth || 300, height: "100%" }}
                       >
                         {isVideo ? (
-                          <Pressable
-                            onPress={(e) => e.stopPropagation()}
-                            style={{ flex: 1 }}
-                          >
-                            <InlineVideoPlayer sourceUrl={imgUrl} />
-                          </Pressable>
+                          <InlineVideoPlayer
+                            sourceUrl={imgUrl}
+                            paused={isViewable === false}
+                            style={{ width: "100%", height: "100%" }}
+                          />
                         ) : (
                           <TouchableOpacity
                             activeOpacity={0.95}
                             onPress={() => setSelectedImage(imgUrl)}
                             style={{ width: "100%", height: "100%" }}
                           >
-                            <Image
+                            <ShimmerImage
                               source={{ uri: imgUrl }}
                               style={{ width: "100%", height: "100%" }}
                               resizeMode="cover"
@@ -778,10 +817,11 @@ export default function PostCard({ post }: PostCardProps) {
                   sourceUrl={orig.image_url!}
                   borderRadius={8}
                   borderColor={theme.border}
+                  paused={isViewable === false}
                 />
               </Pressable>
             ) : (
-              <Image
+              <ShimmerImage
                 source={{ uri: orig.image_url }}
                 style={[s.repostMedia, { borderColor: theme.border }]}
                 resizeMode="cover"
@@ -1114,16 +1154,22 @@ function InlineVideoPlayer({
   sourceUrl,
   borderRadius = 0,
   borderColor,
+  paused,
+  style,
 }: {
   sourceUrl: string;
   borderRadius?: number;
   borderColor?: string;
+  paused?: boolean;
+  style?: any;
 }) {
   return (
     <SharedInlineVideoPlayer
       sourceUrl={sourceUrl}
       borderRadius={borderRadius}
       borderColor={borderColor}
+      paused={paused}
+      style={style}
     />
   );
 }
@@ -1174,6 +1220,7 @@ function AspectRatioImage({
         height:
           knownHeight ??
           (containerWidth > 0 ? Math.round(containerWidth * (9 / 16)) : 220),
+        maxHeight: 360,
         borderRadius,
         borderWidth: borderColor ? 0.5 : 0,
         borderColor,
@@ -1183,7 +1230,7 @@ function AspectRatioImage({
       }}
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
-      <Image
+      <ShimmerImage
         source={{ uri }}
         style={StyleSheet.absoluteFill}
         resizeMode="contain"
