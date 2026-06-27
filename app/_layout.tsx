@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { AppState, Platform, Alert, useWindowDimensions, View } from 'react-native'
+import { AppState, Platform, Alert, useWindowDimensions, View, Text } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack, router, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
@@ -35,6 +35,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Ionicons } from "@expo/vector-icons";
+import NetInfo from "@react-native-community/netinfo";
+import { typography } from "../lib/typography";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -523,6 +525,56 @@ async function checkForUpdate() {
   } catch {}
 }
 
+function NetworkStatusBar({
+  isConnected,
+  isInternetReachable,
+  isPoor,
+}: {
+  isConnected: boolean | null;
+  isInternetReachable: boolean | null;
+  isPoor: boolean;
+}) {
+  const theme = useTheme();
+  const show = isConnected === false || isInternetReachable === false || isPoor;
+
+  if (!show) return null;
+
+  const isOffline = isConnected === false || isInternetReachable === false;
+  const bgColor = isOffline ? "#ef4444" : "#f59e0b";
+  const message = isOffline
+    ? "No Internet Connection"
+    : "Slow connection detected";
+  const icon = isOffline ? "wifi-outline" : "alert-circle-outline";
+
+  return (
+    <View
+      style={{
+        backgroundColor: bgColor,
+        paddingVertical: 6,
+        paddingHorizontal: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        width: "100%",
+        zIndex: 10000,
+      }}
+    >
+      <Ionicons name={icon as any} size={14} color="#fff" />
+      <Text
+        style={{
+          color: "#fff",
+          fontSize: 12,
+          fontFamily: typography.fontBold,
+          textAlign: "center",
+        }}
+      >
+        {message}
+      </Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const { hydrate } = useThemeStore();
   const [fontsLoaded] = useFonts({
@@ -536,9 +588,41 @@ export default function RootLayout() {
 
   const authLoading = useAuthStore((s) => s.loading);
 
+  const [networkStatus, setNetworkStatus] = useState<{
+    isConnected: boolean | null;
+    isInternetReachable: boolean | null;
+    isPoor: boolean;
+  }>({
+    isConnected: true,
+    isInternetReachable: true,
+    isPoor: false,
+  });
+
   useEffect(() => {
     hydrate();
     checkForUpdate();
+
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const isCellularPoor =
+        state.type === "cellular" &&
+        (state.details?.cellularGeneration === "2g" ||
+          state.details?.cellularGeneration === "3g");
+      const isWebPoor =
+        Platform.OS === "web" &&
+        typeof navigator !== "undefined" &&
+        (navigator as any).connection &&
+        ((navigator as any).connection.effectiveType === "2g" ||
+          (navigator as any).connection.effectiveType === "3g");
+      const isPoor = isCellularPoor || isWebPoor;
+
+      setNetworkStatus({
+        isConnected: state.isConnected,
+        isInternetReachable: state.isInternetReachable,
+        isPoor,
+      });
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -554,6 +638,11 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
           <ResponsiveAppContainer>
+            <NetworkStatusBar
+              isConnected={networkStatus.isConnected}
+              isInternetReachable={networkStatus.isInternetReachable}
+              isPoor={networkStatus.isPoor}
+            />
             <AppStack />
             <StreakModal />
             <Toast />

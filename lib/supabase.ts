@@ -386,36 +386,68 @@ const baseSupabase = createClient(API_URL, 'aws-anonymous-key', {
   global: {
     fetch: async (url, options) => {
       const { data: { session } } = await cognitoAuth.getSession();
-      const headers = new Headers(options?.headers || {});
       
+      // Determine request URL and method safely (url can be Request object or string)
+      let requestUrl = '';
+      let requestMethod = options?.method || 'GET';
+      const headers = new Headers(options?.headers || {});
+
+      if (typeof url === 'string') {
+        requestUrl = url;
+      } else if (url && typeof url === 'object' && 'url' in url) {
+        requestUrl = (url as any).url;
+        requestMethod = (url as any).method || requestMethod;
+        const reqHeaders = (url as any).headers;
+        if (reqHeaders) {
+          reqHeaders.forEach((val: string, key: string) => {
+            headers.set(key, val);
+          });
+        }
+      } else {
+        requestUrl = String(url);
+      }
+
+      // Default auth headers: Cognito access token
       if (session?.access_token) {
         headers.set('Authorization', `Bearer ${session.access_token}`);
       } else {
         headers.delete('Authorization');
       }
 
-      // The Supabase JS client appends /rest/v1/ to the base URL for all DB queries,
-      // but our PostgREST instance serves tables from the root /. Strip the prefix.
-      // Additionally, route storage requests directly to the Supabase endpoint since ECS PostgREST does not serve storage.
-      const urlStr = url.toString();
-      let rewrittenUrl = urlStr;
+      let rewrittenUrl = requestUrl;
+      const isStorage = requestUrl.includes('/storage/v1');
+
       if (API_URL) {
-        if (urlStr.includes('/storage/v1')) {
+        if (isStorage) {
           const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vcbtvhociaioeyhhsczh.supabase.co';
           const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'aws-anonymous-key';
-          rewrittenUrl = urlStr.replace(`${API_URL}/storage/v1`, `${supabaseUrl}/storage/v1`);
+          rewrittenUrl = requestUrl.replace(`${API_URL}/storage/v1`, `${supabaseUrl}/storage/v1`);
           
           // Storage requests must use the Supabase Anon Key rather than Cognito access token
           headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
           headers.set('apikey', supabaseAnonKey);
         } else {
-          rewrittenUrl = urlStr.replace(`${API_URL}/rest/v1`, API_URL);
+          rewrittenUrl = requestUrl.replace(`${API_URL}/rest/v1`, API_URL);
         }
       }
-      
+
+      // Convert Headers object back to a plain object for maximum compatibility with all fetch polyfills
+      const headersObj: Record<string, string> = {};
+      headers.forEach((value, key) => {
+        headersObj[key] = value;
+      });
+
+      if (isStorage) {
+        console.log('[Supabase Fetch Storage] original url:', requestUrl);
+        console.log('[Supabase Fetch Storage] rewritten url:', rewrittenUrl);
+        console.log('[Supabase Fetch Storage] method:', requestMethod);
+        console.log('[Supabase Fetch Storage] Authorization header starts with:', headersObj['authorization']?.substring(0, 30));
+        console.log('[Supabase Fetch Storage] apikey:', headersObj['apikey'] ? 'present' : 'missing');
+      }
+
       return fetch(rewrittenUrl, {
         ...options,
-        headers,
+        headers: headersObj,
       });
     },
   },

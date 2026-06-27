@@ -1,5 +1,6 @@
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme, adjustColorForContrast } from '../../lib/theme';
 
 export interface VerifiedBadgeProps {
   type: string | null | undefined;
@@ -29,7 +30,9 @@ export const BADGE_LABELS: Record<string, string> = {
 
 export default function VerifiedBadge({ type, customColor, size = 16 }: VerifiedBadgeProps) {
   if (!type || type === 'none') return null;
+  const theme = useTheme();
   const cleanType = String(type).toLowerCase().trim();
-  const color = customColor || BADGE_COLORS[cleanType] || '#3b82f6';
+  const rawColor = customColor || BADGE_COLORS[cleanType] || '#3b82f6';
+  const color = adjustColorForContrast(rawColor, theme.dark, '#3b82f6');
   return <MaterialCommunityIcons name="check-decagram" size={size} color={color} />;
 }

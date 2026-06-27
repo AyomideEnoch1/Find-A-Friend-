@@ -37,6 +37,7 @@ import { supabase } from "../lib/supabase";
 import { useTheme } from "../lib/theme";
 import { typography } from "../lib/typography";
 import { useAuthStore } from "../store/authStore";
+import { Skeleton } from "../components/ui/Skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1438,11 +1439,37 @@ export default function FeedbackScreen() {
 
         {/* Feed */}
         {loading ? (
-          <View style={s.loadingWrap}>
-            <ActivityIndicator color={PURPLE} size="large" />
-            <Text style={[s.loadingText, { color: theme.textFaint }]}>
-              Scanning transmissions...
-            </Text>
+          <View style={{ padding: 16, gap: 16 }}>
+            {[1, 2, 3, 4].map((i) => {
+              const isMe = i % 2 === 0;
+              return (
+                <View key={i} style={[fc.row, isMe && fc.rowMe, { width: "100%" }]}>
+                  {!isMe && <Skeleton width={36} height={36} borderRadius={18} />}
+                  <View style={[fc.bubbleWrap, isMe && fc.bubbleWrapMe]}>
+                    <View
+                      style={[
+                        fc.bubble,
+                        isMe ? fc.bubbleMe : fc.bubbleOther,
+                        {
+                          backgroundColor: isMe ? "rgba(167,139,250,0.14)" : theme.card,
+                          width: "80%",
+                          padding: 12,
+                        },
+                      ]}
+                    >
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6, gap: 10 }}>
+                        <Skeleton width={80} height={10} />
+                        <Skeleton width={40} height={8} />
+                      </View>
+                      <View style={{ gap: 4 }}>
+                        <Skeleton width="100%" height={12} />
+                        <Skeleton width="85%" height={12} />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         ) : (
           <FlatList
