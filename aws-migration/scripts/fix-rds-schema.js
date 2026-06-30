@@ -503,6 +503,19 @@ exports.handler = async function(event, context) {
         `
       },
       {
+        label: 'Create delete_own_user RPC function',
+        sql: `
+          CREATE OR REPLACE FUNCTION public.delete_own_user()
+          RETURNS void AS $$
+          BEGIN
+            DELETE FROM auth.users WHERE id = auth.uid();
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          GRANT EXECUTE ON FUNCTION public.delete_own_user() TO authenticated;
+        `
+      },
+      {
         label: 'Reload PostgREST schema cache (final)',
         sql: `NOTIFY pgrst, 'reload schema';`
       }

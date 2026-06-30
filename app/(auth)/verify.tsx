@@ -13,6 +13,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
 } from "react-native";
 import Toast from 'react-native-toast-message'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -910,11 +911,11 @@ export default function VerifyScreen() {
                 {mode === 'signup' && (
                   <Text style={[s.termsText, { color: theme.textFaint }]}>
                     By continuing you agree to our{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/terms')}>
                       Terms
                     </Text>{" "}
                     and{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/privacy')}>
                       Privacy Policy
                     </Text>
                   </Text>

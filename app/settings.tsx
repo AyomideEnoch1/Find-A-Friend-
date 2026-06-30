@@ -93,6 +93,31 @@ export default function SettingsScreen() {
     ])
   }
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action is irreversible and will permanently delete all your posts, comments, profile information, and messages.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Permanently', style: 'destructive', onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('delete_own_user')
+            if (error) throw error
+            await signOut()
+            router.replace('/(auth)/welcome' as any)
+            Toast.show({
+              type: 'success',
+              text1: 'Account Deleted',
+              text2: 'Your account and data have been permanently removed.'
+            })
+          } catch (err) {
+            Alert.alert('Error', 'Failed to delete account. Please try again later.')
+          }
+        }}
+      ]
+    )
+  }
+
   const [updating, setUpdating] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'downloading' | 'ready' | 'latest'>('idle')
 
@@ -147,25 +172,6 @@ export default function SettingsScreen() {
     }
   }
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your profile, posts, and all your data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            if (user?.id) {
-              await supabase.from('profiles').delete().eq('id', user.id)
-            }
-          } catch {}
-          await supabase.auth.signOut()
-          Toast.show({ type: 'success', text1: 'Account deleted', text2: 'Your data has been removed.' })
-          router.replace('/(auth)/welcome' as any)
-        }},
-      ]
-    )
-  }
 
   const menuItems = [
     {
@@ -345,6 +351,10 @@ export default function SettingsScreen() {
 
         <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
           <Text style={s.signOutText}>Sign out</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[s.signOutBtn, { borderColor: '#ef4444', borderWidth: 1, backgroundColor: 'rgba(239,68,68,0.05)', marginTop: 8 }]} onPress={handleDeleteAccount}>
+          <Text style={[s.signOutText, { color: '#ef4444' }]}>Delete Account</Text>
         </TouchableOpacity>
 
         <View style={s.versionWrap}>
