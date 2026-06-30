@@ -1,11 +1,11 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, Share, Clipboard
+  Alert, ActivityIndicator, Share, Clipboard, Modal, FlatList
 } from 'react-native'
 import Toast from 'react-native-toast-message'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, Stack } from 'expo-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
