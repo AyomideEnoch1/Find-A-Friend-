@@ -357,6 +357,124 @@ exports.handler = async function(event, context) {
         `
       },
       {
+        label: 'Create comment likes table, count column, and triggers',
+        sql: `
+          -- Add likes_count to post_comments if it does not exist
+          ALTER TABLE public.post_comments ADD COLUMN IF NOT EXISTS likes_count INT NOT NULL DEFAULT 0;
+
+          -- Create post_comment_likes table
+          CREATE TABLE IF NOT EXISTS public.post_comment_likes (
+            user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+            comment_id UUID NOT NULL REFERENCES public.post_comments(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            PRIMARY KEY (user_id, comment_id)
+          );
+
+          -- Enable RLS
+          ALTER TABLE public.post_comment_likes ENABLE ROW LEVEL SECURITY;
+
+          -- RLS Policies
+          DROP POLICY IF EXISTS "post_comment_likes: read all" ON public.post_comment_likes;
+          CREATE POLICY "post_comment_likes: read all" ON public.post_comment_likes
+            FOR SELECT USING (true);
+
+          DROP POLICY IF EXISTS "post_comment_likes: own insert" ON public.post_comment_likes;
+          CREATE POLICY "post_comment_likes: own insert" ON public.post_comment_likes
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+          DROP POLICY IF EXISTS "post_comment_likes: own delete" ON public.post_comment_likes;
+          CREATE POLICY "post_comment_likes: own delete" ON public.post_comment_likes
+            FOR DELETE USING (auth.uid() = user_id);
+
+          -- Trigger to automatically update likes_count
+          CREATE OR REPLACE FUNCTION public.sync_post_comment_likes_count()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            IF TG_OP = 'INSERT' THEN
+              UPDATE public.post_comments
+              SET likes_count = likes_count + 1
+              WHERE id = NEW.comment_id;
+            ELSIF TG_OP = 'DELETE' THEN
+              UPDATE public.post_comments
+              SET likes_count = GREATEST(0, likes_count - 1)
+              WHERE id = OLD.comment_id;
+            END IF;
+            RETURN NULL;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          DROP TRIGGER IF EXISTS trg_post_comment_likes_count ON public.post_comment_likes;
+          CREATE TRIGGER trg_post_comment_likes_count
+          AFTER INSERT OR DELETE ON public.post_comment_likes
+          FOR EACH ROW EXECUTE FUNCTION public.sync_post_comment_likes_count();
+
+          -- Grant privileges
+          GRANT SELECT, INSERT, DELETE ON public.post_comment_likes TO anon, authenticated;
+          GRANT UPDATE ON public.post_comments TO anon, authenticated;
+        `
+      },
+      {
+        label: 'Create auth.is_admin() helper function',
+        sql: `
+          CREATE OR REPLACE FUNCTION auth.is_admin()
+          RETURNS boolean
+          LANGUAGE sql
+          STABLE
+          AS $$
+            SELECT 
+              COALESCE(auth.jwt()->>'custom:role', '') = 'admin' OR
+              auth.jwt()->'cognito:groups' ? 'admin' OR
+              EXISTS (
+                SELECT 1 FROM public.profiles 
+                WHERE id = auth.uid() AND role = 'admin'
+              )
+          $$;
+
+          GRANT EXECUTE ON FUNCTION auth.is_admin() TO anon, authenticated, service_role;
+        `
+      },
+      {
+        label: 'Re-enable HTTP push notification trigger using pgsql-http extension',
+        sql: `
+          -- Install http extension if not already present
+          DO $$
+          BEGIN
+            CREATE EXTENSION IF NOT EXISTS http SCHEMA public CASCADE;
+          EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Failed to create http extension: %', SQLERRM;
+          END;
+          $$;
+
+          -- Re-define push notification trigger to use http_post conditionally
+          CREATE OR REPLACE FUNCTION public.trg_fn_push_notification()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            -- Only attempt HTTP call if the public.http function exists
+            IF EXISTS (
+              SELECT 1 FROM pg_proc p 
+              JOIN pg_namespace n ON p.pronamespace = n.oid 
+              WHERE n.nspname = 'public' AND p.proname = 'http'
+            ) THEN
+              PERFORM public.http((
+                'POST',
+                'https://vcbtvhociaioeyhhsczh.supabase.co/functions/v1/send-push-notification',
+                ARRAY[
+                  public.http_header('Content-Type', 'application/json'),
+                  public.http_header('Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjYnR2aG9jaWFpb2V5aGhzY3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjc4MzAsImV4cCI6MjA5MTk0MzgzMH0.BqvLjyfeDnYBDtsY5OW_LtewCAUtO-twTIMvpjbDvRM')
+                ],
+                'application/json',
+                to_jsonb(NEW)::text
+              )::public.http_request);
+            END IF;
+            RETURN NEW;
+          EXCEPTION WHEN OTHERS THEN
+            -- Never block inserts due to notification delivery failures
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+        `
+      },
+      {
         label: 'Reload PostgREST schema cache (final)',
         sql: `NOTIFY pgrst, 'reload schema';`
       }

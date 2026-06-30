@@ -45,7 +45,7 @@ export default function GuideBanner({
     }
   };
 
-  return null; // Temporarily disabled globally
+  if (!visible) return null;
 
   return (
     <View

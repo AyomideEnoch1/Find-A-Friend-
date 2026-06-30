@@ -158,6 +158,7 @@ export class CognitoAuthAdapter {
       const nameAttr = userRes.UserAttributes.find((a: any) => a.Name === 'name')?.Value;
       const legacyIdAttr = userRes.UserAttributes.find((a: any) => a.Name === 'custom:legacy_id')?.Value;
       const emailVerifiedAttr = userRes.UserAttributes.find((a: any) => a.Name === 'email_verified')?.Value;
+      const roleAttr = userRes.UserAttributes.find((a: any) => a.Name === 'custom:role')?.Value;
 
       if (emailVerifiedAttr !== 'true') {
         // Store the access token so confirmSignUp / resendConfirmationCode
@@ -182,6 +183,7 @@ export class CognitoAuthAdapter {
         email_verified: emailVerifiedAttr === 'true',
         user_metadata: {
           full_name: nameAttr || '',
+          role: roleAttr || 'student',
         },
       };
 

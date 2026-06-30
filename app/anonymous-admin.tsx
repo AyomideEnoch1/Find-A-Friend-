@@ -370,6 +370,24 @@ export default function AnonymousAdminDashboard() {
                 </View>
               </View>
             </View>
+
+            {/* Danger Zone Card */}
+            <View style={[s.card, { backgroundColor: theme.card, borderColor: '#ef4444', borderWidth: 1 }]}>
+              <View style={s.cardHeader}>
+                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                <Text style={[s.cardTitle, { color: '#ef4444' }]}>Danger Zone</Text>
+              </View>
+
+              <Text style={[s.cardDesc, { color: theme.textMuted, marginBottom: 12 }]}>
+                Clearing all confessions will permanently delete all anonymous confessions from the database. This action is irreversible.
+              </Text>
+
+              <TouchableOpacity
+                onPress={handleDeleteAllConfessions}
+                style={[s.actionBtn, { backgroundColor: '#ef4444' }]}>
+                <Text style={s.actionBtnText}>CLEAR ALL CONFESSIONS</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         )}
 

@@ -343,6 +343,18 @@ export default function HomeScreen() {
       setGlobalName(p.global_full_name || p.full_name || "");
       setGlobalBio(p.global_bio || p.bio || "");
       setGlobalAvatar(p.global_avatar_url || p.avatar_url || null);
+
+      // Auto-sync admin role from Cognito JWT attributes to database profiles table
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.user_metadata?.role === 'admin' && p.role !== 'admin') {
+          await updateProfile({ role: 'admin' });
+          const updated = await getCurrentProfile();
+          if (updated) setProfile(updated);
+        }
+      } catch (err) {
+        console.warn('Failed to sync admin role:', err);
+      }
     }
   }, []);
 
@@ -1306,12 +1318,14 @@ export default function HomeScreen() {
 
       <StoryViewer />
       {renderSidebar()}
-      <GuideBanner
-        storageKey="guide_dismissed_home"
-        title="Welcome to Find-A-Friend! 🌐"
-        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
-        topOffset={70}
-      />
+      {feedMode === "global" && (
+        <GuideBanner
+          storageKey="guide_dismissed_home"
+          title="Welcome to Find-A-Friend! 🌐"
+          message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+          topOffset={70}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -60,13 +60,14 @@ export interface PostComment {
   id: string
   post_id: string
   parent_id?: string | null
-  author_id: string
+  author_id: string | null  // null when is_anonymous = true
   body: string
   media_url?: string | null
   media_type?: string | null
   is_anonymous: boolean
   created_at: string
   profiles?: FeedAuthor | null
+  likes_count?: number
 }
 
 export interface TrendingHashtag {
@@ -350,6 +351,59 @@ export async function deleteComment(commentId: string): Promise<{
 
     if (error) throw error
     return { data: null, error: null }
+  } catch (err) {
+    return { data: null, error: err as Error }
+  }
+}
+
+export async function toggleLikeComment(commentId: string): Promise<{ liked: boolean; error: Error | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Check if like exists
+    const { data: existing } = await supabase
+      .from('post_comment_likes')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('comment_id', commentId)
+      .maybeSingle()
+
+    if (existing) {
+      const { error } = await supabase
+        .from('post_comment_likes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('comment_id', commentId)
+
+      if (error) throw error
+      return { liked: false, error: null }
+    } else {
+      const { error } = await supabase
+        .from('post_comment_likes')
+        .insert({ user_id: user.id, comment_id: commentId })
+
+      if (error) throw error
+      return { liked: true, error: null }
+    }
+  } catch (err) {
+    return { liked: false, error: err as Error }
+  }
+}
+
+export async function getLikedCommentIds(postCommentIds: string[]): Promise<{ data: string[] | null; error: Error | null }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: [], error: null }
+
+    const { data, error } = await supabase
+      .from('post_comment_likes')
+      .select('comment_id')
+      .eq('user_id', user.id)
+      .in('comment_id', postCommentIds)
+
+    if (error) throw error
+    return { data: (data ?? []).map(d => d.comment_id), error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }

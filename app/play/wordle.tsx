@@ -103,12 +103,16 @@ export default function WordleScreen() {
   const channelRef = useRef<any>(null)
   // Ref-synced word so the broadcast handler is never stale
   const wordRef = useRef('')
+  const guessesRef = useRef<string[]>([])
+  const botGuessesRef = useRef<string[]>([])
 
   const shakeValue = useSharedValue(0)
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeValue.value }] }))
 
-  // Keep wordRef in sync with state
+  // Keep refs in sync with state
   useEffect(() => { wordRef.current = word }, [word])
+  useEffect(() => { guessesRef.current = guesses }, [guesses])
+  useEffect(() => { botGuessesRef.current = botGuesses }, [botGuesses])
 
   // Initial load
   useEffect(() => {
@@ -163,7 +167,15 @@ export default function WordleScreen() {
                 supabase.from('live_game_sessions').update({ status: 'finished', winner_id: opponentId }).eq('id', sessionId).then(() => {})
               }
             } else if (next.length >= MAX_GUESSES) {
-              // Both must fail to be none
+              // Both must fail to be none (tie)
+              if (guessesRef.current.length >= MAX_GUESSES) {
+                setGameOver(true)
+                setWinner('none')
+                if (opponentId && opponentId !== 'faf-bot' && user?.id) {
+                  recordGameResult('wordle', opponentId, 'none', { me_guesses: guessesRef.current.length, opp_guesses: next.length }).catch(() => {})
+                  supabase.from('live_game_sessions').update({ status: 'finished', winner_id: null }).eq('id', sessionId).then(() => {})
+                }
+              }
             }
             return next
           })
@@ -239,7 +251,7 @@ export default function WordleScreen() {
         setWinner('none')
         // Record result for real multiplayer — nobody won
         if (sessionId && opponentId && opponentId !== 'faf-bot' && user?.id) {
-          recordGameResult('wordle', opponentId, opponentId, { me_guesses: newGuesses.length, opp_guesses: botGuesses.length }).catch(() => {})
+          recordGameResult('wordle', opponentId, 'none', { me_guesses: newGuesses.length, opp_guesses: botGuesses.length }).catch(() => {})
           supabase.from('live_game_sessions').update({ status: 'finished', winner_id: null }).eq('id', sessionId).then(() => {})
         }
       }

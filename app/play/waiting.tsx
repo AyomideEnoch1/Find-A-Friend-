@@ -123,6 +123,7 @@ export default function WaitingScreen() {
   const [myId,          setMyId]          = useState('')
   const [myName,        setMyName]        = useState('You')
   const [sessionId,     setSessionId]     = useState(params.sessionId ?? '')
+  const [opponentId,    setOpponentId]    = useState(params.opponentId ?? '')
   const [opponentName,  setOpponentName]  = useState(params.opponentName ?? '...')
   const [opponentReady, setOpponentReady] = useState(false)
   const [phase,         setPhase]         = useState<'creating' | 'waiting' | 'launching'>('creating')
@@ -261,6 +262,10 @@ export default function WaitingScreen() {
 
     setSessionId(sid)
 
+    const isHost = sess.host_id === userId
+    const partnerId = isHost ? sess.guest_id : sess.host_id
+    if (partnerId) setOpponentId(partnerId)
+
     if (sess.host_id !== userId && (!sess.guest_id || sess.guest_id === userId) && sess.status === 'waiting') {
       // We are the guest joining — mark active so the host's
       // subscription fires and both players get the launchGame() call.
@@ -321,6 +326,7 @@ export default function WaitingScreen() {
         const partner = isHost ? s.guest_id : s.host_id
 
         if (partner) {
+          setOpponentId(partner)
           setOpponentReady(true)
           // Fetch partner name if not already set
           supabase.from('profiles').select('full_name').eq('id', partner).single()
@@ -352,7 +358,7 @@ export default function WaitingScreen() {
       pathname: route as any,
       params: {
         opponentName: opponentName,
-        opponentId: params.opponentId,
+        opponentId: opponentId || params.opponentId || '',
         sessionId: sid ?? '',
       },
     })
