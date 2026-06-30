@@ -194,6 +194,11 @@ export default function DealsScreen() {
                 activeCategory === cat && {
                   backgroundColor: theme.accentBg,
                   borderColor: theme.accentBorder,
+                  shadowColor: theme.accent,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 2,
                 },
               ]}
               onPress={() => setActiveCategory(cat)}
@@ -208,7 +213,7 @@ export default function DealsScreen() {
                   },
                 ]}
               >
-                {cat}
+                {cat === "All" ? "🌐 All" : `${CATEGORY_ICONS[cat] ?? "🏪"} ${cat}`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -259,7 +264,15 @@ export default function DealsScreen() {
                   style={[
                     s.dealCard,
                     theme.cardShadow,
-                    { backgroundColor: theme.card, borderColor: theme.border },
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: isSaved ? color : theme.border,
+                      borderWidth: isSaved ? 1 : 0.5,
+                      shadowColor: color,
+                      shadowOpacity: isSaved ? 0.15 : 0.03,
+                      shadowRadius: isSaved ? 8 : 4,
+                      elevation: isSaved ? 3 : 1,
+                    },
                   ]}
                 >
                   <View style={s.dealTop}>

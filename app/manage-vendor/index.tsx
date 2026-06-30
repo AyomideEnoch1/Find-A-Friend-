@@ -94,36 +94,50 @@ export default function ManageVendorScreen() {
     const isExpired = item.valid_until ? new Date(item.valid_until) < new Date() : false
     
     return (
-      <View style={[s.dealCard, theme.cardShadow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={[
+        s.dealCard, 
+        theme.cardShadow, 
+        { 
+          backgroundColor: theme.card, 
+          borderColor: isExpired ? theme.border : theme.accent + '35', 
+          borderWidth: isExpired ? 0.5 : 1,
+          padding: 16,
+          borderRadius: 16,
+        }
+      ]}>
         <View style={{ flex: 1 }}>
           <View style={s.dealHeader}>
-            <Text style={[s.dealTitle, { color: theme.text }]}>{item.title}</Text>
-            {isExpired && (
-              <View style={[s.expiredBadge, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
-                <Text style={s.expiredText}>Expired</Text>
+            <Text style={[s.dealTitle, { color: theme.text, fontSize: 15, fontFamily: typography.fontBold }]}>{item.title}</Text>
+            {isExpired ? (
+              <View style={[s.expiredBadge, { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }]}>
+                <Text style={[s.expiredText, { color: '#ef4444', fontSize: 10, fontFamily: typography.fontMedium }]}>Expired</Text>
+              </View>
+            ) : (
+              <View style={[s.expiredBadge, { backgroundColor: theme.accentBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }]}>
+                <Text style={[s.expiredText, { color: theme.accent, fontSize: 10, fontFamily: typography.fontMedium }]}>Active</Text>
               </View>
             )}
           </View>
-          <Text style={[s.dealDiscount, { color: theme.accent }]}>{item.discount}</Text>
+          <Text style={[s.dealDiscount, { color: theme.accent, fontSize: 16, fontFamily: typography.fontBold, marginVertical: 4 }]}>{item.discount}</Text>
           {item.description ? (
-             <Text style={[s.dealDesc, { color: theme.textMuted }]} numberOfLines={2}>{item.description}</Text>
+             <Text style={[s.dealDesc, { color: theme.textMuted, fontSize: 12, marginBottom: 8 }]} numberOfLines={2}>{item.description}</Text>
           ) : null}
-          <Text style={[s.dealRedeem, { color: theme.textFaint }]}>Redeem: {item.how_to_redeem}</Text>
+          <Text style={[s.dealRedeem, { color: theme.textFaint, fontSize: 11 }]}>Redeem: {item.how_to_redeem}</Text>
         </View>
-        <View style={s.dealActions}>
+        <View style={[s.dealActions, { borderTopWidth: 0.5, borderTopColor: theme.border, paddingTop: 12, marginTop: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }]}>
           <TouchableOpacity 
-            style={[s.actionBtn, { backgroundColor: theme.card2, borderColor: theme.border, borderWidth: 0.5 }]}
+            style={[s.actionBtn, { backgroundColor: theme.card2, borderColor: theme.border, borderWidth: 0.5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
             onPress={() => router.push(`/manage-vendor/deal?id=${item.id}` as any)}
           >
-            <Ionicons name="pencil" size={14} color={theme.textMuted} />
-            <Text style={[s.actionText, { color: theme.textMuted }]}>Edit</Text>
+            <Ionicons name="pencil" size={12} color={theme.textMuted} />
+            <Text style={[s.actionText, { color: theme.textMuted, fontSize: 12, fontFamily: typography.fontMedium }]}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)' }]}
+            style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
             onPress={() => handleDelete(item.id)}
           >
-            <Ionicons name="trash" size={14} color="#ef4444" />
-            <Text style={[s.actionText, { color: '#ef4444' }]}>Delete</Text>
+            <Ionicons name="trash" size={12} color="#ef4444" />
+            <Text style={[s.actionText, { color: '#ef4444', fontSize: 12, fontFamily: typography.fontMedium }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>

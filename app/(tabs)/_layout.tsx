@@ -24,6 +24,7 @@ function TabIcon({
   size: number;
   focused: boolean;
 }) {
+  const theme = useTheme();
   let iconName: any = name;
   if (name === "home") {
     iconName = focused ? "home" : "home-outline";
@@ -40,7 +41,7 @@ function TabIcon({
   return (
     <View style={styles.iconWrap}>
       <Ionicons name={iconName} size={size} color={color} />
-      {focused && <View style={styles.activeDot} />}
+      {focused && <View style={[styles.activeDot, { backgroundColor: theme.accent }]} />}
     </View>
   );
 }

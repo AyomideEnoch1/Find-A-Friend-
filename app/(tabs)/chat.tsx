@@ -23,6 +23,8 @@ import { usePresenceStore } from '../../store/presenceStore'
 import { useTabBarScroll } from '../../lib/useTabBarScroll'
 import Toast from 'react-native-toast-message'
 import { useBadgesStore } from '../../store/badgesStore'
+import { useStoriesStore } from '../../store/storiesStore'
+import StoryViewer from '../../components/stories/StoryViewer'
 import GuideBanner from '../../components/ui/GuideBanner'
 
 // ─── Pulsing online dot ───────────────────────────────────────────────────────
@@ -88,6 +90,19 @@ function FriendBubble({ conv, myId, isOnline, onPress, streak }: {
   const otherAvatar = other?.profiles?.avatar_url
   const hasUnread = conv.unreadCount > 0
 
+  const { groups, openViewer } = useStoriesStore()
+  const storyGroup = groups.find(g => g.author_id === other?.user_id && g.stories.length > 0)
+  const hasStory = !!storyGroup
+  const hasUnviewedStory = storyGroup && !storyGroup.all_viewed
+
+  const handleAvatarPress = () => {
+    if (hasStory && other?.user_id) {
+      openViewer(other.user_id, 0)
+    } else {
+      onPress()
+    }
+  }
+
   return (
     <Animated.View style={[animStyle, { alignItems: 'center', marginHorizontal: 8 }]}>
       <TouchableOpacity
@@ -97,19 +112,29 @@ function FriendBubble({ conv, myId, isOnline, onPress, streak }: {
         onPress={onPress}
         activeOpacity={1}>
         <View style={fb.avatarWrap}>
-          {/* Gradient ring for unread */}
-          {hasUnread && <View style={[fb.unreadRing, { borderColor: theme.accent }]} />}
-          {otherAvatar ? (
-            <Image
-              source={{ uri: otherAvatar }}
-              style={[fb.avatar, online && { borderColor: '#34d399', borderWidth: 2.5 }]}
-            />
-          ) : (
-            <View style={[fb.avatarFallback, { backgroundColor: theme.card2 },
-              online && { borderColor: '#34d399', borderWidth: 2.5 }]}>
-              <Text style={fb.avatarText}>{getInitials(displayName)}</Text>
-            </View>
-          )}
+          {/* Outer Story Ring */}
+          <TouchableOpacity 
+            onPress={handleAvatarPress}
+            activeOpacity={0.8}
+            style={[
+              { borderRadius: 34, padding: 2, alignItems: 'center', justifyContent: 'center' },
+              hasStory && {
+                borderWidth: 2.5,
+                borderColor: hasUnviewedStory ? theme.accent : theme.border,
+              }
+            ]}>
+            {otherAvatar ? (
+              <Image
+                source={{ uri: otherAvatar }}
+                style={[fb.avatar, online && { borderColor: '#34d399', borderWidth: 2.5 }]}
+              />
+            ) : (
+              <View style={[fb.avatarFallback, { backgroundColor: theme.card2 },
+                online && { borderColor: '#34d399', borderWidth: 2.5 }]}>
+                <Text style={fb.avatarText}>{getInitials(displayName)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           {online && (
             <View style={[fb.onlineDot, { borderColor: theme.bg }]}>
               <PulseOnlineDot />
@@ -289,6 +314,11 @@ export default function ChatScreen() {
   const { activeUniversity, feedMode } = useThemeStore()
   const { onScroll, scrollEventThrottle } = useTabBarScroll()
   const markSeen = useBadgesStore(s => s.markSeen)
+  const { loadStories, groups } = useStoriesStore()
+
+  useEffect(() => {
+    loadStories()
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
@@ -655,6 +685,7 @@ export default function ChatScreen() {
         message="Message friends, chat inside study groups, and keep your daily streak alive by texting daily!"
         topOffset={70}
       />
+      <StoryViewer />
     </SafeAreaView>
   )
 }

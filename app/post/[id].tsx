@@ -11,7 +11,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import Toast from 'react-native-toast-message'
-import { getPost, getComments, commentOnPost, reportPost, deleteComment } from '../../lib/feed'
+import { getPost, getComments, commentOnPost, reportPost, deleteComment, toggleLikeComment, getLikedCommentIds } from '../../lib/feed'
 import type { FeedPost, PostComment } from '../../lib/feed'
 import { useFeedStore } from '../../store/feedStore'
 import { getInitials, getTimeAgo } from '../../lib/matching'
@@ -55,6 +55,8 @@ export default function PostDetailScreen() {
 
   const [post, setPost] = useState<FeedPost | null>(null)
   const [comments, setComments] = useState<PostComment[]>([])
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set())
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
   const [activeIndex, setActiveIndex] = useState(0)
   const [containerWidth, setContainerWidth] = useState(0)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -114,12 +116,22 @@ export default function PostDetailScreen() {
     }
   }
 
+  const toggleExpandComment = (commentId: string) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }))
+  }
+
   function flattenComments(parentId: string | null, depth = 0): (PostComment & { depth: number })[] {
     const nodes = comments.filter(c => c.parent_id === parentId)
     let res: (PostComment & { depth: number })[] = []
     nodes.forEach(node => {
       res.push({ ...node, depth })
-      res = res.concat(flattenComments(node.id, depth + 1))
+      const isExpanded = !!expandedComments[node.id]
+      if (isExpanded) {
+        res = res.concat(flattenComments(node.id, depth + 1))
+      }
     })
     return res
   }
@@ -184,7 +196,16 @@ export default function PostDetailScreen() {
     try {
       const [postRes, commentsRes] = await Promise.all([getPost(id), getComments(id)])
       setPost(postRes.data)
-      setComments(commentsRes.data ?? [])
+      const commentsList = commentsRes.data ?? []
+      setComments(commentsList)
+
+      const commentIds = commentsList.map(c => c.id)
+      if (commentIds.length > 0) {
+        const { data: likedIds } = await getLikedCommentIds(commentIds)
+        if (likedIds) {
+          setLikedCommentIds(new Set(likedIds))
+        }
+      }
     } catch {
       // Non-fatal
     } finally {
@@ -408,6 +429,34 @@ export default function PostDetailScreen() {
     const depth = item.depth || 0
     const isChild = depth > 0
 
+    const childrenCount = comments.filter(c => c.parent_id === item.id).length
+    const hasReplies = childrenCount > 0
+    const isExpanded = !!expandedComments[item.id]
+    const isCommentLiked = likedCommentIds.has(item.id)
+    const likesCount = item.likes_count ?? 0
+
+    const handleCommentLike = async () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      const { liked, error } = await toggleLikeComment(item.id)
+      if (!error) {
+        setLikedCommentIds(prev => {
+          const next = new Set(prev)
+          if (liked) next.add(item.id)
+          else next.delete(item.id)
+          return next
+        })
+        setComments(prev => prev.map(c => {
+          if (c.id === item.id) {
+            return {
+              ...c,
+              likes_count: liked ? (c.likes_count ?? 0) + 1 : Math.max(0, (c.likes_count ?? 0) - 1)
+            }
+          }
+          return c
+        }))
+      }
+    }
+
     const handleCommentLongPress = () => {
       const options: any[] = [
         { text: 'Reply', onPress: () => { setReplyingTo(item); inputRef.current?.focus() } }
@@ -444,7 +493,7 @@ export default function PostDetailScreen() {
         style={[
           s.commentRow, 
           { borderBottomColor: theme.border },
-          isChild && { paddingLeft: 16 + depth * 20, backgroundColor: theme.card }
+          isChild && { paddingLeft: 16 + depth * 16, backgroundColor: theme.card }
         ]}>
         <View style={[s.commentAvatar, { backgroundColor: theme.cardSolid, borderColor: theme.border }]}>
           {!item.is_anonymous && item.profiles?.avatar_url
@@ -467,10 +516,47 @@ export default function PostDetailScreen() {
               <Image source={{ uri: item.media_url }} style={[s.commentMedia, { borderColor: theme.border }]} resizeMode="cover" />
             )
           ) : null}
+
+          {/* Comment Action buttons */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 }}>
+            <TouchableOpacity 
+              onPress={handleCommentLike} 
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+              <Ionicons 
+                name={isCommentLiked ? "heart" : "heart-outline"} 
+                size={14} 
+                color={isCommentLiked ? "#ef4444" : theme.textMuted} 
+              />
+              {likesCount > 0 && (
+                <Text style={{ fontSize: 11, color: theme.textMuted, fontFamily: typography.fontMedium }}>
+                  {likesCount}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => { setReplyingTo(item); inputRef.current?.focus() }} 
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+              <Ionicons name="chatbubble-outline" size={13} color={theme.textMuted} />
+              <Text style={{ fontSize: 11, color: theme.textMuted, fontFamily: typography.fontRegular }}>
+                Reply
+              </Text>
+            </TouchableOpacity>
+
+            {depth === 0 && hasReplies && (
+              <TouchableOpacity 
+                onPress={() => toggleExpandComment(item.id)} 
+                style={{ marginLeft: 'auto', paddingVertical: 4 }}>
+                <Text style={{ fontSize: 11, color: theme.accent, fontFamily: typography.fontBold }}>
+                  {isExpanded ? "Hide replies" : `Show replies (${childrenCount})`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </Pressable>
     )
-  }, [theme, myUserId])
+  }, [theme, myUserId, likedCommentIds, expandedComments, comments])
 
   if (loading) {
     return (

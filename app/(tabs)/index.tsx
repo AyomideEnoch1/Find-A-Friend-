@@ -343,6 +343,18 @@ export default function HomeScreen() {
       setGlobalName(p.global_full_name || p.full_name || "");
       setGlobalBio(p.global_bio || p.bio || "");
       setGlobalAvatar(p.global_avatar_url || p.avatar_url || null);
+
+      // Auto-sync admin role from Cognito JWT attributes to database profiles table
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.user_metadata?.role === 'admin' && p.role !== 'admin') {
+          await updateProfile({ role: 'admin' });
+          const updated = await getCurrentProfile();
+          if (updated) setProfile(updated);
+        }
+      } catch (err) {
+        console.warn('Failed to sync admin role:', err);
+      }
     }
   }, []);
 
@@ -626,15 +638,30 @@ export default function HomeScreen() {
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-            <TouchableOpacity onPress={openSidebar} activeOpacity={0.7}>
-              <Animated.Image
-                source={require("../../assets/images/logo.png")}
-                style={[
-                  { width: 32, height: 32, marginBottom: 2 },
-                  animatedLogoStyle,
-                ]}
-                resizeMode="contain"
-              />
+            <TouchableOpacity onPress={openSidebar} activeOpacity={0.7} style={{ marginRight: 6 }}>
+              {profile?.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: theme.accent }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: theme.cardSolid,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: theme.accent, fontFamily: typography.fontBold }}>
+                    {profile?.full_name ? getInitials(profile.full_name) : "?"}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             {/* Compact Global Hub chip — shown inline in header when in local mode */}
@@ -724,6 +751,17 @@ export default function HomeScreen() {
             </View>
           )}
         </TouchableOpacity>
+      </View>
+      {/* Centered Brand Logo */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: -1 }}>
+        <Animated.Image
+          source={require("../../assets/images/logo.png")}
+          style={[
+            { width: 28, height: 28 },
+            animatedLogoStyle
+          ]}
+          resizeMode="contain"
+        />
       </View>
     </View>
   );
@@ -922,12 +960,6 @@ export default function HomeScreen() {
     };
 
     const featuresList = [
-      {
-        iconName: "map-outline",
-        title: "Campus map",
-        subtitle: "Events & friends nearby",
-        route: "/map",
-      },
       {
         iconName: "book-outline",
         title: "Academic hub",
@@ -1306,12 +1338,14 @@ export default function HomeScreen() {
 
       <StoryViewer />
       {renderSidebar()}
-      <GuideBanner
-        storageKey="guide_dismissed_home"
-        title="Welcome to Find-A-Friend! 🌐"
-        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
-        topOffset={70}
-      />
+      {feedMode === "global" && (
+        <GuideBanner
+          storageKey="guide_dismissed_home"
+          title="Welcome to Find-A-Friend! 🌐"
+          message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+          topOffset={70}
+        />
+      )}
     </SafeAreaView>
   );
 }

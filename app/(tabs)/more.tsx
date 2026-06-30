@@ -21,18 +21,12 @@ import { useTheme } from "../../lib/theme";
 import { useTabBarScroll } from "../../lib/useTabBarScroll";
 import { useAuthStore } from "../../store/authStore";
 import { useBadgesStore } from "../../store/badgesStore";
-const features: Array<{
+const MORE_ITEMS: Array<{
   iconName: any;
   title: string;
   subtitle: string;
   route: string;
 }> = [
-  {
-    iconName: "map-outline",
-    title: "Campus map",
-    subtitle: "Events & friends nearby",
-    route: "/map",
-  },
   {
     iconName: "book-outline",
     title: "Academic hub",

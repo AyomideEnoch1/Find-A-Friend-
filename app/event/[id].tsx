@@ -230,16 +230,14 @@ export default function EventDetailScreen() {
 
           {/* Venue */}
           {event.venue && (
-            <TouchableOpacity style={s.infoRow} onPress={handleViewOnMap}>
+            <View style={s.infoRow}>
               <View style={s.infoIcon}>
                 <Ionicons name="location-outline" size={18} color="#34d399" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.infoLabel}>{event.venue}</Text>
-                <Text style={[s.infoSub, { color: '#34d399' }]}>View on map</Text>
               </View>
-              <Ionicons name="chevron-forward" size={14} color="rgba(240,240,255,0.3)" />
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Description */}
