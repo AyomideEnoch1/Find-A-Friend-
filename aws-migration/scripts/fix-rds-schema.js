@@ -475,6 +475,34 @@ exports.handler = async function(event, context) {
         `
       },
       {
+        label: 'Create notifications delete RLS policy',
+        sql: `
+          DROP POLICY IF EXISTS "notifs: own delete" ON public.notifications;
+          CREATE POLICY "notifs: own delete" ON public.notifications
+            FOR DELETE USING (auth.uid() = user_id);
+        `
+      },
+      {
+        label: 'Add views_count column to posts and create increment RPC function',
+        sql: `
+          -- Add views_count if not present
+          ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS views_count INT NOT NULL DEFAULT 0;
+
+          -- Create security definer RPC function to increment views
+          CREATE OR REPLACE FUNCTION public.increment_post_views(post_id UUID)
+          RETURNS void AS $$
+          BEGIN
+            UPDATE public.posts
+            SET views_count = views_count + 1
+            WHERE id = post_id;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          -- Grant execute permission to database roles
+          GRANT EXECUTE ON FUNCTION public.increment_post_views(UUID) TO anon, authenticated;
+        `
+      },
+      {
         label: 'Reload PostgREST schema cache (final)',
         sql: `NOTIFY pgrst, 'reload schema';`
       }

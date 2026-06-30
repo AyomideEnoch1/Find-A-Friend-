@@ -102,6 +102,49 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
   const theme = useTheme();
   const feedMode = useThemeStore((s) => s.feedMode);
 
+  const [viewsCount, setViewsCount] = useState(post.views_count ?? 0);
+  const hasIncremented = React.useRef(false);
+
+  React.useEffect(() => {
+    setViewsCount(post.views_count ?? 0);
+  }, [post.views_count]);
+
+  React.useEffect(() => {
+    if (!post.id) return;
+
+    const channel = supabase
+      .channel(`post-views:${post.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "posts",
+          filter: `id=eq.${post.id}`,
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.views_count !== undefined) {
+            setViewsCount(payload.new.views_count);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [post.id]);
+
+  React.useEffect(() => {
+    if (isViewable && post.id && !hasIncremented.current) {
+      hasIncremented.current = true;
+      supabase
+        .rpc("increment_post_views", { post_id: post.id })
+        .then(() => {})
+        .catch((err) => console.warn("Failed to increment views:", err));
+    }
+  }, [isViewable, post.id]);
+
   React.useEffect(() => {
     supabase.auth
       .getUser()
@@ -854,6 +897,13 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
           active={post.is_liked}
           activeColor="#f472b6"
           inactiveColor={theme.textMuted}
+        />
+        <Action
+          icon="eye-outline"
+          count={viewsCount}
+          activeColor={theme.accent}
+          inactiveColor={theme.textMuted}
+          onPress={() => {}}
         />
         <Action
           icon={post.is_bookmarked ? "bookmark" : "bookmark-outline"}

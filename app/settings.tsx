@@ -18,20 +18,54 @@ export default function SettingsScreen() {
   const theme = useTheme()
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteCount, setInviteCount] = useState(0)
+  const [referredList, setReferredList] = useState<{ id: string; full_name: string | null; created_at: string }[]>([])
+  const [showReferredModal, setShowReferredModal] = useState(false)
+
+  const fetchReferralStats = useCallback(async (code: string) => {
+    supabase
+      .from('profiles')
+      .select('id, full_name, created_at', { count: 'exact' })
+      .eq('invited_by', code)
+      .then(({ count, data }) => {
+        if (count !== null) setInviteCount(count)
+        if (data) setReferredList(data)
+      })
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
+    
     supabase
       .from('profiles')
       .select('invite_code')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => { if (data?.invite_code) setInviteCode(data.invite_code) })
-    supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .then(({ count }) => { if (count !== null) setInviteCount(count) })
-  }, [user?.id])
+      .then(({ data }) => {
+        if (data?.invite_code) {
+          setInviteCode(data.invite_code)
+          fetchReferralStats(data.invite_code)
+        }
+      })
+  }, [user?.id, fetchReferralStats])
+
+  useEffect(() => {
+    if (!inviteCode) return
+
+    const channel = supabase
+      .channel('realtime-referrals-count')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'profiles' },
+        () => {
+          fetchReferralStats(inviteCode)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [inviteCode, fetchReferralStats])
 
   const handleCopyCode = () => {
     if (!inviteCode) return
@@ -268,7 +302,46 @@ export default function SettingsScreen() {
             <Ionicons name="share-social-outline" size={16} color="#fff" />
             <Text style={s.shareInviteBtnText}>Share Invite Link</Text>
           </TouchableOpacity>
+          {inviteCount > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowReferredModal(true)}
+              style={[s.shareInviteBtn, { backgroundColor: theme.card2, borderColor: theme.border, borderWidth: 0.5, marginTop: 8 }]}
+            >
+              <Ionicons name="people-outline" size={16} color={theme.text} />
+              <Text style={[s.shareInviteBtnText, { color: theme.text }]}>View Referred Classmates</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Referred Modal */}
+        <Modal visible={showReferredModal} transparent animationType="slide">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: theme.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%', borderTopWidth: 1, borderTopColor: theme.border }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: theme.text }}>Referred Classmates</Text>
+                <TouchableOpacity onPress={() => setShowReferredModal(false)} style={{ padding: 4 }}>
+                  <Ionicons name="close" size={24} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+              
+              <FlatList
+                data={referredList}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
+                renderItem={({ item, index }) => (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: index === referredList.length - 1 ? 0 : 0.5, borderBottomColor: theme.border }}>
+                    <View>
+                      <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: theme.text }}>{item.full_name ?? 'Anonymous User'}</Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: theme.textFaint }}>Joined Find-A-Friend</Text>
+                    </View>
+                    <Text style={{ fontSize: 12, color: theme.textMuted }}>{new Date(item.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+                  </View>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
 
         <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
           <Text style={s.signOutText}>Sign out</Text>

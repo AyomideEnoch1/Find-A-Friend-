@@ -35,13 +35,75 @@ function toInputString(d: Date | null): string {
 export default function AnonymousAdminDashboard() {
   const theme = useTheme()
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-  const [activeTab, setActiveTab] = useState<'status' | 'posts' | 'event'>('status')
+  const [activeTab, setActiveTab] = useState<'status' | 'posts' | 'event' | 'referrals'>('status')
   
   // Status tab state
   const [boardStatus, setBoardStatus] = useState<'open' | 'closed'>('open')
   const [togglingStatus, setTogglingStatus] = useState(false)
   const [stats, setStats] = useState({ totalPosts: 0, totalEvents: 0 })
 
+  // Referrals tab state
+  const [referralsList, setReferralsList] = useState<any[]>([])
+  const [totalInvited, setTotalInvited] = useState(0)
+  const [loadingReferrals, setLoadingReferrals] = useState(false)
+  const [expandedCodes, setExpandedCodes] = useState<Record<string, boolean>>({})
+
+  const toggleExpandCode = (code: string) => {
+    setExpandedCodes(prev => ({
+      ...prev,
+      [code]: !prev[code]
+    }))
+  }
+
+  const loadReferrals = async () => {
+    setLoadingReferrals(true)
+    try {
+      const { data: allUsers } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, invite_code, invited_by, created_at')
+
+      if (allUsers) {
+        // Build map of invite codes to referrer profiles
+        const codeToUserMap: Record<string, any> = {}
+        allUsers.forEach(u => {
+          if (u.invite_code) codeToUserMap[u.invite_code] = u
+        })
+
+        // Count referrals and collect who signed up
+        const referralCounts: Record<string, number> = {}
+        const referralDetails: Record<string, any[]> = {}
+        let totalCount = 0
+
+        allUsers.forEach(u => {
+          if (u.invited_by) {
+            totalCount++
+            referralCounts[u.invited_by] = (referralCounts[u.invited_by] ?? 0) + 1
+            if (!referralDetails[u.invited_by]) referralDetails[u.invited_by] = []
+            referralDetails[u.invited_by].push(u)
+          }
+        })
+
+        const list = Object.keys(referralCounts).map(code => {
+          const referrer = codeToUserMap[code]
+          return {
+            code,
+            referrerName: referrer?.full_name ?? 'Unknown User',
+            referrerEmail: referrer?.email ?? referrer?.invite_code ?? 'System',
+            count: referralCounts[code],
+            referees: referralDetails[code] ?? []
+          }
+        }).sort((a, b) => b.count - a.count)
+
+        setReferralsList(list)
+        setTotalInvited(totalCount)
+      }
+    } catch (err) {
+      console.warn('Error loading referrals:', err)
+    } finally {
+      setLoadingReferrals(false)
+    }
+  }
+  
   // Posts tab state
   const [posts, setPosts] = useState<AnonymousPost[]>([])
   const [loadingPosts, setLoadingPosts] = useState(false)
@@ -128,6 +190,12 @@ export default function AnonymousAdminDashboard() {
   useEffect(() => {
     if (isAdmin && activeTab === 'posts') {
       fetchPosts()
+    }
+  }, [isAdmin, activeTab])
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'referrals') {
+      loadReferrals()
     }
   }, [isAdmin, activeTab])
 
@@ -306,6 +374,13 @@ export default function AnonymousAdminDashboard() {
             Linked Event
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('referrals')}
+          style={[s.tabItem, activeTab === 'referrals' && [s.tabActive, { borderBottomColor: '#a78bfa' }]]}>
+          <Text style={[s.tabText, activeTab === 'referrals' ? { color: '#a78bfa' } : { color: theme.textMuted }]}>
+            Referrals
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -316,7 +391,7 @@ export default function AnonymousAdminDashboard() {
         {activeTab === 'status' && (
           <ScrollView contentContainerStyle={s.scrollContent}>
             {/* Status Card */}
-            <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[s.card, { backgroundColor: theme.card, borderColor: boardStatus === 'open' ? 'rgba(5,150,105,0.25)' : 'rgba(219,39,119,0.25)', borderWidth: 1.5 }]}>
               <View style={s.cardHeader}>
                 <Ionicons name="options-outline" size={20} color="#a78bfa" />
                 <Text style={[s.cardTitle, { color: theme.text }]}>Board Visibility Control</Text>
@@ -353,26 +428,26 @@ export default function AnonymousAdminDashboard() {
             </View>
 
             {/* Stats Card */}
-            <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.accent + '25', borderWidth: 1.5 }]}>
               <View style={s.cardHeader}>
                 <Ionicons name="bar-chart-outline" size={20} color="#a78bfa" />
                 <Text style={[s.cardTitle, { color: theme.text }]}>Confessions Statistics</Text>
               </View>
 
               <View style={s.statsGrid}>
-                <View style={s.statBox}>
-                  <Text style={[s.statNum, { color: theme.text }]}>{stats.totalPosts}</Text>
+                <View style={[s.statBox, { backgroundColor: theme.card2, borderRadius: 12 }]}>
+                  <Text style={[s.statNum, { color: theme.accent }]}>{stats.totalPosts}</Text>
                   <Text style={[s.statLabel, { color: theme.textMuted }]}>Total Confessions</Text>
                 </View>
-                <View style={s.statBox}>
-                  <Text style={[s.statNum, { color: theme.text }]}>{stats.totalEvents}</Text>
+                <View style={[s.statBox, { backgroundColor: theme.card2, borderRadius: 12 }]}>
+                  <Text style={[s.statNum, { color: theme.accent }]}>{stats.totalEvents}</Text>
                   <Text style={[s.statLabel, { color: theme.textMuted }]}>Linked Events</Text>
                 </View>
               </View>
             </View>
 
             {/* Danger Zone Card */}
-            <View style={[s.card, { backgroundColor: theme.card, borderColor: '#ef4444', borderWidth: 1 }]}>
+            <View style={[s.card, { backgroundColor: 'rgba(239,68,68,0.03)', borderColor: '#ef4444', borderWidth: 1.5 }]}>
               <View style={s.cardHeader}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
                 <Text style={[s.cardTitle, { color: '#ef4444' }]}>Danger Zone</Text>
@@ -545,6 +620,83 @@ export default function AnonymousAdminDashboard() {
                 )}
               </TouchableOpacity>
             </View>
+          </ScrollView>
+        )}
+
+        {activeTab === 'referrals' && (
+          <ScrollView contentContainerStyle={s.scrollContent}>
+            {loadingReferrals ? (
+              <View style={s.centerPadding}>
+                <ActivityIndicator size="large" color="#a78bfa" />
+                <Text style={{ marginTop: 12, color: theme.textMuted, fontFamily: typography.fontRegular, textAlign: 'center' }}>Loading referral stats...</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 16 }}>
+                {/* Stats Summary Card */}
+                <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Text style={[s.cardTitle, { color: theme.text, fontSize: 15 }]}>Campus Referrals Overview</Text>
+                  <View style={s.statsGrid}>
+                    <View style={[s.statBox, { backgroundColor: theme.card2, borderRadius: 12 }]}>
+                      <Text style={[s.statNum, { color: theme.accent }]}>{totalInvited}</Text>
+                      <Text style={[s.statLabel, { color: theme.textMuted }]}>Total Referral Signups</Text>
+                    </View>
+                    <View style={[s.statBox, { backgroundColor: theme.card2, borderRadius: 12 }]}>
+                      <Text style={[s.statNum, { color: theme.accent }]}>{referralsList.length}</Text>
+                      <Text style={[s.statLabel, { color: theme.textMuted }]}>Active Referrers</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Referrals List Card */}
+                <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Text style={[s.cardTitle, { color: theme.text, fontSize: 14, marginBottom: 8 }]}>Referrals Leaderboard</Text>
+                  
+                  {referralsList.length === 0 ? (
+                    <Text style={{ color: theme.textMuted, fontFamily: typography.fontRegular, textAlign: 'center', marginVertical: 20 }}>No referrals recorded yet.</Text>
+                  ) : (
+                    referralsList.map((ref, idx) => {
+                      const isExpanded = !!expandedCodes[ref.code]
+                      return (
+                        <View key={ref.code} style={{ borderBottomWidth: idx === referralsList.length - 1 ? 0 : 0.5, borderBottomColor: theme.border, paddingVertical: 12 }}>
+                          <TouchableOpacity onPress={() => toggleExpandCode(ref.code)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: theme.text, fontFamily: typography.fontBold, fontSize: 14 }}>{ref.referrerName}</Text>
+                              <Text style={{ color: theme.textMuted, fontFamily: typography.fontRegular, fontSize: 11 }}>{ref.referrerEmail}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                <Text style={{ backgroundColor: theme.accentBg, color: theme.accent, fontSize: 10, fontFamily: typography.fontBold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  CODE: {ref.code}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={{ alignItems: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <View style={{ backgroundColor: theme.card2, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+                                <Text style={{ color: theme.accent, fontFamily: typography.fontBold }}>{ref.count} refs</Text>
+                              </View>
+                              <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={16} color={theme.textMuted} />
+                            </View>
+                          </TouchableOpacity>
+
+                          {isExpanded && (
+                            <View style={{ marginTop: 10, backgroundColor: theme.card2, padding: 10, borderRadius: 8, gap: 6 }}>
+                              <Text style={{ fontSize: 11, fontFamily: typography.fontBold, color: theme.textMuted }}>referred Classmates:</Text>
+                              {ref.referees.map((user: any) => (
+                                <View key={user.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: theme.border2, paddingVertical: 4 }}>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 12, color: theme.text, fontFamily: typography.fontMedium }}>{user.full_name ?? 'Anonymous User'}</Text>
+                                    <Text style={{ fontSize: 10, color: theme.textFaint, fontFamily: typography.fontRegular }}>{user.email ?? ''}</Text>
+                                  </View>
+                                  <Text style={{ fontSize: 10, color: theme.textFaint }}>{new Date(user.created_at).toLocaleDateString()}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })
+                  )}
+                </View>
+              </View>
+            )}
           </ScrollView>
         )}
       </KeyboardAvoidingView>
