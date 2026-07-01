@@ -42,37 +42,37 @@ export default function AppearanceScreen() {
     {
       name: 'purple' as const,
       label: 'Royal Purple',
-      colors: ['#c4b5fd', '#8b5cf6'],
+      colors: ['#c4b5fd', '#8b5cf6'] as const,
       description: 'Default premium highlight'
     },
     {
       name: 'blue' as const,
       label: 'Neon Blue',
-      colors: ['#93c5fd', '#2563eb'],
+      colors: ['#93c5fd', '#2563eb'] as const,
       description: 'Sleek futuristic cyber blue'
     },
     {
       name: 'green' as const,
       label: 'Emerald Green',
-      colors: ['#6ee7b7', '#059669'],
+      colors: ['#6ee7b7', '#059669'] as const,
       description: 'Fresh and energetic mint'
     },
     {
       name: 'orange' as const,
       label: 'Sunset Orange',
-      colors: ['#fdba74', '#ea580c'],
+      colors: ['#fdba74', '#ea580c'] as const,
       description: 'Warm and creative orange'
     },
     {
       name: 'pink' as const,
       label: 'Rose Pink',
-      colors: ['#f9a8d4', '#db2777'],
+      colors: ['#f9a8d4', '#db2777'] as const,
       description: 'Vibrant modern aesthetic'
     },
     {
       name: 'yellow' as const,
       label: 'Cyber Yellow',
-      colors: ['#fde047', '#d97706'],
+      colors: ['#fde047', '#d97706'] as const,
       description: 'High-contrast golden amber'
     }
   ]
