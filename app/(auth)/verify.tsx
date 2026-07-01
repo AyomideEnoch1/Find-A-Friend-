@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { router, useLocalSearchParams, useSegments } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { validatePasswordStrength, recordFailedLogin, getLockoutRemaining, resetFailedLogins } from "../../lib/security";
 import {
   ActivityIndicator,
   Dimensions,
@@ -376,9 +377,10 @@ export default function VerifyScreen() {
         Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill in all fields' })
         return
       }
-      if (password.length < 6) {
-        Toast.show({ type: 'error', text1: 'Weak password', text2: 'Password must be at least 6 characters' })
-        return
+      const pwdError = validatePasswordStrength(password);
+      if (pwdError) {
+        Toast.show({ type: 'error', text1: 'Weak password', text2: pwdError });
+        return;
       }
       setLoading(true)
       const { error } = await (supabase.auth as any).updateUserPassword(trimmedEmail, code, password)
@@ -441,11 +443,12 @@ export default function VerifyScreen() {
       });
       return;
     }
-    if (password.length < 6) {
+    const pwdError = validatePasswordStrength(password);
+    if (pwdError) {
       Toast.show({
         type: "error",
         text1: "Weak password",
-        text2: "Password must be at least 6 characters",
+        text2: pwdError,
       });
       return;
     }
@@ -508,6 +511,17 @@ export default function VerifyScreen() {
       setMode('confirm')
       setCode('')
     } else {
+      const lockoutSecs = getLockoutRemaining();
+      if (lockoutSecs > 0) {
+        Toast.show({
+          type: "error",
+          text1: "Brute-force limit reached",
+          text2: `Account locked. Please try again in ${lockoutSecs} seconds.`,
+        });
+        return;
+      }
+
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
@@ -518,18 +532,29 @@ export default function VerifyScreen() {
           Toast.show({ type: 'info', text1: '📧 Verify your email', text2: 'A verification code has been sent to your inbox.' })
           setMode('confirm')
           setCode('')
-        } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
-          Toast.show({ type: 'error', text1: 'Sign in failed', text2: 'Wrong email or password.' })
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Sign in error",
-            text2: error.message,
-          });
+          const attempts = recordFailedLogin();
+          const remainingLockout = getLockoutRemaining();
+          if (remainingLockout > 0) {
+            Toast.show({
+              type: 'error',
+              text1: 'Brute-force limit reached',
+              text2: `Too many failed attempts. Try again in ${remainingLockout} seconds.`
+            });
+          } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
+            Toast.show({ type: 'error', text1: 'Sign in failed', text2: `Wrong email or password. Attempt ${attempts}/5` })
+          } else {
+            Toast.show({
+              type: "error",
+              text1: "Sign in error",
+              text2: `${error.message} (Attempt ${attempts}/5)`,
+            });
+          }
         }
         return;
       }
       if (data.session) {
+        resetFailedLogins();
         const { data: profile } = await supabase
           .from("profiles")
           .select("id")

@@ -55,6 +55,7 @@ import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { usePresenceStore } from "../../store/presenceStore";
 import { useStickerStore } from "../../store/stickerStore";
+import { encryptMessage, decryptMessage } from "../../lib/crypto";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -497,7 +498,11 @@ export default function DirectMessageScreen() {
         .select("*, profiles!sender_id(id, full_name, avatar_url)")
         .eq("conversation_id", cid)
         .order("created_at", { ascending: true });
-      setMessages(msgs ?? []);
+      const decrypted = (msgs ?? []).map((m) => ({
+        ...m,
+        body: decryptMessage(m.body, cid),
+      }));
+      setMessages(decrypted);
       setLoading(false);
       setTimeout(
         () => scrollRef.current?.scrollToEnd({ animated: false }),
@@ -542,14 +547,18 @@ export default function DirectMessageScreen() {
 
     const syncMessages = async () => {
       try {
-        const { data: msgs, error } = await supabase
+        const { data: rawMsgs, error } = await supabase
           .from("messages")
           .select("*, profiles!sender_id(id, full_name, avatar_url)")
           .eq("conversation_id", convId)
           .order("created_at", { ascending: true });
 
         if (error) throw error;
-        if (msgs) {
+        if (rawMsgs) {
+          const msgs = rawMsgs.map((m) => ({
+            ...m,
+            body: decryptMessage(m.body, convId),
+          }));
           setMessages((prev) => {
             // Check if there are any differences in the list to avoid redrawing/re-scrolling
             const prevSignature = prev.map((m) => `${m.id}-${m.is_read}-${m.body}`).join(',');
@@ -706,7 +715,7 @@ export default function DirectMessageScreen() {
     const { error: sendError } = await supabase.from("messages").insert({
       conversation_id: convId,
       sender_id: myId,
-      body: payload,
+      body: encryptMessage(payload, convId),
     });
     setSending(false);
     if (sendError) {
@@ -777,7 +786,7 @@ export default function DirectMessageScreen() {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
       await supabase
         .from("messages")
-        .insert({ conversation_id: convId, sender_id: myId, body });
+        .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId) });
     } catch (err: any) {
       Toast.show({
         type: "error",
@@ -862,7 +871,7 @@ export default function DirectMessageScreen() {
           );
           const { error } = await supabase
             .from("messages")
-            .insert({ conversation_id: convId, sender_id: myId, body });
+            .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId) });
           if (error) {
             setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
             Toast.show({
@@ -1161,9 +1170,9 @@ export default function DirectMessageScreen() {
                               ? [
                                   s.bubbleMine,
                                   {
-                                    // Sent: purple tint matching app theme
-                                    backgroundColor: "rgba(167,139,250,0.25)",
-                                    shadowColor: "#a78bfa",
+                                    // Sent: accent tint matching active accent
+                                    backgroundColor: `${theme.accent}40`,
+                                    shadowColor: theme.accent,
                                     shadowOffset: { width: 0, height: 2 },
                                     shadowOpacity: m._optimistic ? 0.1 : 0.35,
                                     shadowRadius: 8,
@@ -1176,7 +1185,7 @@ export default function DirectMessageScreen() {
                                   {
                                     // Received: dark card background
                                     backgroundColor: "rgba(255,255,255,0.07)",
-                                    borderColor: "rgba(167,139,250,0.12)",
+                                    borderColor: `${theme.accent}20`,
                                   },
                                 ],
                             m._optimistic && { opacity: 0.6 },

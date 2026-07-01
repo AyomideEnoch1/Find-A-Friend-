@@ -3,7 +3,8 @@ import Toast from 'react-native-toast-message'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 
@@ -15,6 +16,42 @@ export default function PrivacySettingsScreen() {
   const [showInSearch, setShowInSearch] = useState(true)
   const [anonymousByDefault, setAnonymousByDefault] = useState(false)
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const storedPublic = await AsyncStorage.getItem('privacy_public_profile')
+        const storedOnline = await AsyncStorage.getItem('privacy_show_online_status')
+        const storedMessages = await AsyncStorage.getItem('privacy_allow_messages')
+        const storedSearch = await AsyncStorage.getItem('privacy_show_in_search')
+        const storedAnon = await AsyncStorage.getItem('privacy_anonymous_by_default')
+
+        if (storedPublic !== null) setPublicProfile(storedPublic === 'true')
+        if (storedOnline !== null) setShowOnlineStatus(storedOnline === 'true')
+        if (storedMessages !== null) setAllowMessages(storedMessages === 'true')
+        if (storedSearch !== null) setShowInSearch(storedSearch === 'true')
+        if (storedAnon !== null) setAnonymousByDefault(storedAnon === 'true')
+      } catch (err) {
+        console.warn('Failed to load privacy settings:', err)
+      }
+    }
+    loadSettings()
+  }, [])
+
+  const updateSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
+    setter(value)
+    try {
+      await AsyncStorage.setItem(key, String(value))
+      Toast.show({
+        type: 'success',
+        text1: 'Settings saved',
+        text2: 'Your privacy preferences have been updated.',
+        visibilityTime: 1500,
+      })
+    } catch (err) {
+      console.warn('Failed to save privacy settings:', err)
+    }
+  }
+
   const settings = [
     {
       section: 'Profile',
@@ -22,17 +59,17 @@ export default function PrivacySettingsScreen() {
         {
           icon: '👁️', label: 'Public profile',
           sub: 'Anyone on FAF can see your profile',
-          value: publicProfile, onToggle: setPublicProfile,
+          value: publicProfile, onToggle: (val: boolean) => updateSetting('privacy_public_profile', val, setPublicProfile),
         },
         {
           icon: '🔍', label: 'Appear in search',
           sub: 'Other students can find you by name',
-          value: showInSearch, onToggle: setShowInSearch,
+          value: showInSearch, onToggle: (val: boolean) => updateSetting('privacy_show_in_search', val, setShowInSearch),
         },
         {
           icon: '🟢', label: 'Show online status',
           sub: 'Let others see when you\'re active',
-          value: showOnlineStatus, onToggle: setShowOnlineStatus,
+          value: showOnlineStatus, onToggle: (val: boolean) => updateSetting('privacy_show_online_status', val, setShowOnlineStatus),
         },
       ],
     },
@@ -42,7 +79,7 @@ export default function PrivacySettingsScreen() {
         {
           icon: '💬', label: 'Allow messages',
           sub: 'Let any student send you a message',
-          value: allowMessages, onToggle: setAllowMessages,
+          value: allowMessages, onToggle: (val: boolean) => updateSetting('privacy_allow_messages', val, setAllowMessages),
         },
       ],
     },
@@ -52,7 +89,7 @@ export default function PrivacySettingsScreen() {
         {
           icon: '🎭', label: 'Anonymous by default',
           sub: 'New posts default to anonymous mode',
-          value: anonymousByDefault, onToggle: setAnonymousByDefault,
+          value: anonymousByDefault, onToggle: (val: boolean) => updateSetting('privacy_anonymous_by_default', val, setAnonymousByDefault),
         },
       ],
     },

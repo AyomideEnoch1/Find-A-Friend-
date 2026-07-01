@@ -187,6 +187,10 @@ export default function SettingsScreen() {
       onPress: () => router.push('/privacy-settings' as any),
     },
     {
+      icon: 'shield-checkmark-outline', label: 'Security Center', sub: 'MFA, password rules & safety tips',
+      onPress: () => router.push('/security-center' as any),
+    },
+    {
       icon: 'moon-outline', label: 'Appearance', sub: 'Dark & darker mode',
       onPress: () => router.push('/appearance' as any),
     },
