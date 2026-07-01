@@ -1,13 +1,14 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useThemeStore } from '../store/themeStore'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
 
 export default function AppearanceScreen() {
-  const { mode, setMode } = useThemeStore()
+  const { mode, setMode, accent, setAccent } = useThemeStore()
   const theme = useTheme()
 
   const themes = [
@@ -37,6 +38,45 @@ export default function AppearanceScreen() {
     },
   ]
 
+  const accents = [
+    {
+      name: 'purple' as const,
+      label: 'Royal Purple',
+      colors: ['#c4b5fd', '#8b5cf6'],
+      description: 'Default premium highlight'
+    },
+    {
+      name: 'blue' as const,
+      label: 'Neon Blue',
+      colors: ['#93c5fd', '#2563eb'],
+      description: 'Sleek futuristic cyber blue'
+    },
+    {
+      name: 'green' as const,
+      label: 'Emerald Green',
+      colors: ['#6ee7b7', '#059669'],
+      description: 'Fresh and energetic mint'
+    },
+    {
+      name: 'orange' as const,
+      label: 'Sunset Orange',
+      colors: ['#fdba74', '#ea580c'],
+      description: 'Warm and creative orange'
+    },
+    {
+      name: 'pink' as const,
+      label: 'Rose Pink',
+      colors: ['#f9a8d4', '#db2777'],
+      description: 'Vibrant modern aesthetic'
+    },
+    {
+      name: 'yellow' as const,
+      label: 'Cyber Yellow',
+      colors: ['#fde047', '#d97706'],
+      description: 'High-contrast golden amber'
+    }
+  ]
+
   const activeThemeObj = themes.find(t => t.active) || themes[1]
 
   return (
@@ -49,7 +89,11 @@ export default function AppearanceScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <View style={{ padding: 16, gap: 16 }}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ padding: 16, gap: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[s.sectionLabel, { color: theme.textMuted }]}>Theme</Text>
 
         {/* Beautified segmented select */}
@@ -81,6 +125,48 @@ export default function AppearanceScreen() {
         <Text style={[s.descriptionText, { color: theme.textMuted }]}>
           {activeThemeObj.description}
         </Text>
+
+        <Text style={[s.sectionLabel, { color: theme.textMuted, marginTop: 12 }]}>Accent Color</Text>
+
+        {/* Dynamic Grid of Accents */}
+        <View style={s.accentGrid}>
+          {accents.map(acc => {
+            const isActive = accent === acc.name
+            return (
+              <TouchableOpacity
+                key={acc.name}
+                style={[
+                  s.accentCard,
+                  { 
+                    backgroundColor: theme.card, 
+                    borderColor: isActive ? theme.accent : theme.border,
+                  }
+                ]}
+                onPress={() => setAccent(acc.name)}
+                activeOpacity={0.8}
+              >
+                <View style={s.accentCardContent}>
+                  <LinearGradient
+                    colors={acc.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.accentColorDot}
+                  >
+                    {isActive && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </LinearGradient>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.accentTitle, { color: theme.text }]} numberOfLines={1}>
+                      {acc.label}
+                    </Text>
+                    <Text style={[s.accentDesc, { color: theme.textMuted }]} numberOfLines={2}>
+                      {acc.description}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
 
         {/* Dynamic Theme Preview Widget */}
         <Text style={[s.sectionLabel, { color: theme.textMuted, marginTop: 12 }]}>Preview</Text>
@@ -128,9 +214,9 @@ export default function AppearanceScreen() {
         </View>
 
         <Text style={[s.note, { color: theme.textFaint }]}>
-          Choose between Light, Dark, or Darker (AMOLED) modes. Themes apply instantly across all tabs and screens.
+          Choose between Light, Dark, or Darker (AMOLED) modes and configure your favorite color accent. Theme and accents apply instantly across all screens.
         </Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }
@@ -174,6 +260,40 @@ const s = StyleSheet.create({
     fontFamily: typography.fontRegular,
     textAlign: 'center',
     marginTop: -4,
+  },
+  accentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+  },
+  accentCard: {
+    width: '48%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 10,
+  },
+  accentCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  accentColorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accentTitle: {
+    fontSize: 12,
+    fontFamily: typography.fontSemiBold,
+  },
+  accentDesc: {
+    fontSize: 9,
+    fontFamily: typography.fontRegular,
+    marginTop: 1,
+    lineHeight: 12,
   },
   note: {
     fontSize: 12, fontFamily: typography.fontRegular, lineHeight: 18,

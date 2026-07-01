@@ -2,12 +2,15 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 type ThemeMode = 'light' | 'dark' | 'darker'
+type ThemeAccent = 'purple' | 'blue' | 'green' | 'orange' | 'pink' | 'yellow'
 
 interface ThemeState {
   mode: ThemeMode
+  accent: ThemeAccent
   isDarker: boolean
   hydrated: boolean
   setMode: (mode: ThemeMode) => void
+  setAccent: (accent: ThemeAccent) => void
   toggleTheme: () => void
   hydrate: () => Promise<void>
   activeUniversity: {
@@ -25,6 +28,7 @@ interface ThemeState {
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: 'light',
+  accent: 'purple',
   isDarker: false,
   hydrated: false,
   activeUniversity: null,
@@ -41,15 +45,32 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     else if (stored === 'dark') mode = 'dark'
     else if (legacyDark !== null) mode = 'dark' // migrate old users to dark
     
+    const storedAccent = await AsyncStorage.getItem('themeAccent').catch(() => null)
+    let accent: ThemeAccent = 'purple'
+    if (
+      storedAccent === 'blue' ||
+      storedAccent === 'green' ||
+      storedAccent === 'orange' ||
+      storedAccent === 'pink' ||
+      storedAccent === 'yellow'
+    ) {
+      accent = storedAccent as ThemeAccent
+    }
+
     const storedUni = await AsyncStorage.getItem('activeUniversity').catch(() => null)
     const activeUniversity = storedUni ? JSON.parse(storedUni) : null
 
-    set({ mode, isDarker: mode === 'darker', hydrated: true, activeUniversity })
+    set({ mode, accent, isDarker: mode === 'darker', hydrated: true, activeUniversity })
   },
 
   setMode: (mode: ThemeMode) => {
     AsyncStorage.setItem('themeMode', mode).catch(() => {})
     set({ mode, isDarker: mode === 'darker' })
+  },
+
+  setAccent: (accent: ThemeAccent) => {
+    AsyncStorage.setItem('themeAccent', accent).catch(() => {})
+    set({ accent })
   },
 
   toggleTheme: () => {

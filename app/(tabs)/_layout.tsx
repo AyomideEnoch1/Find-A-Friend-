@@ -41,7 +41,7 @@ function TabIcon({
   return (
     <View style={styles.iconWrap}>
       <Ionicons name={iconName} size={size} color={color} />
-      {focused && <View style={[styles.activeDot, { backgroundColor: theme.accent }]} />}
+      {focused && <View style={[styles.activeDot, { backgroundColor: theme.accent, shadowColor: theme.accent }]} />}
     </View>
   );
 }

@@ -250,20 +250,130 @@ export function adjustColorForContrast(
   return cleanHex;
 }
 
+const ACCENT_OVERRIDES: Record<
+  string,
+  {
+    dark: Partial<ThemeColors>;
+    light: Partial<ThemeColors>;
+  }
+> = {
+  blue: {
+    dark: {
+      accent: "#60a5fa",
+      accentSecondary: "#3b82f6",
+      accentBg: "rgba(96, 165, 250, 0.12)",
+      accentBorder: "rgba(96, 165, 250, 0.35)",
+      accentGlow: "rgba(96, 165, 250, 0.25)",
+      borderAccent: "rgba(96, 165, 250, 0.25)",
+    },
+    light: {
+      accent: "#2563eb",
+      accentSecondary: "#1d4ed8",
+      accentBg: "rgba(37, 99, 235, 0.1)",
+      accentBorder: "rgba(37, 99, 235, 0.25)",
+      accentGlow: "rgba(37, 99, 235, 0.15)",
+      borderAccent: "rgba(37, 99, 235, 0.25)",
+    },
+  },
+  green: {
+    dark: {
+      accent: "#34d399",
+      accentSecondary: "#059669",
+      accentBg: "rgba(52, 211, 153, 0.12)",
+      accentBorder: "rgba(52, 211, 153, 0.35)",
+      accentGlow: "rgba(52, 211, 153, 0.25)",
+      borderAccent: "rgba(52, 211, 153, 0.25)",
+    },
+    light: {
+      accent: "#059669",
+      accentSecondary: "#047857",
+      accentBg: "rgba(5, 150, 105, 0.1)",
+      accentBorder: "rgba(5, 150, 105, 0.25)",
+      accentGlow: "rgba(5, 150, 105, 0.15)",
+      borderAccent: "rgba(5, 150, 105, 0.25)",
+    },
+  },
+  orange: {
+    dark: {
+      accent: "#fb923c",
+      accentSecondary: "#ea580c",
+      accentBg: "rgba(251, 146, 60, 0.12)",
+      accentBorder: "rgba(251, 146, 60, 0.35)",
+      accentGlow: "rgba(251, 146, 60, 0.25)",
+      borderAccent: "rgba(251, 146, 60, 0.25)",
+    },
+    light: {
+      accent: "#ea580c",
+      accentSecondary: "#c2410c",
+      accentBg: "rgba(234, 88, 12, 0.1)",
+      accentBorder: "rgba(234, 88, 12, 0.25)",
+      accentGlow: "rgba(234, 88, 12, 0.15)",
+      borderAccent: "rgba(234, 88, 12, 0.25)",
+    },
+  },
+  pink: {
+    dark: {
+      accent: "#f472b6",
+      accentSecondary: "#db2777",
+      accentBg: "rgba(244, 114, 182, 0.12)",
+      accentBorder: "rgba(244, 114, 182, 0.35)",
+      accentGlow: "rgba(244, 114, 182, 0.25)",
+      borderAccent: "rgba(244, 114, 182, 0.25)",
+    },
+    light: {
+      accent: "#db2777",
+      accentSecondary: "#be185d",
+      accentBg: "rgba(219, 39, 119, 0.1)",
+      accentBorder: "rgba(219, 39, 119, 0.25)",
+      accentGlow: "rgba(219, 39, 119, 0.15)",
+      borderAccent: "rgba(219, 39, 119, 0.25)",
+    },
+  },
+  yellow: {
+    dark: {
+      accent: "#fbbf24",
+      accentSecondary: "#ca8a04",
+      accentBg: "rgba(251, 191, 36, 0.12)",
+      accentBorder: "rgba(251, 191, 36, 0.35)",
+      accentGlow: "rgba(251, 191, 36, 0.25)",
+      borderAccent: "rgba(251, 191, 36, 0.25)",
+    },
+    light: {
+      accent: "#d97706",
+      accentSecondary: "#b45309",
+      accentBg: "rgba(217, 119, 6, 0.1)",
+      accentBorder: "rgba(217, 119, 6, 0.25)",
+      accentGlow: "rgba(217, 119, 6, 0.15)",
+      borderAccent: "rgba(217, 119, 6, 0.25)",
+    },
+  },
+};
+
 export function useTheme(): ThemeColors {
   const theme = useContext(ThemeContext);
-  const { activeUniversity, feedMode, mode } = useThemeStore();
+  const { activeUniversity, feedMode, mode, accent } = useThemeStore();
 
   if (feedMode === 'global') {
     return mode === 'light' ? COSMIC_LIGHT : COSMIC_THEME;
   }
 
-  if (activeUniversity) {
+  let resolvedTheme = { ...theme };
+
+  // Apply user-selected accent color overrides if not overridden by activeUniversity
+  if (!activeUniversity && accent && ACCENT_OVERRIDES[accent]) {
+    const overrides = theme.dark
+      ? ACCENT_OVERRIDES[accent].dark
+      : ACCENT_OVERRIDES[accent].light;
+    resolvedTheme = {
+      ...resolvedTheme,
+      ...overrides,
+    };
+  } else if (activeUniversity) {
     const isDark = theme.dark;
     const resolvedAccent = adjustColorForContrast(activeUniversity.primary_color, isDark, theme.accent);
     const resolvedSecondary = adjustColorForContrast(activeUniversity.secondary_color, isDark, theme.accentSecondary);
-    return {
-      ...theme,
+    resolvedTheme = {
+      ...resolvedTheme,
       accent: resolvedAccent,
       accentSecondary: resolvedSecondary,
       accentBg: `${resolvedAccent}1a`, // Translucent background
@@ -272,5 +382,5 @@ export function useTheme(): ThemeColors {
     };
   }
 
-  return theme;
+  return resolvedTheme;
 }
