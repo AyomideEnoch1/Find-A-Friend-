@@ -318,7 +318,7 @@ export const getMostFollowedUsers = async (universityId?: string | null): Promis
       .order("follower_count", { ascending: false })
       .limit(10);
 
-    console.log("Top 10 Influencers:", data);
+    // console.log("Top 10 Influencers:", data);
 
     if (error) throw error;
     return { data: data as FollowProfile[], error: null };

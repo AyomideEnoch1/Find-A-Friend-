@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import StudentCard from "../../components/discover/StudentCard";
 import NeuralBackground from "../../components/NeuralBackground";
-import ScreenLoader from "../../components/ScreenLoader";
+import GuideBanner from "../../components/ui/GuideBanner";
 import { Skeleton } from "../../components/ui/Skeleton";
 import type { ConnectionStatus } from "../../lib/discoverLikes";
 import {
@@ -32,7 +32,6 @@ import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { useBadgesStore } from "../../store/badgesStore";
 import { useThemeStore } from "../../store/themeStore";
-import GuideBanner from "../../components/ui/GuideBanner";
 
 export default function DiscoverScreen() {
   const [deck, setDeck] = useState<FollowProfile[]>([]);
@@ -238,7 +237,7 @@ export default function DiscoverScreen() {
     }
 
     try {
-      const uniId = feedMode === 'local' ? activeUniversity?.id : null;
+      const uniId = feedMode === "local" ? activeUniversity?.id : null;
       const [usersRes, trendingRes, topRes] = await Promise.all([
         getSuggestedUsers(uniId),
         getTrending(),
@@ -304,7 +303,7 @@ export default function DiscoverScreen() {
       (u) =>
         u.id !== userProfile?.id &&
         statuses[u.id] !== "connected" &&
-        statuses[u.id] !== "requested_sent"
+        statuses[u.id] !== "requested_sent",
     );
 
     if (searchQuery.trim()) {
@@ -416,8 +415,6 @@ export default function DiscoverScreen() {
           </TouchableOpacity>
         </View>
       </View>
-
-
 
       {/* Search Bar */}
       <View
