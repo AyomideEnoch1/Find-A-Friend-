@@ -11,6 +11,7 @@ import { typography } from '../lib/typography'
 export default function AppearanceScreen() {
   const { mode, setMode, accent, setAccent } = useThemeStore()
   const theme = useTheme()
+  const chatTheme = useTheme({ isChat: true })
   const [previewTab, setPreviewTab] = useState<'chat' | 'ui'>('chat')
 
   const themes = [
@@ -212,15 +213,15 @@ export default function AppearanceScreen() {
               {/* Header */}
               <View style={[s.previewHeader, { borderBottomColor: theme.border }]}>
                 <View style={s.previewUserRow}>
-                  <View style={[s.previewAvatar, { backgroundColor: theme.accentBg }]}>
-                    <Text style={[s.previewAvatarText, { color: theme.accent }]}>JD</Text>
+                  <View style={[s.previewAvatar, { backgroundColor: chatTheme.accentBg }]}>
+                    <Text style={[s.previewAvatarText, { color: chatTheme.accent }]}>JD</Text>
                   </View>
                   <View>
                     <Text style={[s.previewUsername, { color: theme.text }]}>John Doe</Text>
                     <Text style={[s.previewUserStatus, { color: theme.success }]}>● Online</Text>
                   </View>
                 </View>
-                <Ionicons name="call" size={16} color={theme.accent} />
+                <Ionicons name="call" size={16} color={chatTheme.accent} />
               </View>
 
               {/* Messages */}
@@ -232,7 +233,7 @@ export default function AppearanceScreen() {
                   <Text style={[s.previewBubbleTime, { color: theme.textFaint }]}>11:32 AM</Text>
                 </View>
 
-                <View style={[s.previewBubbleSelf, { backgroundColor: theme.accent }]}>
+                <View style={[s.previewBubbleSelf, { backgroundColor: chatTheme.accent }]}>
                   <Text style={[s.previewBubbleText, { color: '#fff' }]}>
                     Definitely! Meet you there in 10 mins. 🚀
                   </Text>
@@ -245,7 +246,7 @@ export default function AppearanceScreen() {
                 <View style={[s.previewInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <Text style={{ color: theme.textMuted, fontSize: 11 }}>Write a message...</Text>
                 </View>
-                <View style={[s.previewSendBtn, { backgroundColor: theme.accent }]}>
+                <View style={[s.previewSendBtn, { backgroundColor: chatTheme.accent }]}>
                   <Ionicons name="send" size={10} color="#fff" />
                 </View>
               </View>

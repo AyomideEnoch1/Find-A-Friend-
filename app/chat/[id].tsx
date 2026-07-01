@@ -281,7 +281,7 @@ function ScanLine({ isOnline }: { isOnline: boolean }) {
 // ─── Day separator ────────────────────────────────────────────────────────────
 
 function DaySeparator({ label }: { label: string }) {
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
   return (
     <View style={ds.wrap}>
       <View style={[ds.line, { backgroundColor: theme.border }]} />
@@ -318,7 +318,7 @@ const ds = StyleSheet.create({
 // ─── Empty state with pulse ───────────────────────────────────────────────────
 
 function EmptyState({ name }: { name: string }) {
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -453,7 +453,7 @@ export default function DirectMessageScreen() {
   const [chatStreak, setChatStreak] = useState({ streak_count: 0, at_risk: false, increased: false })
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
@@ -1018,6 +1018,17 @@ export default function DirectMessageScreen() {
               }
             >
               <Ionicons name="call-outline" size={20} color={theme.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.headerIconBtn}
+              hitSlop={8}
+              onPress={() => router.push("/appearance" as any)}
+            >
+              <Ionicons
+                name="color-palette-outline"
+                size={22}
+                color={theme.textMuted}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={s.headerIconBtn}
