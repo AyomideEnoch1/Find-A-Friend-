@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -10,6 +11,7 @@ import { typography } from '../lib/typography'
 export default function AppearanceScreen() {
   const { mode, setMode, accent, setAccent } = useThemeStore()
   const theme = useTheme()
+  const [previewTab, setPreviewTab] = useState<'chat' | 'ui'>('chat')
 
   const themes = [
     {
@@ -171,46 +173,125 @@ export default function AppearanceScreen() {
         {/* Dynamic Theme Preview Widget */}
         <Text style={[s.sectionLabel, { color: theme.textMuted, marginTop: 12 }]}>Preview</Text>
         <View style={[s.previewWidget, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-          {/* Header */}
-          <View style={[s.previewHeader, { borderBottomColor: theme.border }]}>
-            <View style={s.previewUserRow}>
-              <View style={[s.previewAvatar, { backgroundColor: theme.accentBg }]}>
-                <Text style={[s.previewAvatarText, { color: theme.accent }]}>JD</Text>
-              </View>
-              <View>
-                <Text style={[s.previewUsername, { color: theme.text }]}>John Doe</Text>
-                <Text style={[s.previewUserStatus, { color: theme.success }]}>● Online</Text>
-              </View>
-            </View>
-            <Ionicons name="call" size={16} color={theme.accent} />
-          </View>
-
-          {/* Messages */}
-          <View style={s.previewChatBody}>
-            <View style={[s.previewBubbleFriend, { backgroundColor: theme.card }]}>
-              <Text style={[s.previewBubbleText, { color: theme.text }]}>
-                Hey! Are we still playing pool in the game lobby today? 🎱
+          
+          {/* Tabs Selector for Preview */}
+          <View style={[s.previewTabsRow, { borderBottomColor: theme.border }]}>
+            <TouchableOpacity 
+              style={[
+                s.previewTabBtn, 
+                previewTab === 'chat' && { borderBottomColor: theme.accent }
+              ]}
+              onPress={() => setPreviewTab('chat')}
+            >
+              <Text style={[
+                s.previewTabBtnText, 
+                { color: previewTab === 'chat' ? theme.accent : theme.textMuted }
+              ]}>
+                Chat
               </Text>
-              <Text style={[s.previewBubbleTime, { color: theme.textFaint }]}>11:32 AM</Text>
-            </View>
-
-            <View style={[s.previewBubbleSelf, { backgroundColor: theme.accent }]}>
-              <Text style={[s.previewBubbleText, { color: '#fff' }]}>
-                Definitely! Meet you there in 10 mins. 🚀
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                s.previewTabBtn, 
+                previewTab === 'ui' && { borderBottomColor: theme.accent }
+              ]}
+              onPress={() => setPreviewTab('ui')}
+            >
+              <Text style={[
+                s.previewTabBtnText, 
+                { color: previewTab === 'ui' ? theme.accent : theme.textMuted }
+              ]}>
+                UI Components
               </Text>
-              <Text style={[s.previewBubbleTime, { color: 'rgba(255,255,255,0.7)' }]}>11:33 AM</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Input Area */}
-          <View style={[s.previewInputArea, { borderTopColor: theme.border }]}>
-            <View style={[s.previewInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={{ color: theme.textMuted, fontSize: 11 }}>Write a message...</Text>
+          {previewTab === 'chat' ? (
+            <View style={{ gap: 12 }}>
+              {/* Header */}
+              <View style={[s.previewHeader, { borderBottomColor: theme.border }]}>
+                <View style={s.previewUserRow}>
+                  <View style={[s.previewAvatar, { backgroundColor: theme.accentBg }]}>
+                    <Text style={[s.previewAvatarText, { color: theme.accent }]}>JD</Text>
+                  </View>
+                  <View>
+                    <Text style={[s.previewUsername, { color: theme.text }]}>John Doe</Text>
+                    <Text style={[s.previewUserStatus, { color: theme.success }]}>● Online</Text>
+                  </View>
+                </View>
+                <Ionicons name="call" size={16} color={theme.accent} />
+              </View>
+
+              {/* Messages */}
+              <View style={s.previewChatBody}>
+                <View style={[s.previewBubbleFriend, { backgroundColor: theme.card }]}>
+                  <Text style={[s.previewBubbleText, { color: theme.text }]}>
+                    Hey! Are we still playing pool in the game lobby today? 🎱
+                  </Text>
+                  <Text style={[s.previewBubbleTime, { color: theme.textFaint }]}>11:32 AM</Text>
+                </View>
+
+                <View style={[s.previewBubbleSelf, { backgroundColor: theme.accent }]}>
+                  <Text style={[s.previewBubbleText, { color: '#fff' }]}>
+                    Definitely! Meet you there in 10 mins. 🚀
+                  </Text>
+                  <Text style={[s.previewBubbleTime, { color: 'rgba(255,255,255,0.7)' }]}>11:33 AM</Text>
+                </View>
+              </View>
+
+              {/* Input Area */}
+              <View style={[s.previewInputArea, { borderTopColor: theme.border }]}>
+                <View style={[s.previewInput, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Text style={{ color: theme.textMuted, fontSize: 11 }}>Write a message...</Text>
+                </View>
+                <View style={[s.previewSendBtn, { backgroundColor: theme.accent }]}>
+                  <Ionicons name="send" size={10} color="#fff" />
+                </View>
+              </View>
             </View>
-            <View style={[s.previewSendBtn, { backgroundColor: theme.accent }]}>
-              <Ionicons name="send" size={10} color="#fff" />
+          ) : (
+            <View style={s.previewUiContainer}>
+              {/* Buttons Row */}
+              <Text style={[s.previewUiTitle, { color: theme.textMuted }]}>Buttons</Text>
+              <View style={s.previewUiRow}>
+                <View style={[s.previewBtnPrimary, { backgroundColor: theme.accent }]}>
+                  <Text style={s.previewBtnTextPrimary}>Primary Button</Text>
+                </View>
+                <View style={[s.previewBtnOutline, { borderColor: theme.accent }]}>
+                  <Text style={[s.previewBtnTextOutline, { color: theme.accent }]}>Outline</Text>
+                </View>
+                <View style={s.previewBtnGhost}>
+                  <Text style={[s.previewBtnTextGhost, { color: theme.accent }]}>Ghost</Text>
+                </View>
+              </View>
+
+              {/* Badges Row */}
+              <Text style={[s.previewUiTitle, { color: theme.textMuted, marginTop: 4 }]}>Badges & Tags</Text>
+              <View style={s.previewUiRow}>
+                <View style={[s.previewBadge, { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }]}>
+                  <Text style={[s.previewBadgeText, { color: theme.accent }]}>Featured</Text>
+                </View>
+                <View style={[s.previewBadge, { backgroundColor: theme.success + '1a', borderColor: theme.success + '40' }]}>
+                  <Text style={[s.previewBadgeText, { color: theme.success }]}>Online</Text>
+                </View>
+                <View style={[s.previewBadge, { backgroundColor: theme.danger + '1a', borderColor: theme.danger + '40' }]}>
+                  <Text style={[s.previewBadgeText, { color: theme.danger }]}>Alert</Text>
+                </View>
+              </View>
+
+              {/* Progress & Loaders */}
+              <View style={s.previewUiProgressSection}>
+                <View style={s.previewUiProgressLabelRow}>
+                  <Text style={[s.previewUiProgressLabel, { color: theme.text }]}>Dynamic Progress Fill</Text>
+                  <Text style={[s.previewUiProgressLabel, { color: theme.accent }]}>75%</Text>
+                </View>
+                <View style={[s.previewUiProgressBarTrack, { backgroundColor: theme.card2 }]}>
+                  <View style={[s.previewUiProgressBarFill, { backgroundColor: theme.accent, width: '75%' }]} />
+                </View>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         <Text style={[s.note, { color: theme.textFaint }]}>
@@ -311,6 +392,23 @@ const s = StyleSheet.create({
     elevation: 4,
     overflow: 'hidden',
   },
+  previewTabsRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    paddingBottom: 4,
+    gap: 16,
+  },
+  previewTabBtn: {
+    paddingBottom: 6,
+    borderBottomWidth: 2,
+    borderColor: 'transparent',
+  },
+  previewTabBtnText: {
+    fontSize: 11,
+    fontFamily: typography.fontSemiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   previewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -392,5 +490,88 @@ const s = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  previewUiContainer: {
+    paddingVertical: 4,
+    gap: 10,
+  },
+  previewUiTitle: {
+    fontSize: 10,
+    fontFamily: typography.fontMedium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewUiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  previewBtnPrimary: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBtnTextPrimary: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: typography.fontSemiBold,
+  },
+  previewBtnOutline: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBtnTextOutline: {
+    fontSize: 10,
+    fontFamily: typography.fontSemiBold,
+  },
+  previewBtnGhost: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBtnTextGhost: {
+    fontSize: 10,
+    fontFamily: typography.fontSemiBold,
+  },
+  previewBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: 'transparent',
+  },
+  previewBadgeText: {
+    fontSize: 9,
+    fontFamily: typography.fontMedium,
+  },
+  previewUiProgressSection: {
+    gap: 6,
+    marginTop: 6,
+  },
+  previewUiProgressLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewUiProgressLabel: {
+    fontSize: 10,
+    fontFamily: typography.fontSemiBold,
+  },
+  previewUiProgressBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  previewUiProgressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 })
