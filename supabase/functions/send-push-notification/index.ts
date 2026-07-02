@@ -80,30 +80,46 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } }
     )
 
-    // Fetch recipient's push token (Expo) and unread count
-    const [{ data: profile }, { count: unreadCount }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('push_token')
-        .eq('id', record.user_id)
-        .single(),
-      supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', record.user_id)
-        .eq('is_read', false)
-    ])
+    // Check payload first, then fallback to Supabase DB
+    let pushToken = record.push_token || null
+    let unreadCount = record.unread_count ?? null
+
+    if (!pushToken || unreadCount === null) {
+      try {
+        const [{ data: profile }, { count: unreadCountDb }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('push_token')
+            .eq('id', record.user_id)
+            .single(),
+          supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', record.user_id)
+            .eq('is_read', false)
+        ])
+        if (!pushToken) pushToken = profile?.push_token || null
+        if (unreadCount === null) unreadCount = unreadCountDb
+      } catch (err) {
+        console.warn('Failed to fetch profile/unreadCount fallback from Supabase DB:', err.message)
+      }
+    }
 
     // Fetch actor name for notification body
-    let actorName = 'Someone'
-    if (record.actor_id) {
-      const { data: actor } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', record.actor_id)
-        .single()
-      if (actor?.full_name) actorName = actor.full_name
+    let actorName = record.actor_name || null
+    if (!actorName && record.actor_id) {
+      try {
+        const { data: actor } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', record.actor_id)
+          .single()
+        if (actor?.full_name) actorName = actor.full_name
+      } catch (err) {
+        console.warn('Failed to fetch actor fallback from Supabase DB:', err.message)
+      }
     }
+    if (!actorName) actorName = 'Someone'
 
     const body = buildBody(record.type, actorName, record.body)
     const route = buildRoute(record.entity_type, record.entity_id)
@@ -112,10 +128,10 @@ Deno.serve(async (req) => {
     let webSuccessCount = 0
 
     // 1. Send to Expo Push if there is an Expo token
-    if (profile?.push_token && (profile.push_token.startsWith('ExponentPushToken[') || profile.push_token.startsWith('ExpoPushToken['))) {
+    if (pushToken && (pushToken.startsWith('ExponentPushToken[') || pushToken.startsWith('ExpoPushToken['))) {
       try {
         const message = {
-          to: profile.push_token,
+          to: pushToken,
           title: 'FAF',
           body,
           sound: 'default',
@@ -143,10 +159,19 @@ Deno.serve(async (req) => {
     }
 
     // 2. Send Web Push to all active web push subscriptions for this user
-    const { data: webSubs } = await supabase
-      .from('web_push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .eq('user_id', record.user_id)
+    let webSubs = record.web_subs || null
+    if (!webSubs) {
+      try {
+        const { data } = await supabase
+          .from('web_push_subscriptions')
+          .select('endpoint, p256dh, auth')
+          .eq('user_id', record.user_id)
+        webSubs = data || []
+      } catch (err) {
+        console.warn('Failed to fetch web push subscriptions fallback from Supabase DB:', err.message)
+        webSubs = []
+      }
+    }
 
     if (webSubs && webSubs.length > 0) {
       const webPayload = JSON.stringify({

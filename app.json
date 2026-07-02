@@ -15,7 +15,12 @@
     "ios": {
       "icon": "./assets/images/logo.png",
       "supportsTablet": false,
-      "bundleIdentifier": "com.faf.campus"
+      "bundleIdentifier": "com.faf.campus",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
