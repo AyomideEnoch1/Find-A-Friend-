@@ -448,6 +448,12 @@ exports.handler = async function(event, context) {
           -- Re-define push notification trigger to use http_post conditionally
           CREATE OR REPLACE FUNCTION public.trg_fn_push_notification()
           RETURNS TRIGGER AS $$
+          DECLARE
+            v_push_token TEXT;
+            v_actor_name TEXT;
+            v_unread_count INT;
+            v_web_subs JSONB;
+            v_payload JSONB;
           BEGIN
             -- Only attempt HTTP call if the public.http function exists
             IF EXISTS (
@@ -455,6 +461,40 @@ exports.handler = async function(event, context) {
               JOIN pg_namespace n ON p.pronamespace = n.oid 
               WHERE n.nspname = 'public' AND p.proname = 'http'
             ) THEN
+              -- 1. Get recipient's push token from RDS public.profiles
+              SELECT push_token INTO v_push_token
+              FROM public.profiles
+              WHERE id = NEW.user_id;
+
+              -- 2. Get actor's name from RDS public.profiles
+              IF NEW.actor_id IS NOT NULL THEN
+                SELECT full_name INTO v_actor_name
+                FROM public.profiles
+                WHERE id = NEW.actor_id;
+              END IF;
+
+              -- 3. Get unread count from RDS public.notifications
+              SELECT COUNT(*) INTO v_unread_count
+              FROM public.notifications
+              WHERE user_id = NEW.user_id AND is_read = false;
+
+              -- 4. Get web push subscriptions from RDS public.web_push_subscriptions
+              SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'endpoint', endpoint,
+                'p256dh', p256dh,
+                'auth', auth
+              )), '[]'::jsonb) INTO v_web_subs
+              FROM public.web_push_subscriptions
+              WHERE user_id = NEW.user_id;
+
+              -- 5. Build enriched payload
+              v_payload := to_jsonb(NEW) || jsonb_build_object(
+                'push_token', v_push_token,
+                'actor_name', COALESCE(v_actor_name, 'Someone'),
+                'unread_count', v_unread_count,
+                'web_subs', v_web_subs
+              );
+
               PERFORM public.http((
                 'POST',
                 'https://vcbtvhociaioeyhhsczh.supabase.co/functions/v1/send-push-notification',
@@ -463,7 +503,7 @@ exports.handler = async function(event, context) {
                   public.http_header('Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjYnR2aG9jaWFpb2V5aGhzY3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjc4MzAsImV4cCI6MjA5MTk0MzgzMH0.BqvLjyfeDnYBDtsY5OW_LtewCAUtO-twTIMvpjbDvRM')
                 ],
                 'application/json',
-                to_jsonb(NEW)::text
+                v_payload::text
               )::public.http_request);
             END IF;
             RETURN NEW;
@@ -513,6 +553,85 @@ exports.handler = async function(event, context) {
           $$ LANGUAGE plpgsql SECURITY DEFINER;
 
           GRANT EXECUTE ON FUNCTION public.delete_own_user() TO authenticated;
+        `
+      },
+      {
+        label: 'Create id-cards storage bucket and RLS policies',
+        sql: `
+          -- Create id-cards storage bucket
+          INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+          VALUES (
+            'id-cards', 
+            'id-cards', 
+            false, 
+            5242880, 
+            ARRAY['image/jpeg', 'image/png', 'image/webp']
+          )
+          ON CONFLICT (id) DO NOTHING;
+
+          -- Disable existing policies if any
+          DROP POLICY IF EXISTS "Admins can view ID cards" ON storage.objects;
+          CREATE POLICY "Admins can view ID cards" ON storage.objects
+            FOR SELECT TO authenticated USING (
+              bucket_id = 'id-cards' AND 
+              EXISTS (
+                SELECT 1 FROM public.profiles 
+                WHERE id = auth.uid() AND role = 'admin'
+              )
+            );
+
+          DROP POLICY IF EXISTS "Users can upload their own ID card" ON storage.objects;
+          CREATE POLICY "Users can upload their own ID card" ON storage.objects
+            FOR INSERT TO authenticated WITH CHECK (
+              bucket_id = 'id-cards'
+            );
+
+          DROP POLICY IF EXISTS "Users can update their own ID card" ON storage.objects;
+          CREATE POLICY "Users can update their own ID card" ON storage.objects
+            FOR UPDATE TO authenticated USING (
+              bucket_id = 'id-cards'
+            );
+        `
+      },
+      {
+        label: 'Redefine profile role assignment trigger with dynamic university checks',
+        sql: `
+          CREATE OR REPLACE FUNCTION public.handle_profile_role_and_badge()
+          RETURNS TRIGGER AS $$
+          DECLARE
+            v_matching_uni BOOLEAN;
+          BEGIN
+            -- Preserve admin roles
+            IF NEW.role = 'admin' THEN
+              RETURN NEW;
+            END IF;
+
+            -- Verify if email ends with any university's domain
+            SELECT EXISTS (
+              SELECT 1 FROM public.universities 
+              WHERE NEW.email ILIKE '%@' || domain OR NEW.email ILIKE '%.' || domain
+            ) INTO v_matching_uni;
+
+            IF v_matching_uni THEN
+              -- Grant student status if matched
+              IF NEW.role NOT IN ('student', 'vendor', 'admin') THEN
+                NEW.role := 'student';
+              END IF;
+            ELSE
+              -- Revert to guest role for manual admin approval
+              NEW.role := 'guest';
+              NEW.badge_type := 'guest';
+              NEW.badge_color := '#ec4899';
+            END IF;
+
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+          DROP TRIGGER IF EXISTS trg_handle_profile_role_and_badge ON public.profiles;
+          CREATE TRIGGER trg_handle_profile_role_and_badge
+          BEFORE INSERT OR UPDATE OF email, role ON public.profiles
+          FOR EACH ROW EXECUTE FUNCTION public.handle_profile_role_and_badge();
         `
       },
       {
