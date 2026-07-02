@@ -45,6 +45,7 @@ export default function CompleteProfileScreen() {
   const [idCardImage, setIdCardImage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'student' | 'guest' | 'vendor' | 'admin'>('student')
 
   useEffect(() => {
     supabase
@@ -56,8 +57,16 @@ export default function CompleteProfileScreen() {
       })
 
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        setEmail(user.email)
+      if (user) {
+        if (user.email) setEmail(user.email)
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.role) setRole(data.role as any)
+          })
       }
     })
   }, [])
@@ -101,7 +110,7 @@ export default function CompleteProfileScreen() {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images || 'images' as any,
       allowsEditing: true,
       quality: 0.8,
     })
@@ -393,15 +402,15 @@ export default function CompleteProfileScreen() {
                 <Text style={[s.backBtnText, { color: theme.textMuted }]}>← Back</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.nextBtn, { flex: 1, backgroundColor: theme.accent }]}
+                style={[s.nextBtn, { flex: 1, backgroundColor: (role === 'guest' && !idCardImage) ? theme.card : theme.accent }]}
                 onPress={handleComplete}
-                disabled={saving}
+                disabled={saving || (role === 'guest' && !idCardImage)}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={[s.nextBtnText, { color: '#fff' }]}>
-                    {idCardImage ? 'Submit & Enter App 🚀' : 'Skip & Enter App →'}
+                  <Text style={[s.nextBtnText, { color: (role === 'guest' && !idCardImage) ? theme.textFaint : '#fff' }]}>
+                    {idCardImage ? 'Submit & Enter App 🚀' : (role === 'guest' ? 'ID Upload Required ⚠️' : 'Skip & Enter App →')}
                   </Text>
                 )}
               </TouchableOpacity>

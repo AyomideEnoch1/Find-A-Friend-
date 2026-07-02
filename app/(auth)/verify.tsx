@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { router, useLocalSearchParams, useSegments } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { validatePasswordStrength, recordFailedLogin, getLockoutRemaining, resetFailedLogins } from "../../lib/security";
+import { Modal } from "react-native";
 import {
   ActivityIndicator,
   Dimensions,
@@ -248,6 +249,8 @@ export default function VerifyScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [modalType, setModalType] = useState<'terms' | 'privacy'>('terms');
   const [code, setCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -464,16 +467,18 @@ export default function VerifyScreen() {
     setLoading(true);
 
     if (mode === "signup") {
+      let isNonSchool = false;
       if (selectedUni) {
         const domain = selectedUni.domain.toLowerCase();
         if (!trimmedEmail.endsWith(`@${domain}`) && !trimmedEmail.endsWith(`.${domain}`)) {
+          isNonSchool = true;
+          // Inform user that registration will require ID verification
           Toast.show({
-            type: "error",
-            text1: "Invalid email domain",
-            text2: `Email must end with @${selectedUni.domain} for ${selectedUni.name}`,
+            type: "info",
+            text1: "Verification Required",
+            text2: "A student ID upload will be required to verify your guest account.",
+            visibilityTime: 4000,
           });
-          setLoading(false);
-          return;
         }
       }
 
@@ -819,11 +824,15 @@ export default function VerifyScreen() {
                 {mode !== 'forgot' && mode !== 'confirm' && (
                   <AnimatedInput
                     label={mode === 'reset' ? "New Password" : "Password"}
-                    placeholder={mode === 'signup' ? 'Min. 6 characters' : 'Your password'}
+                    placeholder={mode === 'signup' ? 'Min. 8 characters' : 'Your password'}
                     value={password}
                     onChangeText={setPassword}
                     isPassword
                   />
+                )}
+
+                {mode !== 'forgot' && mode !== 'confirm' && (mode === 'signup' || mode === 'reset') && password.length > 0 && (
+                  <PasswordStrengthMeter password={password} />
                 )}
 
                 {(mode === 'signin' || mode === 'signup') && (
@@ -931,11 +940,11 @@ export default function VerifyScreen() {
                 {mode === 'signup' && (
                   <Text style={[s.termsText, { color: theme.textFaint }]}>
                     By continuing you agree to our{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/terms')}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => { setModalType('terms'); setShowTermsModal(true); }}>
                       Terms
                     </Text>{" "}
                     and{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/privacy')}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => { setModalType('privacy'); setShowTermsModal(true); }}>
                       Privacy Policy
                     </Text>
                   </Text>
@@ -953,8 +962,76 @@ export default function VerifyScreen() {
               </View>
             </Animated.View>
           </ScrollView>
+
+          {/* Terms & Privacy Local Modal */}
+          <Modal visible={showTermsModal} animationType="slide" transparent onRequestClose={() => setShowTermsModal(false)}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+              <View style={{ height: '70%', backgroundColor: theme.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, borderTopWidth: 1, borderTopColor: theme.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 18, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                    {modalType === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowTermsModal(false)} style={{ padding: 6, backgroundColor: theme.card, borderRadius: 20 }}>
+                    <Ionicons name="close" size={20} color={theme.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+                  {modalType === 'terms' ? (
+                    <Text style={{ fontSize: 13, color: theme.textMuted, lineHeight: 20, fontFamily: typography.fontRegular }}>
+                      Welcome to Find-A-Friend (FAF). By creating an account or using our application, you agree to these Terms of Service.{"\n\n"}
+                      1. Eligible Users: FAF is designed for university students. You must register with a valid email address. If using a personal/non-school email address, you must upload your university student ID for manual verification.{"\n\n"}
+                      2. User Conduct: You are responsible for all activity under your account. You agree not to upload any harassing, offensive, or illegal content. Anonymous posts are audited and will be traced back to your account in the event of harassment or policy violations.{"\n\n"}
+                      3. Termination: We reserve the right to suspend or terminate accounts that violate our community standards or terms of service at any time without notice.{"\n\n"}
+                      4. Intellectual Property: All application assets, features, and source code belong to the FAF development team.
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: theme.textMuted, lineHeight: 20, fontFamily: typography.fontRegular }}>
+                      Privacy Policy for Find-A-Friend. We take your privacy very seriously.{"\n\n"}
+                      1. Information Collection: We collect your name, university email, gender, and school details. If manual verification is required, we securely store your student ID photo.{"\n\n"}
+                      2. Use of Information: We use this information strictly to provide campus-specific features, matching services, and for security audits. Your student ID is private and is only viewed by our verification administrators.{"\n\n"}
+                      3. Direct Chat Encryption: All private messages, media files, and stickers are encrypted end-to-end (E2EE) prior to storage, preventing database operators from viewing your communications.{"\n\n"}
+                      4. Data Control: You can request to delete your account and all associated data at any time from the app Settings.
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            </SafeAreaView>
+          </Modal>
         </KeyboardAvoidingView>
       </SafeAreaView>
+    </View>
+  );
+}
+
+// Password Strength Meter Component
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const theme = useTheme();
+  if (!password) return null;
+
+  const err = validatePasswordStrength(password);
+  let label = "Strong";
+  let color = "#10b981"; // green
+  let width = "100%";
+  
+  if (password.length < 8) {
+    label = "Weak (Needs 8+ characters)";
+    color = "#ef4444"; // red
+    width = "33%";
+  } else if (err) {
+    label = `Medium (${err.replace('Password must contain at least one ', 'needs ')})`;
+    color = "#f59e0b"; // amber
+    width = "66%";
+  }
+
+  return (
+    <View style={{ marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, fontFamily: typography.fontRegular, color: theme.textMuted }}>Password Strength:</Text>
+        <Text style={{ fontSize: 11, fontFamily: typography.fontBold, color }}>{label}</Text>
+      </View>
+      <View style={{ height: 4, width: '100%', backgroundColor: theme.card2, borderRadius: 2, overflow: 'hidden' }}>
+        <View style={{ height: '100%', width, backgroundColor: color, borderRadius: 2 }} />
+      </View>
     </View>
   );
 }

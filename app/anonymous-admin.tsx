@@ -35,7 +35,7 @@ function toInputString(d: Date | null): string {
 export default function AnonymousAdminDashboard() {
   const theme = useTheme()
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-  const [activeTab, setActiveTab] = useState<'status' | 'posts' | 'event' | 'referrals'>('status')
+  const [activeTab, setActiveTab] = useState<'status' | 'posts' | 'event' | 'referrals' | 'verifications'>('status')
   
   // Status tab state
   const [boardStatus, setBoardStatus] = useState<'open' | 'closed'>('open')
@@ -47,6 +47,49 @@ export default function AnonymousAdminDashboard() {
   const [totalInvited, setTotalInvited] = useState(0)
   const [loadingReferrals, setLoadingReferrals] = useState(false)
   const [expandedCodes, setExpandedCodes] = useState<Record<string, boolean>>({})
+
+  // Verifications state
+  const [pendingVerifications, setPendingVerifications] = useState<any[]>([])
+  const [loadingVerifications, setLoadingVerifications] = useState(false)
+
+  const loadPendingVerifications = async () => {
+    setLoadingVerifications(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, id_card_url, id_card_status, created_at, university_id, universities(name)')
+        .eq('id_card_status', 'pending')
+      if (error) throw error
+      setPendingVerifications(data ?? [])
+    } catch (err) {
+      console.warn('Error loading verifications:', err)
+    } finally {
+      setLoadingVerifications(false)
+    }
+  }
+
+  const handleVerifyStudent = async (profileId: string, approve: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(
+          approve 
+            ? { role: 'student', badge_type: 'verified', badge_color: '#a78bfa', id_card_status: 'verified' }
+            : { id_card_status: 'rejected' }
+        )
+        .eq('id', profileId)
+
+      if (error) throw error
+      Toast.show({
+        type: 'success',
+        text1: approve ? '✅ Profile Approved' : '❌ Profile Rejected',
+        text2: approve ? 'User has been upgraded to a verified student.' : 'Verification request rejected.'
+      })
+      loadPendingVerifications()
+    } catch (err: any) {
+      Alert.alert('Verification Failed', err.message || 'An error occurred.')
+    }
+  }
 
   const toggleExpandCode = (code: string) => {
     setExpandedCodes(prev => ({
@@ -196,6 +239,12 @@ export default function AnonymousAdminDashboard() {
   useEffect(() => {
     if (isAdmin && activeTab === 'referrals') {
       loadReferrals()
+    }
+  }, [isAdmin, activeTab])
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'verifications') {
+      loadPendingVerifications()
     }
   }, [isAdmin, activeTab])
 
@@ -379,6 +428,13 @@ export default function AnonymousAdminDashboard() {
           style={[s.tabItem, activeTab === 'referrals' && [s.tabActive, { borderBottomColor: '#a78bfa' }]]}>
           <Text style={[s.tabText, activeTab === 'referrals' ? { color: '#a78bfa' } : { color: theme.textMuted }]}>
             Referrals
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('verifications')}
+          style={[s.tabItem, activeTab === 'verifications' && [s.tabActive, { borderBottomColor: '#a78bfa' }]]}>
+          <Text style={[s.tabText, activeTab === 'verifications' ? { color: '#a78bfa' } : { color: theme.textMuted }]}>
+            Verifications
           </Text>
         </TouchableOpacity>
       </View>
@@ -699,6 +755,51 @@ export default function AnonymousAdminDashboard() {
             )}
           </ScrollView>
         )}
+
+        {activeTab === 'verifications' && (
+          <ScrollView contentContainerStyle={s.scrollContent} refreshControl={<RefreshControl refreshing={loadingVerifications} onRefresh={loadPendingVerifications} />}>
+            <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.border, padding: 14, gap: 12 }]}>
+              <Text style={[s.cardTitle, { color: theme.text, fontSize: 15 }]}>Pending Student ID Verifications</Text>
+              <Text style={{ fontSize: 12, color: theme.textMuted, fontFamily: typography.fontRegular, marginBottom: 8 }}>
+                Confirm student status for users who registered with personal emails.
+              </Text>
+
+              {loadingVerifications ? (
+                <ActivityIndicator size="large" color="#a78bfa" style={{ marginVertical: 32 }} />
+              ) : pendingVerifications.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: theme.textMuted, marginVertical: 40, fontFamily: typography.fontRegular }}>No pending verifications found.</Text>
+              ) : (
+                pendingVerifications.map((profile) => (
+                  <View key={profile.id} style={[s.verifyRow, { borderColor: theme.border, backgroundColor: theme.card2 }]}>
+                    <View style={{ gap: 4 }}>
+                      <Text style={{ fontSize: 14, fontFamily: typography.fontBold, color: theme.text }}>{profile.full_name}</Text>
+                      <Text style={{ fontSize: 12, color: theme.textMuted }}>Email: {profile.email}</Text>
+                      <Text style={{ fontSize: 12, color: theme.accent, fontFamily: typography.fontMedium }}>
+                        School: {profile.universities?.name ?? 'Unknown'}
+                      </Text>
+                      {profile.id_card_url ? (
+                        <View style={{ marginTop: 8, gap: 6 }}>
+                          <Text style={{ fontSize: 11, fontFamily: typography.fontSemiBold, color: theme.textMuted }}>Student ID Photo:</Text>
+                          <Image source={{ uri: profile.id_card_url }} style={{ width: '100%', height: 180, borderRadius: 8, backgroundColor: theme.card }} resizeMode="contain" />
+                        </View>
+                      ) : (
+                        <Text style={{ fontSize: 12, color: theme.danger, fontStyle: 'italic', marginTop: 4 }}>No ID Image Uploaded</Text>
+                      )}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, false)} style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)', borderWidth: 0.5 }]}>
+                        <Text style={{ color: theme.danger, fontSize: 12, fontFamily: typography.fontBold }}>Reject</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, true)} style={[s.actionBtn, { backgroundColor: '#a78bfa', borderColor: '#a78bfa', borderWidth: 0.5 }]}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: typography.fontBold }}>Approve Student</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
@@ -912,5 +1013,18 @@ const s = StyleSheet.create({
   multilineInput: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  verifyRow: {
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  actionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: 'transparent',
   },
 })
