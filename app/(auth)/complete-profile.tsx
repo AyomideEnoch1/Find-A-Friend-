@@ -358,9 +358,14 @@ export default function CompleteProfileScreen() {
           <View style={s.stepWrap}>
             <Text style={[s.stepTitle, { color: theme.text }]}>Upload your student ID</Text>
             <Text style={[s.stepSub, { color: theme.textMuted }]}>
-              Optional but recommended — verify your student status to unlock a{' '}
-              <Text style={{ color: theme.accent, fontFamily: typography.fontSemiBold }}>✅ Verified</Text>
-              {' '}badge. Our team reviews IDs within 24–48 hours.
+              {role === 'guest'
+                ? 'Upload your student ID to request manual verification. You can also skip and upload it later from settings.'
+                : <>
+                    Optional but recommended — verify your student status to unlock a{' '}
+                    <Text style={{ color: theme.accent, fontFamily: typography.fontSemiBold }}>✅ Verified</Text>
+                    {' '}badge. Our team reviews IDs within 24–48 hours.
+                  </>
+              }
             </Text>
 
             <TouchableOpacity
@@ -402,15 +407,19 @@ export default function CompleteProfileScreen() {
                 <Text style={[s.backBtnText, { color: theme.textMuted }]}>← Back</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.nextBtn, { flex: 1, backgroundColor: (role === 'guest' && !idCardImage) ? theme.card : theme.accent }]}
+                style={[s.nextBtn, { flex: 1, backgroundColor: theme.accent }]}
                 onPress={handleComplete}
-                disabled={saving || (role === 'guest' && !idCardImage)}
+                disabled={saving}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={[s.nextBtnText, { color: (role === 'guest' && !idCardImage) ? theme.textFaint : '#fff' }]}>
-                    {idCardImage ? 'Submit & Enter App 🚀' : (role === 'guest' ? 'ID Upload Required ⚠️' : 'Skip & Enter App →')}
+                  <Text style={[s.nextBtnText, { color: '#fff' }]}>
+                    {idCardImage
+                      ? 'Submit & Enter App 🚀'
+                      : role === 'guest'
+                        ? 'Skip & Verify Later →'
+                        : 'Skip & Enter App →'}
                   </Text>
                 )}
               </TouchableOpacity>
