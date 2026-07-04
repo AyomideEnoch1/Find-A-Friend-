@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { router, useLocalSearchParams, useSegments } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { validatePasswordStrength, recordFailedLogin, getLockoutRemaining, resetFailedLogins } from "../../lib/security";
+import { Modal } from "react-native";
 import {
   ActivityIndicator,
   Dimensions,
@@ -247,12 +249,15 @@ export default function VerifyScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [modalType, setModalType] = useState<'terms' | 'privacy'>('terms');
   const [code, setCode] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [universities, setUniversities] = useState<any[]>([]);
   const [selectedUni, setSelectedUni] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [uniSearchQuery, setUniSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchUnis = async () => {
@@ -375,9 +380,10 @@ export default function VerifyScreen() {
         Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill in all fields' })
         return
       }
-      if (password.length < 6) {
-        Toast.show({ type: 'error', text1: 'Weak password', text2: 'Password must be at least 6 characters' })
-        return
+      const pwdError = validatePasswordStrength(password);
+      if (pwdError) {
+        Toast.show({ type: 'error', text1: 'Weak password', text2: pwdError });
+        return;
       }
       setLoading(true)
       const { error } = await (supabase.auth as any).updateUserPassword(trimmedEmail, code, password)
@@ -440,11 +446,12 @@ export default function VerifyScreen() {
       });
       return;
     }
-    if (password.length < 6) {
+    const pwdError = validatePasswordStrength(password);
+    if (pwdError) {
       Toast.show({
         type: "error",
         text1: "Weak password",
-        text2: "Password must be at least 6 characters",
+        text2: pwdError,
       });
       return;
     }
@@ -460,16 +467,18 @@ export default function VerifyScreen() {
     setLoading(true);
 
     if (mode === "signup") {
+      let isNonSchool = false;
       if (selectedUni) {
         const domain = selectedUni.domain.toLowerCase();
         if (!trimmedEmail.endsWith(`@${domain}`) && !trimmedEmail.endsWith(`.${domain}`)) {
+          isNonSchool = true;
+          // Inform user that registration will require ID verification
           Toast.show({
-            type: "error",
-            text1: "Invalid email domain",
-            text2: `Email must end with @${selectedUni.domain} for ${selectedUni.name}`,
+            type: "info",
+            text1: "Verification Required",
+            text2: "A student ID upload will be required to verify your guest account.",
+            visibilityTime: 4000,
           });
-          setLoading(false);
-          return;
         }
       }
 
@@ -507,6 +516,17 @@ export default function VerifyScreen() {
       setMode('confirm')
       setCode('')
     } else {
+      const lockoutSecs = getLockoutRemaining();
+      if (lockoutSecs > 0) {
+        Toast.show({
+          type: "error",
+          text1: "Brute-force limit reached",
+          text2: `Account locked. Please try again in ${lockoutSecs} seconds.`,
+        });
+        return;
+      }
+
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
@@ -517,18 +537,29 @@ export default function VerifyScreen() {
           Toast.show({ type: 'info', text1: '📧 Verify your email', text2: 'A verification code has been sent to your inbox.' })
           setMode('confirm')
           setCode('')
-        } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
-          Toast.show({ type: 'error', text1: 'Sign in failed', text2: 'Wrong email or password.' })
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Sign in error",
-            text2: error.message,
-          });
+          const attempts = recordFailedLogin();
+          const remainingLockout = getLockoutRemaining();
+          if (remainingLockout > 0) {
+            Toast.show({
+              type: 'error',
+              text1: 'Brute-force limit reached',
+              text2: `Too many failed attempts. Try again in ${remainingLockout} seconds.`
+            });
+          } else if (error.message.toLowerCase().includes('invalid login credentials') || error.message.includes('NotAuthorizedException')) {
+            Toast.show({ type: 'error', text1: 'Sign in failed', text2: `Wrong email or password. Attempt ${attempts}/5` })
+          } else {
+            Toast.show({
+              type: "error",
+              text1: "Sign in error",
+              text2: `${error.message} (Attempt ${attempts}/5)`,
+            });
+          }
         }
         return;
       }
       if (data.session) {
+        resetFailedLogins();
         const { data: profile } = await supabase
           .from("profiles")
           .select("id")
@@ -681,96 +712,90 @@ export default function VerifyScreen() {
                 {mode === 'signup' && filteredUnis.length > 0 && (
                   <View style={{ marginBottom: 16, zIndex: 10 }}>
                     <Text style={iv.label}>Select University</Text>
-                    {Platform.OS === 'web' ? (
-                      <View style={{ position: 'relative', width: '100%' }}>
-                        <select
-                          value={selectedUni?.id || ''}
-                          onChange={(e) => {
-                            const found = filteredUnis.find(u => u.id === e.target.value);
-                            if (found) setSelectedUni(found);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: 14,
-                            borderRadius: 12,
-                            borderWidth: 1,
-                            borderColor: theme.border,
-                            backgroundColor: theme.card,
-                            color: theme.text,
-                            fontSize: 14,
-                            fontFamily: typography.fontSemiBold,
-                            outline: 'none',
-                            appearance: 'none',
-                          }}
-                        >
-                          <option value="" disabled>Select a university...</option>
-                          {filteredUnis.map((uni) => (
-                            <option key={uni.id} value={uni.id}>
-                              {uni.name} ({uni.short_name})
-                            </option>
-                          ))}
-                        </select>
-                        <View style={{ position: 'absolute', right: 14, top: 16, pointerEvents: 'none' }}>
-                          <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={{ zIndex: 1000 }}>
-                        <TouchableOpacity
-                          style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: 14,
-                            borderRadius: 12,
-                            borderWidth: 1,
-                            borderColor: theme.border,
-                            backgroundColor: theme.card,
-                          }}
-                          onPress={() => setDropdownOpen(!dropdownOpen)}
-                        >
-                          <Text style={{ fontSize: 14, fontFamily: typography.fontSemiBold, color: selectedUni ? theme.text : theme.textMuted }}>
-                            {selectedUni ? `${selectedUni.name} (${selectedUni.short_name})` : 'Select a university...'}
-                          </Text>
-                          <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.textMuted} />
-                        </TouchableOpacity>
-                        {dropdownOpen && (
-                          <View style={{
-                            marginTop: 4,
-                            borderRadius: 12,
-                            borderWidth: 1,
-                            borderColor: theme.border,
-                            backgroundColor: theme.card,
-                            overflow: 'hidden',
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.15,
-                            shadowRadius: 4,
-                            elevation: 4,
-                          }}>
-                            {filteredUnis.map((uni) => (
-                              <TouchableOpacity
-                                key={uni.id}
-                                style={{
-                                  padding: 14,
-                                  borderBottomWidth: 0.5,
-                                  borderBottomColor: theme.border,
-                                  backgroundColor: selectedUni?.id === uni.id ? `${uni.primary_color}12` : 'transparent',
-                                }}
-                                onPress={() => {
-                                  setSelectedUni(uni);
-                                  setDropdownOpen(false);
-                                }}
-                              >
-                                <Text style={{ fontSize: 13, fontFamily: typography.fontSemiBold, color: theme.text }}>
-                                  {uni.name} ({uni.short_name})
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
+                    <View style={{ zIndex: 1000 }}>
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: 14,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                          backgroundColor: theme.card,
+                        }}
+                        onPress={() => setDropdownOpen(!dropdownOpen)}
+                      >
+                        <Text style={{ fontSize: 14, fontFamily: typography.fontSemiBold, color: selectedUni ? theme.text : theme.textMuted }}>
+                          {selectedUni ? `${selectedUni.name} (${selectedUni.short_name})` : 'Select a university...'}
+                        </Text>
+                        <Ionicons name={dropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.textMuted} />
+                      </TouchableOpacity>
+                      {dropdownOpen && (
+                        <View style={{
+                          marginTop: 4,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                          backgroundColor: theme.card,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 4,
+                          elevation: 4,
+                          maxHeight: 280,
+                        }}>
+                          {/* Search Input */}
+                          <View style={{ padding: 8, borderBottomWidth: 0.5, borderBottomColor: theme.border }}>
+                            <TextInput
+                              style={{
+                                padding: 10,
+                                borderRadius: 8,
+                                borderWidth: 0.5,
+                                borderColor: theme.border,
+                                color: theme.text,
+                                backgroundColor: theme.card2,
+                                fontSize: 13,
+                                fontFamily: typography.fontMedium,
+                              }}
+                              placeholder="Search university..."
+                              placeholderTextColor={theme.textMuted}
+                              value={uniSearchQuery}
+                              onChangeText={setUniSearchQuery}
+                            />
                           </View>
-                        )}
-                      </View>
-                    )}
+                          {/* Scrollable list */}
+                          <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled={true}>
+                            {filteredUnis
+                              .filter(uni => 
+                                uni.name.toLowerCase().includes(uniSearchQuery.toLowerCase()) || 
+                                uni.short_name.toLowerCase().includes(uniSearchQuery.toLowerCase())
+                              )
+                              .map((uni) => (
+                                <TouchableOpacity
+                                  key={uni.id}
+                                  style={{
+                                    padding: 14,
+                                    borderBottomWidth: 0.5,
+                                    borderBottomColor: theme.border,
+                                    backgroundColor: selectedUni?.id === uni.id ? `${uni.primary_color}12` : 'transparent',
+                                  }}
+                                  onPress={() => {
+                                    setSelectedUni(uni);
+                                    setDropdownOpen(false);
+                                    setUniSearchQuery('');
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 13, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                                    {uni.name} ({uni.short_name})
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
                     {selectedUni && (
                       <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 6, fontFamily: typography.fontRegular }}>
                         Requires email ending with: <Text style={{ color: theme.accent, fontFamily: typography.fontSemiBold }}>@{selectedUni.domain}</Text>
@@ -799,11 +824,15 @@ export default function VerifyScreen() {
                 {mode !== 'forgot' && mode !== 'confirm' && (
                   <AnimatedInput
                     label={mode === 'reset' ? "New Password" : "Password"}
-                    placeholder={mode === 'signup' ? 'Min. 6 characters' : 'Your password'}
+                    placeholder={mode === 'signup' ? 'Min. 8 characters' : 'Your password'}
                     value={password}
                     onChangeText={setPassword}
                     isPassword
                   />
+                )}
+
+                {mode !== 'forgot' && mode !== 'confirm' && (mode === 'signup' || mode === 'reset') && password.length > 0 && (
+                  <PasswordStrengthMeter password={password} />
                 )}
 
                 {(mode === 'signin' || mode === 'signup') && (
@@ -911,11 +940,11 @@ export default function VerifyScreen() {
                 {mode === 'signup' && (
                   <Text style={[s.termsText, { color: theme.textFaint }]}>
                     By continuing you agree to our{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/terms')}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => { setModalType('terms'); setShowTermsModal(true); }}>
                       Terms
                     </Text>{" "}
                     and{" "}
-                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => Linking.openURL('https://fafcampus.site/privacy')}>
+                    <Text style={[s.termsLink, { color: theme.accent }]} onPress={() => { setModalType('privacy'); setShowTermsModal(true); }}>
                       Privacy Policy
                     </Text>
                   </Text>
@@ -933,8 +962,76 @@ export default function VerifyScreen() {
               </View>
             </Animated.View>
           </ScrollView>
+
+          {/* Terms & Privacy Local Modal */}
+          <Modal visible={showTermsModal} animationType="slide" transparent onRequestClose={() => setShowTermsModal(false)}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+              <View style={{ height: '70%', backgroundColor: theme.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, borderTopWidth: 1, borderTopColor: theme.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ fontSize: 18, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                    {modalType === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowTermsModal(false)} style={{ padding: 6, backgroundColor: theme.card, borderRadius: 20 }}>
+                    <Ionicons name="close" size={20} color={theme.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+                  {modalType === 'terms' ? (
+                    <Text style={{ fontSize: 13, color: theme.textMuted, lineHeight: 20, fontFamily: typography.fontRegular }}>
+                      Welcome to Find-A-Friend (FAF). By creating an account or using our application, you agree to these Terms of Service.{"\n\n"}
+                      1. Eligible Users: FAF is designed for university students. You must register with a valid email address. If using a personal/non-school email address, you must upload your university student ID for manual verification.{"\n\n"}
+                      2. User Conduct: You are responsible for all activity under your account. You agree not to upload any harassing, offensive, or illegal content. Anonymous posts are audited and will be traced back to your account in the event of harassment or policy violations.{"\n\n"}
+                      3. Termination: We reserve the right to suspend or terminate accounts that violate our community standards or terms of service at any time without notice.{"\n\n"}
+                      4. Intellectual Property: All application assets, features, and source code belong to the FAF development team.
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: theme.textMuted, lineHeight: 20, fontFamily: typography.fontRegular }}>
+                      Privacy Policy for Find-A-Friend. We take your privacy very seriously.{"\n\n"}
+                      1. Information Collection: We collect your name, university email, gender, and school details. If manual verification is required, we securely store your student ID photo.{"\n\n"}
+                      2. Use of Information: We use this information strictly to provide campus-specific features, matching services, and for security audits. Your student ID is private and is only viewed by our verification administrators.{"\n\n"}
+                      3. Direct Chat Encryption: All private messages, media files, and stickers are encrypted end-to-end (E2EE) prior to storage, preventing database operators from viewing your communications.{"\n\n"}
+                      4. Data Control: You can request to delete your account and all associated data at any time from the app Settings.
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            </SafeAreaView>
+          </Modal>
         </KeyboardAvoidingView>
       </SafeAreaView>
+    </View>
+  );
+}
+
+// Password Strength Meter Component
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const theme = useTheme();
+  if (!password) return null;
+
+  const err = validatePasswordStrength(password);
+  let label = "Strong";
+  let color = "#10b981"; // green
+  let width = "100%";
+  
+  if (password.length < 8) {
+    label = "Weak (Needs 8+ characters)";
+    color = "#ef4444"; // red
+    width = "33%";
+  } else if (err) {
+    label = `Medium (${err.replace('Password must contain at least one ', 'needs ')})`;
+    color = "#f59e0b"; // amber
+    width = "66%";
+  }
+
+  return (
+    <View style={{ marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, fontFamily: typography.fontRegular, color: theme.textMuted }}>Password Strength:</Text>
+        <Text style={{ fontSize: 11, fontFamily: typography.fontBold, color }}>{label}</Text>
+      </View>
+      <View style={{ height: 4, width: '100%', backgroundColor: theme.card2, borderRadius: 2, overflow: 'hidden' }}>
+        <View style={{ height: '100%', width, backgroundColor: color, borderRadius: 2 }} />
+      </View>
     </View>
   );
 }

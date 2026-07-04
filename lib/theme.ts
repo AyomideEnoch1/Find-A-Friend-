@@ -349,29 +349,21 @@ const ACCENT_OVERRIDES: Record<
   },
 };
 
-export function useTheme(): ThemeColors {
+export function useTheme(options?: { isChat?: boolean }): ThemeColors {
   const theme = useContext(ThemeContext);
   const { activeUniversity, feedMode, mode, accent } = useThemeStore();
 
+  // 1. Determine base theme (cosmic for global feed, standard light/dark for campus feed)
+  let resolvedTheme = { ...theme };
   if (feedMode === 'global') {
-    return mode === 'light' ? COSMIC_LIGHT : COSMIC_THEME;
+    resolvedTheme = mode === 'light' ? { ...COSMIC_LIGHT } : { ...COSMIC_THEME };
   }
 
-  let resolvedTheme = { ...theme };
-
-  // Apply user-selected accent color overrides if not overridden by activeUniversity
-  if (!activeUniversity && accent && ACCENT_OVERRIDES[accent]) {
-    const overrides = theme.dark
-      ? ACCENT_OVERRIDES[accent].dark
-      : ACCENT_OVERRIDES[accent].light;
-    resolvedTheme = {
-      ...resolvedTheme,
-      ...overrides,
-    };
-  } else if (activeUniversity) {
-    const isDark = theme.dark;
-    const resolvedAccent = adjustColorForContrast(activeUniversity.primary_color, isDark, theme.accent);
-    const resolvedSecondary = adjustColorForContrast(activeUniversity.secondary_color, isDark, theme.accentSecondary);
+  // 2. Apply university colors if in campus feed and university is active
+  if (feedMode !== 'global' && activeUniversity) {
+    const isDark = resolvedTheme.dark;
+    const resolvedAccent = adjustColorForContrast(activeUniversity.primary_color, isDark, resolvedTheme.accent);
+    const resolvedSecondary = adjustColorForContrast(activeUniversity.secondary_color, isDark, resolvedTheme.accentSecondary);
     resolvedTheme = {
       ...resolvedTheme,
       accent: resolvedAccent,
@@ -382,5 +374,17 @@ export function useTheme(): ThemeColors {
     };
   }
 
+  // 3. Override accent colors if a custom accent (other than 'purple') is selected AND isChat is true
+  if (options?.isChat && accent && accent !== 'purple' && ACCENT_OVERRIDES[accent]) {
+    const overrides = resolvedTheme.dark
+      ? ACCENT_OVERRIDES[accent].dark
+      : ACCENT_OVERRIDES[accent].light;
+    resolvedTheme = {
+      ...resolvedTheme,
+      ...overrides,
+    };
+  }
+
   return resolvedTheme;
 }
+

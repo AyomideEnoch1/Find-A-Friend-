@@ -55,6 +55,7 @@ import { useTheme } from "../../lib/theme";
 import { typography } from "../../lib/typography";
 import { usePresenceStore } from "../../store/presenceStore";
 import { useStickerStore } from "../../store/stickerStore";
+import { encryptMessage, decryptMessage } from "../../lib/crypto";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -281,7 +282,7 @@ function ScanLine({ isOnline }: { isOnline: boolean }) {
 // ─── Day separator ────────────────────────────────────────────────────────────
 
 function DaySeparator({ label }: { label: string }) {
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
   return (
     <View style={ds.wrap}>
       <View style={[ds.line, { backgroundColor: theme.border }]} />
@@ -318,7 +319,7 @@ const ds = StyleSheet.create({
 // ─── Empty state with pulse ───────────────────────────────────────────────────
 
 function EmptyState({ name }: { name: string }) {
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -451,9 +452,10 @@ export default function DirectMessageScreen() {
   );
   const [reactions, setReactions] = useState<Record<string, string[]>>({})
   const [chatStreak, setChatStreak] = useState({ streak_count: 0, at_risk: false, increased: false })
+  const [showStreakModal, setShowStreakModal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
-  const theme = useTheme();
+  const theme = useTheme({ isChat: true });
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
@@ -497,7 +499,11 @@ export default function DirectMessageScreen() {
         .select("*, profiles!sender_id(id, full_name, avatar_url)")
         .eq("conversation_id", cid)
         .order("created_at", { ascending: true });
-      setMessages(msgs ?? []);
+      const decrypted = (msgs ?? []).map((m) => ({
+        ...m,
+        body: decryptMessage(m.body, cid),
+      }));
+      setMessages(decrypted);
       setLoading(false);
       setTimeout(
         () => scrollRef.current?.scrollToEnd({ animated: false }),
@@ -542,14 +548,18 @@ export default function DirectMessageScreen() {
 
     const syncMessages = async () => {
       try {
-        const { data: msgs, error } = await supabase
+        const { data: rawMsgs, error } = await supabase
           .from("messages")
           .select("*, profiles!sender_id(id, full_name, avatar_url)")
           .eq("conversation_id", convId)
           .order("created_at", { ascending: true });
 
         if (error) throw error;
-        if (msgs) {
+        if (rawMsgs) {
+          const msgs = rawMsgs.map((m) => ({
+            ...m,
+            body: decryptMessage(m.body, convId),
+          }));
           setMessages((prev) => {
             // Check if there are any differences in the list to avoid redrawing/re-scrolling
             const prevSignature = prev.map((m) => `${m.id}-${m.is_read}-${m.body}`).join(',');
@@ -706,7 +716,7 @@ export default function DirectMessageScreen() {
     const { error: sendError } = await supabase.from("messages").insert({
       conversation_id: convId,
       sender_id: myId,
-      body: payload,
+      body: encryptMessage(payload, convId),
     });
     setSending(false);
     if (sendError) {
@@ -777,7 +787,7 @@ export default function DirectMessageScreen() {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
       await supabase
         .from("messages")
-        .insert({ conversation_id: convId, sender_id: myId, body });
+        .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId) });
     } catch (err: any) {
       Toast.show({
         type: "error",
@@ -862,7 +872,7 @@ export default function DirectMessageScreen() {
           );
           const { error } = await supabase
             .from("messages")
-            .insert({ conversation_id: convId, sender_id: myId, body });
+            .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId) });
           if (error) {
             setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
             Toast.show({
@@ -964,16 +974,19 @@ export default function DirectMessageScreen() {
                   {otherName}
                 </Text>
                 {chatStreak.streak_count > 0 && (
-                  <View style={[
-                    s.streakChip,
-                    chatStreak.at_risk
-                      ? { backgroundColor: 'rgba(251,191,36,0.15)', borderColor: 'rgba(251,191,36,0.35)' }
-                      : { backgroundColor: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.35)' },
-                  ]}>
+                  <TouchableOpacity
+                    onPress={() => setShowStreakModal(true)}
+                    activeOpacity={0.7}
+                    style={[
+                      s.streakChip,
+                      chatStreak.at_risk
+                        ? { backgroundColor: 'rgba(251,191,36,0.15)', borderColor: 'rgba(251,191,36,0.35)' }
+                        : { backgroundColor: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.35)' },
+                    ]}>
                     <Text style={s.streakChipText}>
                       {chatStreak.at_risk ? '⌛' : '🔥'} {chatStreak.streak_count}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 )}
               </View>
               <Text
@@ -1018,6 +1031,17 @@ export default function DirectMessageScreen() {
               }
             >
               <Ionicons name="call-outline" size={20} color={theme.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.headerIconBtn}
+              hitSlop={8}
+              onPress={() => router.push("/appearance" as any)}
+            >
+              <Ionicons
+                name="color-palette-outline"
+                size={22}
+                color={theme.textMuted}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={s.headerIconBtn}
@@ -1150,9 +1174,9 @@ export default function DirectMessageScreen() {
                               ? [
                                   s.bubbleMine,
                                   {
-                                    // Sent: purple tint matching app theme
-                                    backgroundColor: "rgba(167,139,250,0.25)",
-                                    shadowColor: "#a78bfa",
+                                    // Sent: accent tint matching active accent
+                                    backgroundColor: `${theme.accent}40`,
+                                    shadowColor: theme.accent,
                                     shadowOffset: { width: 0, height: 2 },
                                     shadowOpacity: m._optimistic ? 0.1 : 0.35,
                                     shadowRadius: 8,
@@ -1165,7 +1189,7 @@ export default function DirectMessageScreen() {
                                   {
                                     // Received: dark card background
                                     backgroundColor: "rgba(255,255,255,0.07)",
-                                    borderColor: "rgba(167,139,250,0.12)",
+                                    borderColor: `${theme.accent}20`,
                                   },
                                 ],
                             m._optimistic && { opacity: 0.6 },
@@ -1413,6 +1437,41 @@ export default function DirectMessageScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Clickable Streak Details Modal */}
+      <Modal visible={showStreakModal} animationType="slide" transparent onRequestClose={() => setShowStreakModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ height: '50%', backgroundColor: theme.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, borderTopWidth: 1, borderTopColor: theme.border }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontFamily: typography.fontSemiBold, color: theme.text }}>
+                🔥 Streak Details
+              </Text>
+              <TouchableOpacity onPress={() => setShowStreakModal(false)} style={{ padding: 6, backgroundColor: theme.card, borderRadius: 20 }}>
+                <Ionicons name="close" size={20} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24, gap: 14 }}>
+              <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                <Text style={{ fontSize: 48, marginBottom: 8 }}>🔥</Text>
+                <Text style={{ fontSize: 24, fontFamily: typography.fontBold, color: theme.text }}>
+                  {chatStreak.streak_count} Day Streak!
+                </Text>
+                <Text style={{ fontSize: 13, color: chatStreak.at_risk ? '#f59e0b' : '#10b981', marginTop: 4, fontFamily: typography.fontSemiBold }}>
+                  {chatStreak.at_risk ? '⌛ Streak is at risk! Message each other today.' : '✅ Streak is active and safe today.'}
+                </Text>
+              </View>
+              <View style={{ gap: 8, backgroundColor: theme.card, padding: 14, borderRadius: 12, borderWidth: 0.5, borderColor: theme.border }}>
+                <Text style={{ fontSize: 13, fontFamily: typography.fontSemiBold, color: theme.text }}>How to maintain streaks:</Text>
+                <Text style={{ fontSize: 11, color: theme.textMuted, lineHeight: 16 }}>
+                  • Both you and {otherName} must send at least one message every 24 hours.{"\n"}
+                  • If 24 hours pass without a message from either side, the streak will break.{"\n"}
+                  • The hourglass icon (⌛) will appear when the streak is less than 4 hours from breaking!
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

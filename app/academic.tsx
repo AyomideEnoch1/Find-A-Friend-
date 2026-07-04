@@ -178,6 +178,16 @@ export default function AcademicScreen() {
   const [courses, setCourses] = useState<Course[]>([])
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([])
   const [resources, setResources] = useState<AcademicResource[]>([])
+  const [activeResourceSegment, setActiveResourceSegment] = useState<'all' | 'note' | 'past_question' | 'textbook' | 'slide' | 'other'>('all')
+
+  const segments = [
+    { label: 'All', value: 'all' as const },
+    { label: 'Notes', value: 'note' as const },
+    { label: 'Past Questions', value: 'past_question' as const },
+    { label: 'Textbooks', value: 'textbook' as const },
+    { label: 'Slides', value: 'slide' as const },
+    { label: 'Others', value: 'other' as const },
+  ]
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -306,6 +316,11 @@ export default function AcademicScreen() {
     }
 
     // Resources tab
+    const filteredResources = resources.filter(res => {
+      const matchesSegment = activeResourceSegment === 'all' || res.resource_type === activeResourceSegment
+      return matchesSegment
+    })
+
     return (
       <>
         <View style={[s.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -323,8 +338,41 @@ export default function AcademicScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Segmented Horizontal Tabs */}
+        <View style={{ marginBottom: 12 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+          >
+            {segments.map((seg) => {
+              const isActive = activeResourceSegment === seg.value
+              return (
+                <TouchableOpacity
+                  key={seg.value}
+                  style={[
+                    s.subTab,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                    isActive && { backgroundColor: theme.accentBg, borderColor: theme.accentBorder }
+                  ]}
+                  onPress={() => setActiveResourceSegment(seg.value)}
+                >
+                  <Text style={[
+                    s.subTabText,
+                    { color: theme.textMuted },
+                    isActive && { color: theme.accent, fontFamily: typography.fontBold }
+                  ]}>
+                    {seg.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        </View>
+
         <FlatList
-          data={resources}
+          data={filteredResources}
           keyExtractor={item => item.id}
           renderItem={({ item }) => <ResourceRow resource={item} />}
           ListEmptyComponent={
@@ -528,5 +576,12 @@ const s = StyleSheet.create({
     backgroundColor: '#a78bfa', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#a78bfa', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+  },
+  subTab: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16,
+    borderWidth: 0.5, alignItems: 'center', justifyContent: 'center'
+  },
+  subTabText: {
+    fontSize: 12, fontFamily: typography.fontMedium
   },
 })
