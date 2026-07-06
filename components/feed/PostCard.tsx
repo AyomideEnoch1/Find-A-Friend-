@@ -112,8 +112,9 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
   React.useEffect(() => {
     if (!post.id) return;
 
+    const uniqueChannelName = `post-views-${post.id}-${Math.random().toString(36).substring(7)}`;
     const channel = supabase
-      .channel(`post-views:${post.id}`)
+      .channel(uniqueChannelName)
       .on(
         "postgres_changes",
         {
@@ -138,10 +139,14 @@ export default function PostCard({ post, isViewable = true }: PostCardProps) {
   React.useEffect(() => {
     if (isViewable && post.id && !hasIncremented.current) {
       hasIncremented.current = true;
-      supabase
-        .rpc("increment_post_views", { post_id: post.id })
-        .then(() => {})
-        .catch((err) => console.warn("Failed to increment views:", err));
+      const incrementViews = async () => {
+        try {
+          await supabase.rpc("increment_post_views", { post_id: post.id });
+        } catch (err) {
+          console.warn("Failed to increment views:", err);
+        }
+      };
+      incrementViews();
     }
   }, [isViewable, post.id]);
 

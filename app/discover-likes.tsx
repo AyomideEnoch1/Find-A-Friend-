@@ -12,8 +12,7 @@ import { getLikesReceived, getMutualLikes, likeUser } from '../lib/discoverLikes
 import { followUser } from '../lib/follows'
 import { getInitials } from '../lib/matching'
 import type { FollowProfile } from '../lib/follows'
-import { client } from '../lib/aws'
-import { getCurrentUser } from 'aws-amplify/auth'
+import { supabase } from '../lib/supabase'
 import Toast from 'react-native-toast-message'
 
 
@@ -102,7 +101,7 @@ export default function DiscoverLikesScreen() {
     load()
 
     let sub: any = null
-    getCurrentUser().then((user) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       // TODO: Complex realtime channel
     })

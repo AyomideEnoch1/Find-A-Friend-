@@ -54,6 +54,7 @@ export interface FeedPost {
   is_bookmarked?: boolean;
   // Reposted original post (populated when repost_of != null)
   original_post?: FeedPost | null;
+  views_count?: number;
 }
 
 export interface PostComment {

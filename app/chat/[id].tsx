@@ -872,7 +872,7 @@ export default function DirectMessageScreen() {
           );
           const { error } = await supabase
             .from("messages")
-            .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId) });
+            .insert({ conversation_id: convId, sender_id: myId, body: encryptMessage(body, convId || '') });
           if (error) {
             setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
             Toast.show({

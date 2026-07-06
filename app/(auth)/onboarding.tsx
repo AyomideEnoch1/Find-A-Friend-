@@ -2,9 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState } from 'react'
 import { router } from 'expo-router'
-import { client } from '../../lib/aws'
 import { supabase } from '../../lib/supabase'
-import { getCurrentUser } from 'aws-amplify/auth'
 import { useTheme } from '../../lib/theme'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { registerForPushNotifications, savePushToken, subscribeToWebPush } from '../../lib/notifications'
@@ -54,7 +52,7 @@ export default function OnboardingScreen() {
   }
   setLoading(true)
 
-  const user = await getCurrentUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     Alert.alert('Error', 'Not logged in')
     setLoading(false)
@@ -66,7 +64,7 @@ export default function OnboardingScreen() {
   let savedUniId = null
   let savedInviteCode: string | null = null
   try {
-    const wasVerifiedViaCode = await AsyncStorage.getItem('verified_via_code_' + user.username)
+    const wasVerifiedViaCode = await AsyncStorage.getItem('verified_via_code_' + (user.email ?? ''))
     if (wasVerifiedViaCode === 'true') {
       badgeType = 'verified'
       badgeColor = '#a78bfa'
@@ -77,11 +75,31 @@ export default function OnboardingScreen() {
     console.warn('Failed to read flag or university id from storage:', e)
   }
 
+  // Self-healing check: delete orphan profile records with the same email
+  try {
+    if (user.email) {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (existingProfile && existingProfile.id !== user.id) {
+        await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', existingProfile.id);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to clean up orphan profiles:', err);
+  }
+
   const { error } = await supabase
     .from('profiles')
     .upsert({
-      id: user.userId,
-      email: user.username,
+      id: user.id,
+      email: user.email,
       full_name: fullName.trim(),
       department: department === 'Other' ? manualDepartment.trim() : department,
       level,
@@ -108,7 +126,7 @@ export default function OnboardingScreen() {
     // is the perfect place to do it before navigating away.
     if (Platform.OS === 'web') {
       try {
-        await subscribeToWebPush(user.userId)
+        await subscribeToWebPush(user.id)
       } catch {}
     }
 
