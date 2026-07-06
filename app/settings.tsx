@@ -51,11 +51,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!inviteCode) return
 
+    const uniqueChannelName = `realtime-referrals-count-${inviteCode}-${Math.random().toString(36).substring(7)}`;
     const channel = supabase
-      .channel('realtime-referrals-count')
+      .channel(uniqueChannelName)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'profiles' },
+        { event: '*', schema: 'public', table: 'profiles' },
         () => {
           fetchReferralStats(inviteCode)
         }
