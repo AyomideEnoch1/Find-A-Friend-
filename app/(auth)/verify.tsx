@@ -389,7 +389,12 @@ export default function VerifyScreen() {
       const { error } = await (supabase.auth as any).updateUserPassword(trimmedEmail, code, password)
       setLoading(false)
       if (error) {
-        Toast.show({ type: 'error', text1: 'Reset failed', text2: error.message })
+        const isWeak = error.message.toLowerCase().includes("weak") || error.message.toLowerCase().includes("character");
+        Toast.show({
+          type: 'error',
+          text1: isWeak ? 'Weak password' : 'Reset failed',
+          text2: isWeak ? "Your password is weak. Please choose a stronger password or click 'Forgot password?' below." : error.message
+        })
       } else {
         Toast.show({ type: 'success', text1: 'Password reset successful', text2: 'You can now sign in' })
         setMode('signin')
@@ -446,14 +451,16 @@ export default function VerifyScreen() {
       });
       return;
     }
-    const pwdError = validatePasswordStrength(password);
-    if (pwdError) {
-      Toast.show({
-        type: "error",
-        text1: "Weak password",
-        text2: pwdError,
-      });
-      return;
+    if (mode === "signup") {
+      const pwdError = validatePasswordStrength(password);
+      if (pwdError) {
+        Toast.show({
+          type: "error",
+          text1: "Weak password",
+          text2: pwdError + " If you already have an account, click 'Forgot password?' below to reset it.",
+        });
+        return;
+      }
     }
     if (mode === "signup" && password !== confirmPassword) {
       Toast.show({
@@ -497,10 +504,11 @@ export default function VerifyScreen() {
           });
           setMode("signin");
         } else {
+          const isWeak = error.message.toLowerCase().includes("weak") || error.message.toLowerCase().includes("character");
           Toast.show({
             type: "error",
-            text1: "Sign up failed",
-            text2: error.message,
+            text1: isWeak ? "Weak password" : "Sign up failed",
+            text2: isWeak ? "Your password is weak. Please reset your password by clicking 'Forgot password?' below." : error.message,
           });
         }
         return;
@@ -1011,7 +1019,7 @@ function PasswordStrengthMeter({ password }: { password: string }) {
   const err = validatePasswordStrength(password);
   let label = "Strong";
   let color = "#10b981"; // green
-  let width = "100%";
+  let width: any = "100%";
   
   if (password.length < 8) {
     label = "Weak (Needs 8+ characters)";

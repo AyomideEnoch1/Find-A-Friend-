@@ -59,6 +59,8 @@ import { useFeedStore } from "../../store/feedStore";
 import { useNotificationsStore } from "../../store/notificationsStore";
 import { useStreakStore } from "../../store/streakStore";
 import { useThemeStore } from "../../store/themeStore";
+import { supabase } from "../../lib/supabase";
+import { useGuideStore } from "../../store/guideStore";
 
 function PostSkeleton() {
   const theme = useTheme();
@@ -250,6 +252,7 @@ export default function HomeScreen() {
   ).current;
 
   // Sidebar and Stats States
+  const { startTour } = useGuideStore();
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [stats, setStats] = useState<ProfileStats>({
     posts: 0,
@@ -997,6 +1000,12 @@ export default function HomeScreen() {
         route: "/vendors",
       },
       {
+        iconName: "help-circle-outline",
+        title: "App Tour Guide",
+        subtitle: "Replay interactive guide",
+        route: "guide",
+      },
+      {
         iconName: "person-outline",
         title: "Edit profile",
         subtitle: "Bio, photo & interests",
@@ -1175,7 +1184,11 @@ export default function HomeScreen() {
                       ]}
                       onPress={() => {
                         closeSidebar();
-                        router.push(feature.route as any);
+                        if (feature.route === "guide") {
+                          startTour();
+                        } else {
+                          router.push(feature.route as any);
+                        }
                       }}
                     >
                       <View
@@ -1338,14 +1351,12 @@ export default function HomeScreen() {
 
       <StoryViewer />
       {renderSidebar()}
-      {feedMode === "global" && (
-        <GuideBanner
-          storageKey="guide_dismissed_home"
-          title="Welcome to Find-A-Friend! 🌐"
-          message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
-          topOffset={70}
-        />
-      )}
+      <GuideBanner
+        storageKey="guide_dismissed_home"
+        title="Welcome to Find-A-Friend! 🌐"
+        message="Tap the top-left App Logo to open your sidebar menu, view profile stats, edit settings, and access other features. Swipe down to refresh the feed!"
+        topOffset={70}
+      />
     </SafeAreaView>
   );
 }

@@ -6,86 +6,87 @@
  * query level. Anonymous posts are only fetched through the anonymous board
  * screens which use dedicated queries.
  */
-import { supabase } from './supabase'
+import { supabase } from "./supabase";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface FeedAuthor {
-  id: string
-  full_name: string | null
-  department: string | null
-  level: string | null
-  avatar_url: string | null
-  role?: string | null
-  badge_type?: string | null
-  badge_color?: string | null
-  university_id?: string | null
+  id: string;
+  full_name: string | null;
+  department: string | null;
+  level: string | null;
+  avatar_url: string | null;
+  role?: string | null;
+  badge_type?: string | null;
+  badge_color?: string | null;
+  university_id?: string | null;
   universities?: {
-    id: string
-    name: string
-    short_name: string
-    primary_color: string
-    secondary_color: string
-    logo_url: string | null
-  } | null
+    id: string;
+    name: string;
+    short_name: string;
+    primary_color: string;
+    secondary_color: string;
+    logo_url: string | null;
+  } | null;
 }
 
 export interface FeedPost {
-  id: string
-  body: string
-  tags: string[] | null
-  image_url: string | null
-  is_anonymous: boolean
-  post_type: 'feed' | 'anonymous' | 'club' | 'academic'
-  club_id: string | null
-  study_group_id: string | null
-  repost_of: string | null
-  repost_count: number
-  likes_count: number
-  comments_count: number
-  author_id: string | null  // null when is_anonymous = true
-  created_at: string
-  profiles?: FeedAuthor | null
-  clubs?: { id: string; name: string } | null
+  id: string;
+  body: string;
+  tags: string[] | null;
+  image_url: string | null;
+  is_anonymous: boolean;
+  post_type: "feed" | "anonymous" | "club" | "academic";
+  club_id: string | null;
+  study_group_id: string | null;
+  repost_of: string | null;
+  repost_count: number;
+  likes_count: number;
+  comments_count: number;
+  author_id: string | null; // null when is_anonymous = true
+  created_at: string;
+  profiles?: FeedAuthor | null;
+  clubs?: { id: string; name: string } | null;
   // Client-side derived fields
-  is_liked?: boolean
-  is_bookmarked?: boolean
+  is_liked?: boolean;
+  is_bookmarked?: boolean;
   // Reposted original post (populated when repost_of != null)
-  original_post?: FeedPost | null
+  original_post?: FeedPost | null;
+  views_count?: number;
 }
 
 export interface PostComment {
-  id: string
-  post_id: string
-  parent_id?: string | null
-  author_id: string | null  // null when is_anonymous = true
-  body: string
-  media_url?: string | null
-  media_type?: string | null
-  is_anonymous: boolean
-  created_at: string
-  profiles?: FeedAuthor | null
-  likes_count?: number
+  id: string;
+  post_id: string;
+  parent_id?: string | null;
+  author_id: string | null; // null when is_anonymous = true
+  body: string;
+  media_url?: string | null;
+  media_type?: string | null;
+  is_anonymous: boolean;
+  created_at: string;
+  profiles?: FeedAuthor | null;
+  likes_count?: number;
 }
 
 export interface TrendingHashtag {
-  hashtag_id: string
-  post_count: number
-  updated_at: string
-  hashtags?: { tag: string }
+  hashtag_id: string;
+  post_count: number;
+  updated_at: string;
+  hashtags?: { tag: string };
 }
 
 export interface CreatePostPayload {
-  body: string
-  tags?: string[]
-  imageUrl?: string | null
-  isAnonymous?: boolean
-  clubId?: string | null
-  studyGroupId?: string | null
-  postType?: 'feed' | 'anonymous' | 'club' | 'academic'
-  postedToGlobalHub?: boolean
+  body: string;
+  tags?: string[];
+  imageUrl?: string | null;
+  isAnonymous?: boolean;
+  clubId?: string | null;
+  studyGroupId?: string | null;
+  postType?: "feed" | "anonymous" | "club" | "academic";
+  postedToGlobalHub?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,25 +94,27 @@ export interface CreatePostPayload {
 // ---------------------------------------------------------------------------
 
 const POST_SELECT =
-  '*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count))'
+  "*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count), original_post:repost_of(*, clubs(id, name), profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color, university_id, universities(id, name, short_name, primary_color, secondary_color)), post_likes(count), post_comments(count), reposts(count))";
 
 function toFeedPost(raw: any): FeedPost {
-  if (!raw) return raw
-  const { post_likes, post_comments, reposts, original_post, ...rest } = raw
+  if (!raw) return raw;
+  const { post_likes, post_comments, reposts, original_post, ...rest } = raw;
   const parsed = {
     ...rest,
-    likes_count:     post_likes?.[0]?.count    ?? rest.likes_count    ?? 0,
-    comments_count:  post_comments?.[0]?.count ?? rest.comments_count ?? 0,
-    repost_count:    reposts?.[0]?.count        ?? rest.repost_count   ?? 0,
-  } as FeedPost
+    likes_count: post_likes?.[0]?.count ?? rest.likes_count ?? 0,
+    comments_count: post_comments?.[0]?.count ?? rest.comments_count ?? 0,
+    repost_count: reposts?.[0]?.count ?? rest.repost_count ?? 0,
+  } as FeedPost;
 
   if (original_post) {
-    const rawOrig = Array.isArray(original_post) ? original_post[0] : original_post
+    const rawOrig = Array.isArray(original_post)
+      ? original_post[0]
+      : original_post;
     if (rawOrig) {
-      parsed.original_post = toFeedPost(rawOrig)
+      parsed.original_post = toFeedPost(rawOrig);
     }
   }
-  return parsed
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,40 +126,48 @@ function toFeedPost(raw: any): FeedPost {
  * @param cursor ISO timestamp — returns posts created before this time
  * @param limit  Number of posts to return (default 20)
  */
-export async function getFeed(cursor?: string, limit = 20, universityId?: string | null): Promise<{
-  data: FeedPost[] | null
-  error: Error | null
+export async function getFeed(
+  cursor?: string,
+  limit = 20,
+  universityId?: string | null,
+): Promise<{
+  data: FeedPost[] | null;
+  error: Error | null;
 }> {
   try {
-    let selectString = POST_SELECT
+    let selectString = POST_SELECT;
     if (universityId) {
       // Use inner join on profiles to filter out posts whose author is not from the specified university
-      selectString = POST_SELECT.replace('profiles!author_id', 'profiles!author_id!inner')
+      selectString = POST_SELECT.replace(
+        "profiles!author_id",
+        "profiles!author_id!inner",
+      );
     }
 
     let query = supabase
-      .from('posts')
+      .from("posts")
       .select(selectString)
-      .eq('is_anonymous', false)
-      .order('created_at', { ascending: false })
-      .limit(limit)
+      .eq("is_anonymous", false)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (cursor) {
-      query = query.lt('created_at', cursor)
+      query = query.lt("created_at", cursor);
     }
 
     if (universityId) {
-      query = query.eq('profiles.university_id', universityId)
-                   .eq('posted_to_global_hub', false)
+      query = query
+        .eq("profiles.university_id", universityId)
+        .eq("posted_to_global_hub", false);
     } else {
-      query = query.eq('posted_to_global_hub', true)
+      query = query.eq("posted_to_global_hub", true);
     }
 
-    const { data, error } = await query
-    if (error) throw error
-    return { data: (data as any[]).map(toFeedPost), error: null }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data: (data as any[]).map(toFeedPost), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -165,18 +176,20 @@ export async function getFeed(cursor?: string, limit = 20, universityId?: string
  * Hashtag parsing happens client-side to keep SQL simple.
  */
 export async function createPost(payload: CreatePostPayload): Promise<{
-  data: FeedPost | null
-  error: Error | null
+  data: FeedPost | null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
-    const isAnon = payload.isAnonymous ?? false
-    const postType = payload.postType ?? (isAnon ? 'anonymous' : 'feed')
+    const isAnon = payload.isAnonymous ?? false;
+    const postType = payload.postType ?? (isAnon ? "anonymous" : "feed");
 
     const { data: post, error: postError } = await supabase
-      .from('posts')
+      .from("posts")
       .insert({
         author_id: user.id,
         body: payload.body,
@@ -189,20 +202,20 @@ export async function createPost(payload: CreatePostPayload): Promise<{
         posted_to_global_hub: payload.postedToGlobalHub ?? false,
       })
       .select()
-      .single()
+      .single();
 
-    if (postError) throw postError
+    if (postError) throw postError;
 
     // Parse and upsert hashtags from the body text
-    const hashtagMatches = payload.body.match(/#(\w+)/g) ?? []
+    const hashtagMatches = payload.body.match(/#(\w+)/g) ?? [];
     if (hashtagMatches.length > 0) {
-      const tags = hashtagMatches.map(h => h.slice(1).toLowerCase())
-      await _upsertPostHashtags(post.id, tags)
+      const tags = hashtagMatches.map((h) => h.slice(1).toLowerCase());
+      await _upsertPostHashtags(post.id, tags);
     }
 
-    return { data: post as FeedPost, error: null }
+    return { data: post as FeedPost, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -211,15 +224,15 @@ async function _upsertPostHashtags(postId: string, tags: string[]) {
   for (const tag of tags) {
     // Upsert hashtag row
     const { data: hashtagRow } = await supabase
-      .from('hashtags')
-      .upsert({ tag }, { onConflict: 'tag' })
-      .select('id')
-      .single()
+      .from("hashtags")
+      .upsert({ tag }, { onConflict: "tag" })
+      .select("id")
+      .single();
 
     if (hashtagRow) {
       await supabase
-        .from('post_hashtags')
-        .upsert({ post_id: postId, hashtag_id: hashtagRow.id })
+        .from("post_hashtags")
+        .upsert({ post_id: postId, hashtag_id: hashtagRow.id });
     }
   }
 }
@@ -234,39 +247,42 @@ async function _upsertPostHashtags(postId: string, tags: string[]) {
  * is atomic with the post_likes insert/delete.
  */
 export async function likePost(postId: string): Promise<{
-  data: { liked: boolean } | null
-  error: Error | null
+  data: { liked: boolean } | null;
+  error: Error | null;
 }> {
   try {
-    const { data, error } = await supabase
-      .rpc('toggle_post_like', { p_post_id: postId })
-    if (error) throw error
-    return { data: data as { liked: boolean }, error: null }
+    const { data, error } = await supabase.rpc("toggle_post_like", {
+      p_post_id: postId,
+    });
+    if (error) throw error;
+    return { data: data as { liked: boolean }, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 /** Alias for likePost — kept for backwards compatibility with feed screens */
-export const unlikePost = likePost
+export const unlikePost = likePost;
 
 /**
  * Returns the set of post IDs that the current user has liked.
  * Used to hydrate the feed with liked state on initial load.
  */
 export async function getMyLikedPostIds(postIds: string[]): Promise<string[]> {
-  if (!postIds.length) return []
+  if (!postIds.length) return [];
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
 
   const { data } = await supabase
-    .from('post_likes')
-    .select('post_id')
-    .eq('user_id', user.id)
-    .in('post_id', postIds)
+    .from("post_likes")
+    .select("post_id")
+    .eq("user_id", user.id)
+    .in("post_id", postIds);
 
-  return (data ?? []).map((row: { post_id: string }) => row.post_id)
+  return (data ?? []).map((row: { post_id: string }) => row.post_id);
 }
 
 // ---------------------------------------------------------------------------
@@ -279,14 +295,16 @@ export async function commentOnPost(
   isAnonymous = false,
   parentId: string | null = null,
   mediaUrl: string | null = null,
-  mediaType: string | null = null
+  mediaType: string | null = null,
 ): Promise<{ data: PostComment | null; error: Error | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     const { data, error } = await supabase
-      .from('post_comments')
+      .from("post_comments")
       .insert({
         post_id: postId,
         parent_id: parentId,
@@ -296,116 +314,128 @@ export async function commentOnPost(
         media_type: mediaType,
         is_anonymous: isAnonymous,
       })
-      .select('*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)')
-      .single()
+      .select(
+        "*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)",
+      )
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
-    const comment = data as any
+    const comment = data as any;
     if (comment && comment.is_anonymous) {
-      comment.author_id = null
-      comment.profiles = null
+      comment.author_id = null;
+      comment.profiles = null;
     }
 
-    return { data: comment as PostComment, error: null }
+    return { data: comment as PostComment, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function getComments(postId: string): Promise<{
-  data: PostComment[] | null
-  error: Error | null
+  data: PostComment[] | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('post_comments')
-      .select('*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)')
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true })
+      .from("post_comments")
+      .select(
+        "*, profiles!author_id(id, full_name, department, level, avatar_url, role, badge_type, badge_color)",
+      )
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
 
-    if (error) throw error
+    if (error) throw error;
 
     const sanitized = (data ?? []).map((c: any) => {
       if (c.is_anonymous) {
-        return { ...c, author_id: null, profiles: null }
+        return { ...c, author_id: null, profiles: null };
       }
-      return c
-    })
+      return c;
+    });
 
-    return { data: sanitized as PostComment[], error: null }
+    return { data: sanitized as PostComment[], error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function deleteComment(commentId: string): Promise<{
-  data: null
-  error: Error | null
+  data: null;
+  error: Error | null;
 }> {
   try {
     const { error } = await supabase
-      .from('post_comments')
+      .from("post_comments")
       .delete()
-      .eq('id', commentId)
+      .eq("id", commentId);
 
-    if (error) throw error
-    return { data: null, error: null }
+    if (error) throw error;
+    return { data: null, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
-export async function toggleLikeComment(commentId: string): Promise<{ liked: boolean; error: Error | null }> {
+export async function toggleLikeComment(
+  commentId: string,
+): Promise<{ liked: boolean; error: Error | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     // Check if like exists
     const { data: existing } = await supabase
-      .from('post_comment_likes')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('comment_id', commentId)
-      .maybeSingle()
+      .from("post_comment_likes")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("comment_id", commentId)
+      .maybeSingle();
 
     if (existing) {
       const { error } = await supabase
-        .from('post_comment_likes')
+        .from("post_comment_likes")
         .delete()
-        .eq('user_id', user.id)
-        .eq('comment_id', commentId)
+        .eq("user_id", user.id)
+        .eq("comment_id", commentId);
 
-      if (error) throw error
-      return { liked: false, error: null }
+      if (error) throw error;
+      return { liked: false, error: null };
     } else {
       const { error } = await supabase
-        .from('post_comment_likes')
-        .insert({ user_id: user.id, comment_id: commentId })
+        .from("post_comment_likes")
+        .insert({ user_id: user.id, comment_id: commentId });
 
-      if (error) throw error
-      return { liked: true, error: null }
+      if (error) throw error;
+      return { liked: true, error: null };
     }
   } catch (err) {
-    return { liked: false, error: err as Error }
+    return { liked: false, error: err as Error };
   }
 }
 
-export async function getLikedCommentIds(postCommentIds: string[]): Promise<{ data: string[] | null; error: Error | null }> {
+export async function getLikedCommentIds(
+  postCommentIds: string[],
+): Promise<{ data: string[] | null; error: Error | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: [], error: null }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { data: [], error: null };
 
     const { data, error } = await supabase
-      .from('post_comment_likes')
-      .select('comment_id')
-      .eq('user_id', user.id)
-      .in('comment_id', postCommentIds)
+      .from("post_comment_likes")
+      .select("comment_id")
+      .eq("user_id", user.id)
+      .in("comment_id", postCommentIds);
 
-    if (error) throw error
-    return { data: (data ?? []).map(d => d.comment_id), error: null }
+    if (error) throw error;
+    return { data: (data ?? []).map((d) => d.comment_id), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -420,62 +450,66 @@ export async function getLikedCommentIds(postCommentIds: string[]): Promise<{ da
  */
 export async function repostPost(
   postId: string,
-  quoteBody?: string
+  quoteBody?: string,
 ): Promise<{ data: FeedPost | null; error: Error | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     // Guard: check if the user has already reposted this post
     const { data: existingRepost } = await supabase
-      .from('reposts')
-      .select('id')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .maybeSingle()
+      .from("reposts")
+      .select("id")
+      .eq("post_id", postId)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     if (existingRepost) {
-      throw new Error('You have already reposted this post')
+      throw new Error("You have already reposted this post");
     }
 
     // Fetch original post to copy its content into the repost row
     const { data: original, error: origError } = await supabase
-      .from('posts')
-      .select('body, tags, image_url')
-      .eq('id', postId)
-      .single()
+      .from("posts")
+      .select("body, tags, image_url")
+      .eq("id", postId)
+      .single();
 
-    if (origError) throw origError
+    if (origError) throw origError;
 
     // Insert the repost tracking record
     const { error: repostError } = await supabase
-      .from('reposts')
-      .insert({ post_id: postId, user_id: user.id, quote_body: quoteBody ?? null })
+      .from("reposts")
+      .insert({
+        post_id: postId,
+        user_id: user.id,
+        quote_body: quoteBody ?? null,
+      });
 
-    if (repostError) throw repostError
+    if (repostError) throw repostError;
 
     // Insert a new post entry that references the original
-    const newBody = quoteBody
-      ? quoteBody
-      : ''
+    const newBody = quoteBody ? quoteBody : "";
 
     const { data: newPost, error: newPostError } = await supabase
-      .from('posts')
+      .from("posts")
       .insert({
         author_id: user.id,
         body: newBody,
         tags: original.tags,
         image_url: original.image_url,
         repost_of: postId,
-        post_type: 'feed',
+        post_type: "feed",
       })
       .select(POST_SELECT)
-      .single()
+      .single();
 
-    if (newPostError) throw newPostError
-    return { data: toFeedPost(newPost), error: null }
+    if (newPostError) throw newPostError;
+    return { data: toFeedPost(newPost), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -486,68 +520,68 @@ export async function repostPost(
 export async function getHashtagPosts(
   tag: string,
   cursor?: string,
-  limit = 20
+  limit = 20,
 ): Promise<{ data: FeedPost[] | null; error: Error | null }> {
   try {
     // Resolve hashtag id
     const { data: hashtagRow, error: hError } = await supabase
-      .from('hashtags')
-      .select('id')
-      .eq('tag', tag.toLowerCase())
-      .single()
+      .from("hashtags")
+      .select("id")
+      .eq("tag", tag.toLowerCase())
+      .single();
 
     if (hError) {
-      if (hError.code === 'PGRST116') return { data: [], error: null }
-      throw hError
+      if (hError.code === "PGRST116") return { data: [], error: null };
+      throw hError;
     }
-    if (!hashtagRow) return { data: [], error: null }
+    if (!hashtagRow) return { data: [], error: null };
 
     // Get post IDs for this hashtag
     const { data: links, error: linkError } = await supabase
-      .from('post_hashtags')
-      .select('post_id')
-      .eq('hashtag_id', hashtagRow.id)
+      .from("post_hashtags")
+      .select("post_id")
+      .eq("hashtag_id", hashtagRow.id);
 
-    if (linkError) throw linkError
+    if (linkError) throw linkError;
 
-    const postIds = (links ?? []).map((l: { post_id: string }) => l.post_id)
-    if (!postIds.length) return { data: [], error: null }
+    const postIds = (links ?? []).map((l: { post_id: string }) => l.post_id);
+    if (!postIds.length) return { data: [], error: null };
 
     let query = supabase
-      .from('posts')
+      .from("posts")
       .select(POST_SELECT)
-      .in('id', postIds)
-      .eq('is_anonymous', false)
-      .order('created_at', { ascending: false })
-      .limit(limit)
+      .in("id", postIds)
+      .eq("is_anonymous", false)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (cursor) {
-      query = query.lt('created_at', cursor)
+      query = query.lt("created_at", cursor);
     }
 
-    const { data, error } = await query
-    if (error) throw error
-    return { data: (data as any[]).map(toFeedPost), error: null }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data: (data as any[]).map(toFeedPost), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function getTrending(): Promise<{
-  data: TrendingHashtag[] | null
-  error: Error | null
+  data: TrendingHashtag[] | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('trending_hashtags')
-      .select('*, hashtags(tag)')
-      .order('post_count', { ascending: false })
-      .limit(20)
+      .from("trending_hashtags")
+      .select("*, hashtags(tag)")
+      .order("post_count", { ascending: false })
+      .limit(20);
 
-    if (error) throw error
-    return { data: data as TrendingHashtag[], error: null }
+    if (error) throw error;
+    return { data: data as TrendingHashtag[], error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -556,69 +590,85 @@ export async function getTrending(): Promise<{
 // ---------------------------------------------------------------------------
 
 export async function bookmarkPost(postId: string): Promise<{
-  data: { bookmarked: boolean } | null
-  error: Error | null
+  data: { bookmarked: boolean } | null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     const { data: existing } = await supabase
-      .from('post_bookmarks')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('post_id', postId)
-      .maybeSingle()
+      .from("post_bookmarks")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("post_id", postId)
+      .maybeSingle();
 
     if (existing) {
-      await supabase.from('post_bookmarks').delete()
-        .eq('user_id', user.id).eq('post_id', postId)
-      return { data: { bookmarked: false }, error: null }
+      await supabase
+        .from("post_bookmarks")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("post_id", postId);
+      return { data: { bookmarked: false }, error: null };
     } else {
-      await supabase.from('post_bookmarks').insert({ user_id: user.id, post_id: postId })
-      return { data: { bookmarked: true }, error: null }
+      await supabase
+        .from("post_bookmarks")
+        .insert({ user_id: user.id, post_id: postId });
+      return { data: { bookmarked: true }, error: null };
     }
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
-export async function getBookmarkedPosts(): Promise<{ data: FeedPost[] | null; error: Error | null }> {
+export async function getBookmarkedPosts(): Promise<{
+  data: FeedPost[] | null;
+  error: Error | null;
+}> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
-    const bookmarkSelect = `post_id, posts(${POST_SELECT})`
+    const bookmarkSelect = `post_id, posts(${POST_SELECT})`;
 
     const { data, error } = await supabase
-      .from('post_bookmarks')
+      .from("post_bookmarks")
       .select(bookmarkSelect)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
     const posts = (data ?? [])
       .map((r: any) => r.posts)
       .filter(Boolean)
-      .map((raw: any) => ({ ...toFeedPost(raw), is_bookmarked: true }))
+      .map((raw: any) => ({ ...toFeedPost(raw), is_bookmarked: true }));
 
-    return { data: posts, error: null }
+    return { data: posts, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
-export async function getMyBookmarkedPostIds(postIds: string[]): Promise<string[]> {
-  if (!postIds.length) return []
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+export async function getMyBookmarkedPostIds(
+  postIds: string[],
+): Promise<string[]> {
+  if (!postIds.length) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
   const { data } = await supabase
-    .from('post_bookmarks')
-    .select('post_id')
-    .eq('user_id', user.id)
-    .in('post_id', postIds)
-  return (data ?? []).map((r: { post_id: string }) => r.post_id)
+    .from("post_bookmarks")
+    .select("post_id")
+    .eq("user_id", user.id)
+    .in("post_id", postIds);
+  return (data ?? []).map((r: { post_id: string }) => r.post_id);
 }
 
 // ---------------------------------------------------------------------------
@@ -628,50 +678,56 @@ export async function getMyBookmarkedPostIds(postIds: string[]): Promise<string[
 export async function getFollowingFeed(
   cursor?: string,
   limit = 20,
-  universityId?: string | null
+  universityId?: string | null,
 ): Promise<{ data: FeedPost[] | null; error: Error | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     const { data: followRows } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', user.id)
+      .from("follows")
+      .select("following_id")
+      .eq("follower_id", user.id);
 
     const followingIds: string[] = (followRows ?? []).map(
-      (r: { following_id: string }) => r.following_id
-    )
+      (r: { following_id: string }) => r.following_id,
+    );
 
-    if (!followingIds.length) return { data: [], error: null }
+    if (!followingIds.length) return { data: [], error: null };
 
-    let selectString = POST_SELECT
+    let selectString = POST_SELECT;
     if (universityId) {
-      selectString = POST_SELECT.replace('profiles!author_id', 'profiles!author_id!inner')
+      selectString = POST_SELECT.replace(
+        "profiles!author_id",
+        "profiles!author_id!inner",
+      );
     }
 
     let query = supabase
-      .from('posts')
+      .from("posts")
       .select(selectString)
-      .in('author_id', followingIds)
-      .eq('is_anonymous', false)
-      .order('created_at', { ascending: false })
-      .limit(limit)
+      .in("author_id", followingIds)
+      .eq("is_anonymous", false)
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-    if (cursor) query = query.lt('created_at', cursor)
+    if (cursor) query = query.lt("created_at", cursor);
 
     if (universityId) {
-      query = query.eq('profiles.university_id', universityId)
-                   .eq('posted_to_global_hub', false)
+      query = query
+        .eq("profiles.university_id", universityId)
+        .eq("posted_to_global_hub", false);
     } else {
-      query = query.eq('posted_to_global_hub', true)
+      query = query.eq("posted_to_global_hub", true);
     }
 
-    const { data, error } = await query
-    if (error) throw error
-    return { data: (data as any[]).map(toFeedPost), error: null }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data: (data as any[]).map(toFeedPost), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
@@ -680,75 +736,81 @@ export async function getFollowingFeed(
 // ---------------------------------------------------------------------------
 
 export async function getPost(postId: string): Promise<{
-  data: FeedPost | null
-  error: Error | null
+  data: FeedPost | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('posts')
+      .from("posts")
       .select(POST_SELECT)
-      .eq('id', postId)
-      .single()
+      .eq("id", postId)
+      .single();
 
-    if (error) throw error
-    return { data: toFeedPost(data), error: null }
+    if (error) throw error;
+    return { data: toFeedPost(data), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function getUserFeedPosts(userId: string): Promise<{
-  data: FeedPost[] | null
-  error: Error | null
+  data: FeedPost[] | null;
+  error: Error | null;
 }> {
   try {
     const { data, error } = await supabase
-      .from('posts')
+      .from("posts")
       .select(POST_SELECT)
-      .eq('author_id', userId)
-      .eq('is_anonymous', false)
-      .order('created_at', { ascending: false })
-      .limit(50)
+      .eq("author_id", userId)
+      .eq("is_anonymous", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-    if (error) throw error
-    return { data: (data as any[]).map(toFeedPost), error: null }
+    if (error) throw error;
+    return { data: (data as any[]).map(toFeedPost), error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
 export async function deletePost(postId: string): Promise<{
-  data: null
-  error: Error | null
+  data: null;
+  error: Error | null;
 }> {
   try {
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
+    const { error } = await supabase.from("posts").delete().eq("id", postId);
 
-    if (error) throw error
-    return { data: null, error: null }
+    if (error) throw error;
+    return { data: null, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }
 
-export async function reportPost(postId: string, reason?: string): Promise<{
-  data: null
-  error: Error | null
+export async function reportPost(
+  postId: string,
+  reason?: string,
+): Promise<{
+  data: null;
+  error: Error | null;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
     const { error } = await supabase
-      .from('reports')
-      .insert({ reporter_id: user.id, post_id: postId, reason: reason ?? null })
+      .from("reports")
+      .insert({
+        reporter_id: user.id,
+        post_id: postId,
+        reason: reason ?? null,
+      });
 
-    if (error) throw error
-    return { data: null, error: null }
+    if (error) throw error;
+    return { data: null, error: null };
   } catch (err) {
-    return { data: null, error: err as Error }
+    return { data: null, error: err as Error };
   }
 }

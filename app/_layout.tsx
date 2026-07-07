@@ -36,6 +36,7 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Ionicons } from "@expo/vector-icons";
 import NetInfo from "@react-native-community/netinfo";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { typography } from "../lib/typography";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -473,7 +474,6 @@ function AppStack() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="profile/[id]" />
         <Stack.Screen name="search" />
-        <Stack.Screen name="map" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="bookmarks" />
         <Stack.Screen name="appearance" />
@@ -535,12 +535,13 @@ function NetworkStatusBar({
   isPoor: boolean;
 }) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const show = isConnected === false || isInternetReachable === false || isPoor;
 
   if (!show) return null;
 
   const isOffline = isConnected === false || isInternetReachable === false;
-  const bgColor = isOffline ? "#ef4444" : "#f59e0b";
+  const bgColor = isOffline ? "rgba(239, 68, 68, 0.95)" : "rgba(245, 158, 11, 0.95)";
   const message = isOffline
     ? "No Internet Connection"
     : "Slow connection detected";
@@ -549,15 +550,23 @@ function NetworkStatusBar({
   return (
     <View
       style={{
+        position: "absolute",
+        top: insets.top > 0 ? insets.top + 8 : 12,
+        alignSelf: "center",
         backgroundColor: bgColor,
-        paddingVertical: 6,
+        paddingVertical: 8,
         paddingHorizontal: 16,
+        borderRadius: 20,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: 6,
-        width: "100%",
-        zIndex: 10000,
+        gap: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 10,
+        zIndex: 999999,
       }}
     >
       <Ionicons name={icon as any} size={14} color="#fff" />

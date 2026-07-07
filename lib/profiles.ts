@@ -102,6 +102,7 @@ export async function updateProfile(updates: {
   global_bio?: string | null
   global_avatar_url?: string | null
   global_interests?: string[] | null
+  role?: string | null
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not logged in' }

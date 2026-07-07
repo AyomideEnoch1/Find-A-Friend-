@@ -132,12 +132,23 @@ export default function CompleteProfileScreen() {
       if (idCardImage) {
         const ext = idCardImage.split('.').pop() ?? 'jpg'
         const path = `id-cards/${user.id}.${ext}`
-        const response = await fetch(idCardImage)
-        const blob = await response.blob()
-        const arrayBuffer = await blob.arrayBuffer()
+        
+        let fileBody: any;
+        if (Platform.OS === 'web') {
+          const response = await fetch(idCardImage)
+          fileBody = await response.blob()
+        } else {
+          fileBody = new FormData() as any
+          fileBody.append('file', {
+            uri: idCardImage,
+            name: `${user.id}.${ext}`,
+            type: `image/${ext}`,
+          })
+        }
+
         const { error: uploadError } = await supabase.storage
           .from('id-cards')
-          .upload(path, arrayBuffer, { contentType: `image/${ext}`, upsert: true })
+          .upload(path, fileBody, { contentType: `image/${ext}`, upsert: true })
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('id-cards').getPublicUrl(path)
           idCardUrl = urlData.publicUrl

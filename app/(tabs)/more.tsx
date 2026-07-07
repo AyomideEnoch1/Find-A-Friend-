@@ -21,6 +21,7 @@ import { useTheme } from "../../lib/theme";
 import { useTabBarScroll } from "../../lib/useTabBarScroll";
 import { useAuthStore } from "../../store/authStore";
 import { useBadgesStore } from "../../store/badgesStore";
+import { useGuideStore } from "../../store/guideStore";
 const MORE_ITEMS: Array<{
   iconName: any;
   title: string;
@@ -64,6 +65,12 @@ const MORE_ITEMS: Array<{
     route: "/vendors",
   },
   {
+    iconName: "help-circle-outline",
+    title: "App Tour Guide",
+    subtitle: "Replay interactive guide",
+    route: "guide",
+  },
+  {
     iconName: "person-outline",
     title: "Edit profile",
     subtitle: "Bio, photo & interests",
@@ -85,6 +92,7 @@ export default function MoreScreen() {
   const theme = useTheme();
   const { onScroll, scrollEventThrottle } = useTabBarScroll();
   const counts = useBadgesStore((s) => s.counts);
+  const { startTour } = useGuideStore();
 
   const featureBadges: Record<string, number> = {
     "/academic": counts?.academic || 0,
@@ -221,17 +229,23 @@ export default function MoreScreen() {
             { backgroundColor: theme.card, borderColor: theme.border },
           ]}
         >
-          {features.map((feature, i) => {
+          {MORE_ITEMS.map((feature, i) => {
             const badgeCount = featureBadges[feature.route] || 0;
             return (
               <TouchableOpacity
                 key={i}
                 style={[
                   s.featureRow,
-                  i === features.length - 1 && { borderBottomWidth: 0 },
+                  i === MORE_ITEMS.length - 1 && { borderBottomWidth: 0 },
                   { borderBottomColor: theme.border2 },
                 ]}
-                onPress={() => router.push(feature.route as any)}
+                onPress={() => {
+                  if (feature.route === "guide") {
+                    startTour();
+                  } else {
+                    router.push(feature.route as any);
+                  }
+                }}
               >
                 <View
                   style={[

@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView,
-  Platform, FlatList, RefreshControl
+  Platform, FlatList, RefreshControl, Image
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -18,6 +18,7 @@ import type { AnonymousPost } from '../lib/anonymous'
 import { createEvent } from '../lib/events'
 import { useTheme } from '../lib/theme'
 import { typography } from '../lib/typography'
+import Toast from 'react-native-toast-message'
 
 function parseDateTime(raw: string): Date | null {
   if (!raw.trim()) return null
@@ -724,7 +725,7 @@ export default function AnonymousAdminDashboard() {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{ alignItems: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <View style={{ backgroundColor: theme.card2, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
                                 <Text style={{ color: theme.accent, fontFamily: typography.fontBold }}>{ref.count} refs</Text>
                               </View>
@@ -787,10 +788,10 @@ export default function AnonymousAdminDashboard() {
                       )}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, false)} style={[s.actionBtn, { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)', borderWidth: 0.5 }]}>
+                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, false)} style={[s.verifyActionBtn, { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.2)', borderWidth: 0.5 }]}>
                         <Text style={{ color: theme.danger, fontSize: 12, fontFamily: typography.fontBold }}>Reject</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, true)} style={[s.actionBtn, { backgroundColor: '#a78bfa', borderColor: '#a78bfa', borderWidth: 0.5 }]}>
+                      <TouchableOpacity onPress={() => handleVerifyStudent(profile.id, true)} style={[s.verifyActionBtn, { backgroundColor: '#a78bfa', borderColor: '#a78bfa', borderWidth: 0.5 }]}>
                         <Text style={{ color: '#fff', fontSize: 12, fontFamily: typography.fontBold }}>Approve Student</Text>
                       </TouchableOpacity>
                     </View>
@@ -1020,7 +1021,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  actionBtn: {
+  verifyActionBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
