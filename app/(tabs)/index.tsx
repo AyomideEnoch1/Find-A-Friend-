@@ -959,7 +959,7 @@ export default function HomeScreen() {
       "/clubs": counts?.clubs_feature || 0,
       "/games": counts?.games || 0,
       "/anonymous": counts?.anonymous || 0,
-      "/vendors": counts?.vendors || 0,
+      "/deals": counts?.vendors || 0,
     };
 
     const featuresList = [
@@ -997,7 +997,7 @@ export default function HomeScreen() {
         iconName: "pricetag-outline",
         title: "Campus deals",
         subtitle: "Student-only discounts",
-        route: "/vendors",
+        route: "/deals",
       },
       {
         iconName: "help-circle-outline",

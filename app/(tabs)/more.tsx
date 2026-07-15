@@ -62,7 +62,7 @@ const MORE_ITEMS: Array<{
     iconName: "pricetag-outline",
     title: "Campus deals",
     subtitle: "Student-only discounts",
-    route: "/vendors",
+    route: "/deals",
   },
   {
     iconName: "help-circle-outline",
@@ -99,7 +99,7 @@ export default function MoreScreen() {
     "/clubs": counts?.clubs_feature || 0,
     "/games": counts?.games || 0,
     "/anonymous": counts?.anonymous || 0,
-    "/vendors": counts?.vendors || 0,
+    "/deals": counts?.vendors || 0,
   };
 
   const loadData = React.useCallback(async () => {
