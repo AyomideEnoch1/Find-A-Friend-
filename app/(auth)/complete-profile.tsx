@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../lib/theme'
 import { typography } from '../../lib/typography'
 import { useThemeStore } from '../../store/themeStore'
+import { uploadFile } from '../../lib/upload'
 
 type Gender = 'male' | 'female' | 'prefer_not_to_say'
 
@@ -131,28 +132,12 @@ export default function CompleteProfileScreen() {
 
       if (idCardImage) {
         const ext = idCardImage.split('.').pop() ?? 'jpg'
-        const path = `id-cards/${user.id}.${ext}`
-        
-        let fileBody: any;
-        if (Platform.OS === 'web') {
-          const response = await fetch(idCardImage)
-          fileBody = await response.blob()
-        } else {
-          fileBody = new FormData() as any
-          fileBody.append('file', {
-            uri: idCardImage,
-            name: `${user.id}.${ext}`,
-            type: `image/${ext}`,
-          })
-        }
-
-        const { error: uploadError } = await supabase.storage
-          .from('id-cards')
-          .upload(path, fileBody, { contentType: `image/${ext}`, upsert: true })
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('id-cards').getPublicUrl(path)
-          idCardUrl = urlData.publicUrl
+        try {
+          const publicUrl = await uploadFile('id-cards', `${user.id}.${ext}`, idCardImage, `image/${ext}`, true)
+          idCardUrl = publicUrl
           idCardStatus = 'pending'
+        } catch (uploadErr) {
+          console.warn('ID Card upload failed, continuing profile completion without ID:', uploadErr)
         }
       }
 
