@@ -54,6 +54,17 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: "#6B7280",    // Gray
 };
 
+const CATEGORY_VECTOR_ICONS: Record<string, string> = {
+  Food: "fast-food-outline",
+  Print: "print-outline",
+  Beauty: "cut-outline",
+  Academic: "book-outline",
+  Health: "fitness-outline",
+  Tech: "laptop-outline",
+  Fashion: "shirt-outline",
+  Other: "grid-outline",
+};
+
 const GRID_CATEGORIES = [
   { name: "Food", label: "Food" },
   { name: "Academic", label: "Study" },
@@ -375,49 +386,81 @@ export default function DealsScreen() {
           )}
         </View>
 
-        {/* 4x2 Grid Layout */}
-        <View style={s.categoryGrid}>
+        {/* Horizontal Category Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.categoryScroll}
+        >
+          {/* "All" Pill */}
+          <TouchableOpacity
+            style={[
+              s.categoryPill,
+              {
+                backgroundColor: activeCategory === "All" ? `${theme.accent}1a` : getCardBg(),
+                borderColor: activeCategory === "All" ? theme.accent : getCardBorder(),
+              },
+            ]}
+            onPress={() => {
+              triggerHaptic();
+              setActiveCategory("All");
+            }}
+          >
+            <Ionicons
+              name="apps-outline"
+              size={15}
+              color={activeCategory === "All" ? theme.accent : theme.textMuted}
+            />
+            <Text
+              style={[
+                s.categoryPillText,
+                {
+                  color: activeCategory === "All" ? theme.text : theme.textMuted,
+                  fontFamily: activeCategory === "All" ? typography.fontSemiBold : typography.fontRegular,
+                },
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
+          {/* Individual Categories */}
           {GRID_CATEGORIES.map((cat) => {
             const isSelected = activeCategory === cat.name;
             const catColor = getCategoryColor(cat.name);
-            const icon = getCategoryIcon(cat.name);
+            const vectorIcon = CATEGORY_VECTOR_ICONS[cat.name] || "grid-outline";
             return (
               <TouchableOpacity
                 key={cat.name}
                 style={[
-                  s.categoryCard,
+                  s.categoryPill,
                   {
-                    width: CATEGORY_WIDTH(width),
-                    backgroundColor: isSelected ? `${catColor}1a` : getCardBg(),
+                    backgroundColor: isSelected ? `${catColor}15` : getCardBg(),
                     borderColor: isSelected ? catColor : getCardBorder(),
                   },
                 ]}
                 onPress={() => handleSelectCategory(cat.name)}
               >
-                <View
-                  style={[
-                    s.catIconContainer,
-                    { backgroundColor: isSelected ? `${catColor}30` : (theme.dark ? "rgba(255,255,255,0.05)" : "#F3F4F6") },
-                  ]}
-                >
-                  <Text style={s.catIconText}>{icon}</Text>
-                </View>
+                <Ionicons
+                  name={vectorIcon as any}
+                  size={15}
+                  color={isSelected ? catColor : theme.textMuted}
+                />
                 <Text
                   style={[
-                    s.catLabel,
+                    s.categoryPillText,
                     {
-                      color: isSelected ? catColor : theme.text,
+                      color: isSelected ? theme.text : theme.textMuted,
                       fontFamily: isSelected ? typography.fontSemiBold : typography.fontRegular,
                     },
                   ]}
-                  numberOfLines={1}
                 >
                   {cat.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         {/* Featured Brands (Vendors) Carousel */}
         {uniqueVendors.length > 0 && (
@@ -538,7 +581,11 @@ export default function DealsScreen() {
                       colors={theme.dark ? [`${catColor}15`, `${catColor}02`] : [`${catColor}0d`, `${catColor}02`]}
                       style={StyleSheet.absoluteFillObject}
                     />
-                    <Text style={s.dealEmoji}>{icon}</Text>
+                    <Ionicons
+                      name={(CATEGORY_VECTOR_ICONS[cat] || "grid-outline") as any}
+                      size={28}
+                      color={catColor}
+                    />
 
                     {/* Bookmark Toggle */}
                     <TouchableOpacity
@@ -666,7 +713,11 @@ export default function DealsScreen() {
                       { backgroundColor: `${catColor}15`, borderColor: `${catColor}35` },
                     ]}
                   >
-                    <Text style={s.modalEmoji}>{icon}</Text>
+                    <Ionicons
+                      name={(CATEGORY_VECTOR_ICONS[cat] || "grid-outline") as any}
+                      size={36}
+                      color={catColor}
+                    />
                   </View>
 
                   {/* Discount Header */}
@@ -894,33 +945,22 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: typography.fontMedium,
   },
-  categoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  categoryScroll: {
     paddingHorizontal: 16,
+    paddingBottom: 15,
     gap: 8,
   },
-  categoryCard: {
-    paddingVertical: 12,
-    borderRadius: 12,
+  categoryPill: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 0.5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
     gap: 6,
   },
-  catIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  catIconText: {
-    fontSize: 18,
-  },
-  catLabel: {
-    fontSize: 10,
-    textAlign: "center",
+  categoryPillText: {
+    fontSize: 12,
   },
   brandCarousel: {
     paddingLeft: 16,
