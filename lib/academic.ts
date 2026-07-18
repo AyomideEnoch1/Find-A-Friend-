@@ -394,6 +394,8 @@ export async function getResources(filters?: {
  * Uploads a file to the `academic-resources` private bucket and inserts
  * a metadata row in `academic_resources`.
  */
+const S3_BUCKET_URL = 'https://faf-infra-prod-v2-appstoragebucket-prasmiamuew2.s3.amazonaws.com'
+
 export async function uploadResource(payload: UploadResourcePayload): Promise<{
   data: AcademicResource | null
   error: Error | null
@@ -403,25 +405,12 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
     if (!user) throw new Error('Not authenticated')
 
     const ext = payload.fileName.split('.').pop() ?? 'pdf'
-    const storagePath = `${user.id}/${Date.now()}_${payload.fileName}`
+    const storagePath = `${Date.now()}_${payload.fileName}`
 
-    // Upload to Supabase Storage (which is rewritten to the direct Supabase URL)
-    const fileBody = new FormData() as any
-    fileBody.append('file', {
-      uri: payload.fileUri,
-      name: payload.fileName,
-      type: payload.mimeType,
-    })
+    // Upload directly to S3
+    const publicUrl = await uploadFile('academic-resources', `${user.id}/${storagePath}`, payload.fileUri, payload.mimeType, true)
 
-    const { error: uploadError } = await supabase.storage
-      .from('academic-resources')
-      .upload(storagePath, fileBody, {
-        upsert: false
-      })
-
-    if (uploadError) throw uploadError
-
-    // Store the relative path in the database (file_url)
+    // Store the S3 URL in the database (file_url)
     const { data, error: insertError } = await supabase
       .from('academic_resources')
       .insert({
@@ -429,7 +418,7 @@ export async function uploadResource(payload: UploadResourcePayload): Promise<{
         course_id: payload.courseId ?? null,
         title: payload.title,
         description: payload.description ?? null,
-        file_url: storagePath,
+        file_url: publicUrl,
         file_type: ext,
         file_size_kb: payload.fileSizeKb ?? null,
         resource_type: payload.resourceType ?? 'note',
@@ -453,27 +442,24 @@ export async function getResourceSignedUrl(
   expiresInSeconds = 3600
 ): Promise<{ data: string | null; error: Error | null }> {
   try {
-    let path = resource.file_url
-    if (path.startsWith('http')) {
-      const searchStr = 'academic-resources/'
-      const idx = path.indexOf(searchStr)
-      if (idx !== -1) {
-        path = path.substring(idx + searchStr.length)
-      }
+    // If it's a full S3 URL, return it directly
+    if (resource.file_url.startsWith('http')) {
+      // Increment download counter (fire-and-forget, non-blocking)
+      supabase.rpc('increment_resource_download', {
+        p_resource_id: resource.id,
+      }).then(() => {})
+      return { data: resource.file_url, error: null }
     }
 
-    const { data, error } = await supabase.storage
-      .from('academic-resources')
-      .createSignedUrl(path, expiresInSeconds)
-
-    if (error) throw error
+    // Fallback/Legacy for relative paths
+    const s3Url = `${S3_BUCKET_URL}/academic-resources/${resource.file_url}`
 
     // Increment download counter (fire-and-forget, non-blocking)
     supabase.rpc('increment_resource_download', {
       p_resource_id: resource.id,
     }).then(() => {})
 
-    return { data: data.signedUrl, error: null }
+    return { data: s3Url, error: null }
   } catch (err) {
     return { data: null, error: err as Error }
   }
