@@ -13,15 +13,13 @@ npx expo export --platform web
 # Rename node_modules to vendor to bypass Vercel deployment rules
 node rename-node-modules.js
 
-# 2. Copy Vercel project configuration to dist/
-Write-Host "`n--- Preparing Vercel project configuration ---" -ForegroundColor Yellow
-Remove-Item -Path "dist\.vercel" -Recurse -Force -ErrorAction SilentlyContinue
-Copy-Item -Path ".vercel" -Destination "dist\" -Recurse -Force -ErrorAction SilentlyContinue
-Copy-Item -Path "vercel.json" -Destination "dist\" -Force
-
-# 3. Deploy to Vercel (PWA)
-Write-Host "`n--- Deploying PWA to Vercel ---" -ForegroundColor Yellow
-npx vercel deploy dist --prod
+# 3. Deploy to Vercel (PWA + Landing)
+Write-Host "`n--- Deploying Unified Landing and PWA to Vercel ---" -ForegroundColor Yellow
+Remove-Item -Path "landing\pwa" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path "dist" -Destination "landing\pwa" -Recurse -Force
+Remove-Item -Path "landing\.vercel" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path ".vercel" -Destination "landing\" -Recurse -Force
+npx vercel deploy landing --prod --yes
 
 # 4. Deploy EAS Update (Android & iOS)
 Write-Host "`n--- Deploying EAS update ---" -ForegroundColor Yellow
