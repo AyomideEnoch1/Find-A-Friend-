@@ -1,0 +1,2193 @@
+[
+  {
+    "name": "University of Lagos",
+    "domain": "unilag.edu.ng",
+    "short_name": "UNILAG",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "University of Ibadan",
+    "domain": "ui.edu.ng",
+    "short_name": "UI",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "FAF Campus Demo",
+    "domain": "fafcampus.site",
+    "short_name": "FAF Demo",
+    "primary_color": "#8b5cf6",
+    "secondary_color": "#6366f1"
+  },
+  {
+    "name": "Redeemer's University",
+    "domain": "run.edu.ng",
+    "short_name": "RUN",
+    "primary_color": "#0a2f5c",
+    "secondary_color": "#e5b73b"
+  },
+  {
+    "name": "Abubakar Tafawa Balewa University, Bauchi",
+    "domain": "atbu.edu.ng",
+    "short_name": "ATBU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Ahmadu Bello University, Zaria",
+    "domain": "abu.edu.ng",
+    "short_name": "ABU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Bayero University, Kano",
+    "domain": "buk.edu.ng",
+    "short_name": "BUK",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Federal University Gashua, Yobe",
+    "domain": "fug.edu.ng",
+    "short_name": "FUG",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Federal University of Petroleum Resources, Effurun",
+    "domain": "fupr.edu.ng",
+    "short_name": "FUPR",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Federal University of Technology, Akure",
+    "domain": "futa.edu.ng",
+    "short_name": "FUTA",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Federal University of Technology, Minna",
+    "domain": "futminna.edu.ng",
+    "short_name": "FUTMINNA",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Federal University of Technology, Owerri",
+    "domain": "futo.edu.ng",
+    "short_name": "FUTO",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Federal University, Dutse, Jigawa State",
+    "domain": "fu.edu.ng",
+    "short_name": "FU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Federal University, Dutsin-Ma, Katsina",
+    "domain": "fu2.edu.ng",
+    "short_name": "FU2",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Federal University, Kashere, Gombe State",
+    "domain": "fu3.edu.ng",
+    "short_name": "FU3",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Federal University, Lafia, Nasarawa State",
+    "domain": "fu4.edu.ng",
+    "short_name": "FU4",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Federal University, Lokoja, Kogi State",
+    "domain": "fu5.edu.ng",
+    "short_name": "FU5",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Alex Ekwueme University, Ndufu-Alike, Ebonyi State",
+    "domain": "aeu.edu.ng",
+    "short_name": "AEU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University, Otuoke, Bayelsa",
+    "domain": "fu6.edu.ng",
+    "short_name": "FU6",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Federal University, Oye-Ekiti, Ekiti State",
+    "domain": "fu7.edu.ng",
+    "short_name": "FU7",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Federal University, Wukari, Taraba State",
+    "domain": "fu8.edu.ng",
+    "short_name": "FU8",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Federal University, Birnin Kebbi",
+    "domain": "fu9.edu.ng",
+    "short_name": "FU9",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Federal University, Gusau Zamfara",
+    "domain": "fu10.edu.ng",
+    "short_name": "FU10",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Michael Okpara University of Agriculture, Umudike",
+    "domain": "moua.edu.ng",
+    "short_name": "MOUA",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Modibbo Adama University of Technology, Yola",
+    "domain": "maut.edu.ng",
+    "short_name": "MAUT",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "National Open University of Nigeria, Abuja",
+    "domain": "noun.edu.ng",
+    "short_name": "NOUN",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Nigeria Police Academy, Wudil",
+    "domain": "npa.edu.ng",
+    "short_name": "NPA",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Nigerian Defence Academy, Kaduna",
+    "domain": "nda.edu.ng",
+    "short_name": "NDA",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Nnamdi Azikiwe University, Awka",
+    "domain": "unizik.edu.ng",
+    "short_name": "UNIZIK",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Obafemi Awolowo University, Ile-Ife",
+    "domain": "oau.edu.ng",
+    "short_name": "OAU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "University of Abuja, Gwagwalada",
+    "domain": "uniabuja.edu.ng",
+    "short_name": "UNIABUJA",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Federal University of Agriculture, Abeokuta",
+    "domain": "funaab.edu.ng",
+    "short_name": "FUNAAB",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Joseph Sarwuan Tarka University, Makurdi",
+    "domain": "jstu.edu.ng",
+    "short_name": "JSTU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "University of Benin",
+    "domain": "uniben.edu.ng",
+    "short_name": "UNIBEN",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "University of Calabar",
+    "domain": "uc.edu.ng",
+    "short_name": "UC",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "University of Ilorin",
+    "domain": "unilorin.edu.ng",
+    "short_name": "UNILORIN",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "University of Jos",
+    "domain": "unijos.edu.ng",
+    "short_name": "UNIJOS",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "University of Maiduguri",
+    "domain": "unimaid.edu.ng",
+    "short_name": "UNIMAID",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "University of Nigeria, Nsukka",
+    "domain": "unn.edu.ng",
+    "short_name": "UNN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "University of Port-Harcourt",
+    "domain": "uniport.edu.ng",
+    "short_name": "UNIPORT",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "University of Uyo",
+    "domain": "uniuyo.edu.ng",
+    "short_name": "UNIUYO",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Usumanu Danfodiyo University, Sokoto",
+    "domain": "udus.edu.ng",
+    "short_name": "UDUS",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Nigerian Maritime University, Okerenkoko, Delta State",
+    "domain": "nmu.edu.ng",
+    "short_name": "NMU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Air Force Institute of Technology, Kaduna",
+    "domain": "afit.edu.ng",
+    "short_name": "AFIT",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Nigerian Army University, Biu",
+    "domain": "nau.edu.ng",
+    "short_name": "NAU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Federal University of Health Sciences, Otukpo, Benue State",
+    "domain": "fuhs.edu.ng",
+    "short_name": "FUHS",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Federal University of Agriculture, Zuru, Kebbi State",
+    "domain": "fua.edu.ng",
+    "short_name": "FUA",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Federal University of Technology, Babura, Jigawa State",
+    "domain": "fut-babura.edu.ng",
+    "short_name": "FUT-Babura",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Federal University of Technology, Ikot Abasi, Akwa Ibom State",
+    "domain": "fut-ikotabasi.edu.ng",
+    "short_name": "FUT-IkotAbasi",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Federal University of Health Sciences, Azare, Bauchi State",
+    "domain": "fuhs2.edu.ng",
+    "short_name": "FUHS2",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Federal University of Health Sciences, Ila Orangun, Osun State",
+    "domain": "fuhs3.edu.ng",
+    "short_name": "FUHS3",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "David Nweze Umahi Federal University of Medical Sciences, Uburu",
+    "domain": "dnufums.edu.ng",
+    "short_name": "DNUFUMS",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Admiralty University, Ibusa, Delta State",
+    "domain": "au.edu.ng",
+    "short_name": "AU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University of Transportation, Daura, Katsina",
+    "domain": "fut.edu.ng",
+    "short_name": "FUT",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "African Aviation and Aerospace University",
+    "domain": "aaau.edu.ng",
+    "short_name": "AAAU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "National University of Science and Technology, Abuja",
+    "domain": "nust.edu.ng",
+    "short_name": "NUST",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Federal University of Agriculture, Bassam-Biri, Bayelsa",
+    "domain": "fua2.edu.ng",
+    "short_name": "FUA2",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Federal University of Health Sciences, Kwale, Delta State",
+    "domain": "fuhs4.edu.ng",
+    "short_name": "FUHS4",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Federal University of Health Sciences, Katsina",
+    "domain": "fuhs5.edu.ng",
+    "short_name": "FUHS5",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Federal University of Agriculture, Mubi",
+    "domain": "fua3.edu.ng",
+    "short_name": "FUA3",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Federal University of Education, Zaria, Kaduna State",
+    "domain": "fue.edu.ng",
+    "short_name": "FUE",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Alvan Ikoku Federal University of Education, Owerri, Imo State",
+    "domain": "aifue.edu.ng",
+    "short_name": "AIFUE",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Yusuf Maitama Sule Federal University of Education, Kano",
+    "domain": "ymsfue.edu.ng",
+    "short_name": "YMSFUE",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Adeyemi Federal University of Education, Ondo",
+    "domain": "afue.edu.ng",
+    "short_name": "AFUE",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Federal University of Allied Health Sciences, Enugu",
+    "domain": "fuahs.edu.ng",
+    "short_name": "FUAHS",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University of Medicine and Medical Sciences, Abeokuta",
+    "domain": "fumms.edu.ng",
+    "short_name": "FUMMS",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University of Education, Pankshin, Plateau State",
+    "domain": "fue2.edu.ng",
+    "short_name": "FUE2",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Federal University of Education, Kontagora, Niger State",
+    "domain": "fue3.edu.ng",
+    "short_name": "FUE3",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "University of Maritime Studies, Oron, Akwa Ibom State",
+    "domain": "ums.edu.ng",
+    "short_name": "UMS",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Federal University of Environment and Technology, Tai Town, Ogoniland, Rivers State",
+    "domain": "fuet.edu.ng",
+    "short_name": "FUET",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Federal University of Applied Sciences, Kachia, Kaduna State",
+    "domain": "fuas.edu.ng",
+    "short_name": "FUAS",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Tai Solarin Federal University of Education, Ijagun, Ijebu Ode",
+    "domain": "tasued.edu.ng",
+    "short_name": "TASUED",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Federal University of Agriculture and Developmental Studies, Iragbiji, Osun State",
+    "domain": "fuads.edu.ng",
+    "short_name": "FUADS",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Federal University of Technology and Environmental Studies, Iyin-Ekiti, Ekiti State",
+    "domain": "futes.edu.ng",
+    "short_name": "FUTES",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Federal University of Agriculture and Technology, Okeho, Oyo State",
+    "domain": "fuat.edu.ng",
+    "short_name": "FUAT",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Federal University of Health Science and Technology, Tsafe",
+    "domain": "fuhst.edu.ng",
+    "short_name": "FUHST",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Federal University of Agriculture and Technology, Obio-Akpa, Akwa Ibom State",
+    "domain": "fuat2.edu.ng",
+    "short_name": "FUAT2",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University of Science and Technology, Epe",
+    "domain": "fust.edu.ng",
+    "short_name": "FUST",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Federal University of Science and Technology, Kabo, Kano",
+    "domain": "fust2.edu.ng",
+    "short_name": "FUST2",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Rivers State University",
+    "domain": "rsu.edu.ng",
+    "short_name": "RSU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Ambrose Alli University, Ekpoma",
+    "domain": "aau.edu.ng",
+    "short_name": "AAU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Abia State University, Uturu",
+    "domain": "absu.edu.ng",
+    "short_name": "ABSU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Ekiti State University",
+    "domain": "eksu.edu.ng",
+    "short_name": "EKSU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Enugu State University of Science and Technology",
+    "domain": "esut.edu.ng",
+    "short_name": "ESUT",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Olabisi Onabanjo University, Ago Iwoye",
+    "domain": "oou.edu.ng",
+    "short_name": "OOU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Lagos State University, Ojo",
+    "domain": "lasu.edu.ng",
+    "short_name": "LASU",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Ladoke Akintola University of Technology, Ogbomoso",
+    "domain": "lautech.edu.ng",
+    "short_name": "LAUTECH",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Rev. Fr. Moses Orshio Adasu Univ. (formerly Benue State Univ.), Makurdi",
+    "domain": "rfmoaubsu.edu.ng",
+    "short_name": "RFMOAUBSU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Delta State University, Abraka",
+    "domain": "delsu.edu.ng",
+    "short_name": "DELSU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Imo State University, Owerri",
+    "domain": "imsu.edu.ng",
+    "short_name": "IMSU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Adekunle Ajasin University, Akungba",
+    "domain": "aaua.edu.ng",
+    "short_name": "AAUA",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Prince Abubakar Audu University, Anyigba",
+    "domain": "paau.edu.ng",
+    "short_name": "PAAU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Chukwuemeka Odumegwu Ojukwu University, Uli",
+    "domain": "coou.edu.ng",
+    "short_name": "COOU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Ebonyi State University, Abakaliki",
+    "domain": "ebsu.edu.ng",
+    "short_name": "EBSU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Aliko Dangote University of Science & Technology, Wudil",
+    "domain": "adustech.edu.ng",
+    "short_name": "ADUSTECH",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Niger Delta University, Yenagoa",
+    "domain": "ndu.edu.ng",
+    "short_name": "NDU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Adamawa State University, Mubi",
+    "domain": "adsu.edu.ng",
+    "short_name": "ADSU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Nasarawa State University, Keffi",
+    "domain": "nsuk.edu.ng",
+    "short_name": "NSUK",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "University of Cross River State, Calabar",
+    "domain": "ucrs.edu.ng",
+    "short_name": "UCRS",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Gombe State University",
+    "domain": "gsu.edu.ng",
+    "short_name": "GSU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Kaduna State University",
+    "domain": "kasu.edu.ng",
+    "short_name": "KASU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Ibrahim Badamasi Babangida University, Lapai",
+    "domain": "ibbu.edu.ng",
+    "short_name": "IBBU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Plateau State University, Bokkos",
+    "domain": "plasu.edu.ng",
+    "short_name": "PLASU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Yobe State University, Damaturu",
+    "domain": "ysu.edu.ng",
+    "short_name": "YSU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Kebbi State University of Science and Technology, Aliero",
+    "domain": "ksust.edu.ng",
+    "short_name": "KSUST",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Umar Musa Yar'Adua University, Katsina",
+    "domain": "umyau.edu.ng",
+    "short_name": "UMYAU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Osun State University, Osogbo",
+    "domain": "osu.edu.ng",
+    "short_name": "OSU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Olusegun Agagu University of Science & Technology, Okitipupa",
+    "domain": "oaust.edu.ng",
+    "short_name": "OAUST",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Taraba State University, Jalingo",
+    "domain": "tasu.edu.ng",
+    "short_name": "TASU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Kwara State University, Ilorin",
+    "domain": "kwasu.edu.ng",
+    "short_name": "KWASU",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Sokoto State University",
+    "domain": "ssu.edu.ng",
+    "short_name": "SSU",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Akwa Ibom State University, Ikot Akpaden",
+    "domain": "aisu.edu.ng",
+    "short_name": "AISU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Ignatius Ajuru University of Education, Rumuolumeni",
+    "domain": "iaue.edu.ng",
+    "short_name": "IAUE",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Bauchi State University, Gadau",
+    "domain": "basug.edu.ng",
+    "short_name": "BASUG",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Northwest University, Kano",
+    "domain": "nu.edu.ng",
+    "short_name": "NU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "First Technical University, Ibadan",
+    "domain": "tech-u.edu.ng",
+    "short_name": "Tech-U",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Sule Lamido University, Kafin Hausa, Jigawa",
+    "domain": "slu.edu.ng",
+    "short_name": "SLU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "University of Medical Sciences, Ondo City",
+    "domain": "unimed.edu.ng",
+    "short_name": "UNIMED",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Edo State University, Iyamho",
+    "domain": "edsu.edu.ng",
+    "short_name": "EDSU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Kingsley Ozumba Mbadiwe University, Ogboko, Imo State",
+    "domain": "komu.edu.ng",
+    "short_name": "KOMU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "University of Africa, Toru Orua, Bayelsa State",
+    "domain": "uat.edu.ng",
+    "short_name": "UAT",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Kashim Ibrahim University (formerly Borno State Univ.), Maiduguri",
+    "domain": "kiubsu.edu.ng",
+    "short_name": "KIUBSU",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Moshood Abiola University of Science and Technology, Abeokuta",
+    "domain": "maust.edu.ng",
+    "short_name": "MAUST",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Zamfara State University",
+    "domain": "zsu.edu.ng",
+    "short_name": "ZSU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Bayelsa Medical University",
+    "domain": "bmu.edu.ng",
+    "short_name": "BMU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "University of Agriculture and Environmental Sciences, Umuagwo, Imo State",
+    "domain": "uaes.edu.ng",
+    "short_name": "UAES",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Confluence University of Science and Technology, Osara, Kogi",
+    "domain": "custech.edu.ng",
+    "short_name": "CUSTECH",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Bamidele Olumilua University of Science and Technology, Ikere, Ekiti State",
+    "domain": "bouesti.edu.ng",
+    "short_name": "BOUESTI",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "University of Delta, Agbor",
+    "domain": "ud.edu.ng",
+    "short_name": "UD",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Delta University of Science and Technology, Ozoro",
+    "domain": "dust.edu.ng",
+    "short_name": "DUST",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Dennis Osadebe University, Asaba",
+    "domain": "dou.edu.ng",
+    "short_name": "DOU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Lagos State University of Education, Ijanikin",
+    "domain": "lasued.edu.ng",
+    "short_name": "LASUED",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Lagos State University of Science and Technology, Ikorodu",
+    "domain": "lasustech.edu.ng",
+    "short_name": "LASUSTECH",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Shehu Shagari University of Education, Sokoto",
+    "domain": "ssues.edu.ng",
+    "short_name": "SSUES",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "State University of Medical and Applied Sciences, Igbo-Eno, Enugu",
+    "domain": "sumas.edu.ng",
+    "short_name": "SUMAS",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "University of Ilesa, Osun State",
+    "domain": "ui2.edu.ng",
+    "short_name": "UI2",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Emanuel Alayande University of Education, Oyo",
+    "domain": "eaued.edu.ng",
+    "short_name": "EAUED",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Kogi State University, Kabba",
+    "domain": "ksu-kabba.edu.ng",
+    "short_name": "KSU-Kabba",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "AbdulKadir Kure University, Minna, Niger State",
+    "domain": "akku.edu.ng",
+    "short_name": "AKKU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Kwara State University of Education, Ilorin",
+    "domain": "kwsued.edu.ng",
+    "short_name": "KWSUED",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Abdulsalam Abubakar University of Agriculture and Climate Action, Mokwa, Niger State",
+    "domain": "aauaca.edu.ng",
+    "short_name": "AAUACA",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Ebonyi State University of ICT, Science and Technology, Oferekpe",
+    "domain": "esuict.edu.ng",
+    "short_name": "ESUICT",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Cross River University of Education and Entrepreneurship, Akampa",
+    "domain": "cruee.edu.ng",
+    "short_name": "CRUEE",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Benue State University of Agriculture Science and Technology, Ihugh",
+    "domain": "bsuast.edu.ng",
+    "short_name": "BSUAST",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "University of Aeronautics and Aerospace Engineering, Ezza, Ebonyi State",
+    "domain": "uaae.edu.ng",
+    "short_name": "UAAE",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "University of Innovation, Science and Technology, Omuma, Imo State",
+    "domain": "ui3.edu.ng",
+    "short_name": "UI3",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Babcock University, Ilishan-Remo",
+    "domain": "babcock.edu.ng",
+    "short_name": "BABCOCK",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Igbinedion University, Okada",
+    "domain": "iu.edu.ng",
+    "short_name": "IU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Madonna University, Okija",
+    "domain": "mu.edu.ng",
+    "short_name": "MU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Bowen University, Iwo",
+    "domain": "bowen.edu.ng",
+    "short_name": "BOWEN",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Benson Idahosa University, Benin City",
+    "domain": "biu.edu.ng",
+    "short_name": "BIU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Covenant University, Ota",
+    "domain": "covenant.edu.ng",
+    "short_name": "COVENANT",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Pan-Atlantic University, Lagos",
+    "domain": "pau.edu.ng",
+    "short_name": "PAU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "American University of Nigeria, Yola",
+    "domain": "aun.edu.ng",
+    "short_name": "AUN",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Ajayi Crowther University, Ibadan",
+    "domain": "acu.edu.ng",
+    "short_name": "ACU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Al-Hikmah University, Ilorin",
+    "domain": "al-hikmah.edu.ng",
+    "short_name": "AL-HIKMAH",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Al-Qalam University, Katsina",
+    "domain": "auk.edu.ng",
+    "short_name": "AUK",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Bells University of Technology, Otta",
+    "domain": "bells.edu.ng",
+    "short_name": "BELLS",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Bingham University, New Karu",
+    "domain": "bingham.edu.ng",
+    "short_name": "BINGHAM",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Caritas University, Enugu",
+    "domain": "caritas.edu.ng",
+    "short_name": "CARITAS",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Crawford University, Igbesa",
+    "domain": "crawford.edu.ng",
+    "short_name": "CRAWFORD",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Crescent University",
+    "domain": "crescent.edu.ng",
+    "short_name": "CRESCENT",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Kwararafa University, Wukari",
+    "domain": "kuw.edu.ng",
+    "short_name": "KUW",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Lead City University, Ibadan",
+    "domain": "lcu.edu.ng",
+    "short_name": "LCU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Novena University, Ogume",
+    "domain": "novena.edu.ng",
+    "short_name": "NOVENA",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Renaissance University, Enugu",
+    "domain": "rnu.edu.ng",
+    "short_name": "RNU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "University of Mkar, Mkar",
+    "domain": "unimkar.edu.ng",
+    "short_name": "UNIMKAR",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Joseph Ayo Babalola University, Ikeji-Arakeji",
+    "domain": "jabu.edu.ng",
+    "short_name": "JABU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Achievers University, Owo",
+    "domain": "achievers.edu.ng",
+    "short_name": "ACHIEVERS",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Caleb University, Lagos",
+    "domain": "caleb.edu.ng",
+    "short_name": "CALEB",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Fountain University, Oshogbo",
+    "domain": "fountain.edu.ng",
+    "short_name": "FOUNTAIN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "African University of Science and Technology, Abuja",
+    "domain": "aust.edu.ng",
+    "short_name": "AUST",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Obong University, Obong Ntak",
+    "domain": "obong.edu.ng",
+    "short_name": "OBONG",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Salem University, Lokoja",
+    "domain": "salem.edu.ng",
+    "short_name": "SALEM",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Tansian University, Umunya",
+    "domain": "tansian.edu.ng",
+    "short_name": "TANSIAN",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Veritas University, Abuja",
+    "domain": "veritas.edu.ng",
+    "short_name": "VERITAS",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Wesley University, Ondo",
+    "domain": "wesley.edu.ng",
+    "short_name": "WESLEY",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Western Delta University, Oghara, Delta State",
+    "domain": "wdu.edu.ng",
+    "short_name": "WDU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Afe Babalola University, Ado-Ekiti",
+    "domain": "abuad.edu.ng",
+    "short_name": "ABUAD",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Godfrey Okoye University, Ugwuomu-Nike, Enugu State",
+    "domain": "gou.edu.ng",
+    "short_name": "GOU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Nile University of Nigeria, Abuja",
+    "domain": "nile.edu.ng",
+    "short_name": "NILE",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Oduduwa University, Ipetumodu, Osun State",
+    "domain": "oduduwa.edu.ng",
+    "short_name": "ODUDUWA",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Paul University, Awka, Anambra State",
+    "domain": "paul.edu.ng",
+    "short_name": "PAUL",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Rhema University, Obeama-Asa, Rivers State",
+    "domain": "rhema.edu.ng",
+    "short_name": "RHEMA",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Wellspring University, Evbuobanosa, Edo State",
+    "domain": "wellspring.edu.ng",
+    "short_name": "WELLSPRING",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Adeleke University, Ede",
+    "domain": "adeleke.edu.ng",
+    "short_name": "ADELEKE",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Baze University",
+    "domain": "baze.edu.ng",
+    "short_name": "BAZE",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Landmark University, Omu-Aran",
+    "domain": "landmark.edu.ng",
+    "short_name": "LANDMARK",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Glorious Vision University, Ogwa, Edo State",
+    "domain": "gvu.edu.ng",
+    "short_name": "GVU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Elizade University, Ilara-Mokin",
+    "domain": "elizade.edu.ng",
+    "short_name": "ELIZADE",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Evangel University, Akaeze",
+    "domain": "evangel.edu.ng",
+    "short_name": "EVANGEL",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Gregory University, Uturu",
+    "domain": "gregory.edu.ng",
+    "short_name": "GREGORY",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "McPherson University, Seriki Sotayo, Ajebo",
+    "domain": "mcu.edu.ng",
+    "short_name": "MCU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Southwestern University, Oku Owa",
+    "domain": "southwestern.edu.ng",
+    "short_name": "SOUTHWESTERN",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Augustine University",
+    "domain": "aui.edu.ng",
+    "short_name": "AUI",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Chrisland University",
+    "domain": "chrisland.edu.ng",
+    "short_name": "CHRISLAND",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Edwin Clark University, Kaigbodo",
+    "domain": "ecu.edu.ng",
+    "short_name": "ECU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Hallmark University, Ijebi Itele, Ogun",
+    "domain": "hallmark.edu.ng",
+    "short_name": "HALLMARK",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Hezekiah University, Umudi",
+    "domain": "hezekiah.edu.ng",
+    "short_name": "HEZEKIAH",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Kings University, Ode Omu",
+    "domain": "kings.edu.ng",
+    "short_name": "KINGS",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Micheal & Cecilia Ibru University",
+    "domain": "mciu.edu.ng",
+    "short_name": "MCIU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Mountain Top University",
+    "domain": "mtu.edu.ng",
+    "short_name": "MTU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Ritman University, Ikot Ekpene, Akwa Ibom",
+    "domain": "ritman.edu.ng",
+    "short_name": "RITMAN",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Summit University, Offa",
+    "domain": "summit.edu.ng",
+    "short_name": "SUMMIT",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Christopher University, Mowe",
+    "domain": "christopher.edu.ng",
+    "short_name": "CHRISTOPHER",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Kola Daisi University, Ibadan",
+    "domain": "kdu.edu.ng",
+    "short_name": "KDU",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Anchor University, Ayobo, Lagos State",
+    "domain": "anchor.edu.ng",
+    "short_name": "ANCHOR",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Dominican University, Ibadan",
+    "domain": "dominican.edu.ng",
+    "short_name": "DOMINICAN",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Legacy University, Okija, Anambra State",
+    "domain": "legacy.edu.ng",
+    "short_name": "LEGACY",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Arthur Jarvis University, Akpoyubo, Cross River State",
+    "domain": "aju.edu.ng",
+    "short_name": "AJU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Ojaja University, Eiyenkorin, Kwara State",
+    "domain": "ojaja.edu.ng",
+    "short_name": "OJAJA",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Coal City University, Enugu State",
+    "domain": "ccu.edu.ng",
+    "short_name": "CCU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Clifford University, Owerrinta, Abia State",
+    "domain": "clifford.edu.ng",
+    "short_name": "CLIFFORD",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Spiritan University, Nneochi, Abia State",
+    "domain": "spiritan.edu.ng",
+    "short_name": "SPIRITAN",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Precious Cornerstone University, Oyo",
+    "domain": "pcu.edu.ng",
+    "short_name": "PCU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "PAMO University of Medical Sciences, Port Harcourt",
+    "domain": "pamo.edu.ng",
+    "short_name": "PAMO",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Atiba University, Oyo",
+    "domain": "atiba.edu.ng",
+    "short_name": "ATIBA",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Eko University of Medical and Health Sciences, Ijanikin, Lagos",
+    "domain": "ekounimed.edu.ng",
+    "short_name": "EKOUNIMED",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Skyline University, Kano",
+    "domain": "sun.edu.ng",
+    "short_name": "SUN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Greenfield University, Kaduna",
+    "domain": "gfu.edu.ng",
+    "short_name": "GFU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Dominion University, Ibadan",
+    "domain": "dominion.edu.ng",
+    "short_name": "DOMINION",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Trinity University, Ogun State",
+    "domain": "trinity.edu.ng",
+    "short_name": "TRINITY",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Westland University, Iwo, Osun State",
+    "domain": "westland.edu.ng",
+    "short_name": "WESTLAND",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Topfaith University, Mkpatak, Akwa Ibom State",
+    "domain": "topfaith.edu.ng",
+    "short_name": "TOPFAITH",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Thomas Adewumi University, Oko-Irese, Kwara State",
+    "domain": "tau.edu.ng",
+    "short_name": "TAU",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Maranatha University, Lagos",
+    "domain": "maranatha.edu.ng",
+    "short_name": "MARANATHA",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Ave Maria University, Piyanko, Nasarawa State",
+    "domain": "avu.edu.ng",
+    "short_name": "AVU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Al-Istiqama University, Sumaila, Kano State",
+    "domain": "al-istiqama.edu.ng",
+    "short_name": "AL-ISTIQAMA",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Mudiame University, Irrua, Edo State",
+    "domain": "mudiame.edu.ng",
+    "short_name": "MUDIAME",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Havilla University, Nde-Ikom, Cross River State",
+    "domain": "havilla.edu.ng",
+    "short_name": "HAVILLA",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Claretian University of Nigeria, Nekede, Imo State",
+    "domain": "cun.edu.ng",
+    "short_name": "CUN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Karl-Kumm University, Vom, Plateau State",
+    "domain": "kku.edu.ng",
+    "short_name": "KKU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "James Hope University, Lagos",
+    "domain": "jhu.edu.ng",
+    "short_name": "JHU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Maryam Abacha American University of Nigeria, Kano State",
+    "domain": "maaun.edu.ng",
+    "short_name": "MAAUN",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Capital City University, Kano State",
+    "domain": "ccuk.edu.ng",
+    "short_name": "CCUK",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Ahman Pategi University, Kwara State",
+    "domain": "apu.edu.ng",
+    "short_name": "APU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "University of Offa, Kwara State",
+    "domain": "unioffa.edu.ng",
+    "short_name": "UNIOFFA",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Mewar International University, Masaka, Nasarawa State",
+    "domain": "mewar.edu.ng",
+    "short_name": "MEWAR",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Edusoko University, Bida, Niger State",
+    "domain": "edusoko.edu.ng",
+    "short_name": "EDUSOKO",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Philomath University, Kuje, Abuja",
+    "domain": "philomath.edu.ng",
+    "short_name": "PHILOMATH",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Khadija University, Majia, Jigawa State",
+    "domain": "khadija.edu.ng",
+    "short_name": "KHADIJA",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Anan University, Kwall, Plateau State",
+    "domain": "anan.edu.ng",
+    "short_name": "ANAN",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "North Eastern University, Gombe",
+    "domain": "neu.edu.ng",
+    "short_name": "NEU",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Al-Ansar University, Maiduguri, Borno",
+    "domain": "al-ansar.edu.ng",
+    "short_name": "AL-ANSAR",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Margaret Lawrence University, Umunede, Delta State",
+    "domain": "mlu.edu.ng",
+    "short_name": "MLU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Khalifa Isiyaku Rabiu University, Kano",
+    "domain": "khairu.edu.ng",
+    "short_name": "KHAIRU",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Sports University, Idumuje-Ugboko, Delta State",
+    "domain": "sportsuni.edu.ng",
+    "short_name": "SPORTSUNI",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Baba Ahmed University, Kano State",
+    "domain": "bau.edu.ng",
+    "short_name": "BAU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Saisa University of Medical Sciences and Technology, Sokoto State",
+    "domain": "saisa.edu.ng",
+    "short_name": "SAISA",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Nigerian British University, Asa, Abia State",
+    "domain": "nbu.edu.ng",
+    "short_name": "NBU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Peter University, Achina-Onneh, Anambra State",
+    "domain": "peter.edu.ng",
+    "short_name": "PETER",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Newgate University, Minna, Niger State",
+    "domain": "newgate.edu.ng",
+    "short_name": "NEWGATE",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "European University of Nigeria, Duboyi, FCT",
+    "domain": "eun.edu.ng",
+    "short_name": "EUN",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "NorthWest University, Sokoto State",
+    "domain": "nwus.edu.ng",
+    "short_name": "NWUS",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Rayhaan University, Kebbi",
+    "domain": "rayhaan.edu.ng",
+    "short_name": "RAYHAAN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Muhammad Kamalud University, Kwara",
+    "domain": "mku.edu.ng",
+    "short_name": "MKU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Sam Maris University, Ondo",
+    "domain": "smu.edu.ng",
+    "short_name": "SMU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Aletheia University, Ago-Iwoye, Ogun State",
+    "domain": "aletheia.edu.ng",
+    "short_name": "ALETHEIA",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Lux Mundi University, Umuahia, Abia State",
+    "domain": "luxmundi.edu.ng",
+    "short_name": "LUXMUNDI",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Maduka University, Ekwegbe, Enugu State",
+    "domain": "maduka.edu.ng",
+    "short_name": "MADUKA",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "PeaceLand University, Enugu State",
+    "domain": "peaceland.edu.ng",
+    "short_name": "PEACELAND",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Amadeus University, Amizi, Abia State",
+    "domain": "amadeus.edu.ng",
+    "short_name": "AMADEUS",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Vision University, Ikogbo, Ogun State",
+    "domain": "vision.edu.ng",
+    "short_name": "VISION",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Azman University, Kano State",
+    "domain": "azman.edu.ng",
+    "short_name": "AZMAN",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Huda University, Gusau, Zamfara State",
+    "domain": "huda.edu.ng",
+    "short_name": "HUDA",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Franco British International University, Kaduna State",
+    "domain": "fbiu.edu.ng",
+    "short_name": "FBIU",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Canadian University of Nigeria, Abuja",
+    "domain": "cun-abuja.edu.ng",
+    "short_name": "CUN-Abuja",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Gerar University of Medical Science, Imope Ijebu, Ogun State",
+    "domain": "gums.edu.ng",
+    "short_name": "GUMS",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "British Canadian University, Obufu, Cross River State",
+    "domain": "bcu.edu.ng",
+    "short_name": "BCU",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Hensard University, Toru-Orua, Sagbama, Bayelsa State",
+    "domain": "hensard.edu.ng",
+    "short_name": "HENSARD",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Amaj University, Kwali, Abuja",
+    "domain": "amaj.edu.ng",
+    "short_name": "AMAJ",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Phoenix University, Agwada, Nasarawa State",
+    "domain": "phoenix.edu.ng",
+    "short_name": "PHOENIX",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Wigwe University, Isiokpo, Rivers State",
+    "domain": "wigwe.edu.ng",
+    "short_name": "WIGWE",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Hillside University of Science and Technology, Okemisi, Ekiti State",
+    "domain": "hust.edu.ng",
+    "short_name": "HUST",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "University on the Niger, Umunya, Anambra State",
+    "domain": "uniniger.edu.ng",
+    "short_name": "UNINIGER",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Elrazi Medical University, Yargaya, Kano State",
+    "domain": "emu.edu.ng",
+    "short_name": "EMU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Venite University, Iloro-Ekiti, Ekiti State",
+    "domain": "venite.edu.ng",
+    "short_name": "VENITE",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Shanahan University, Onitsha, Anambra State",
+    "domain": "shanahan.edu.ng",
+    "short_name": "SHANAHAN",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "The Duke Medical University, Calabar, Cross River State",
+    "domain": "tdmu.edu.ng",
+    "short_name": "TDMU",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Mercy Medical University, Iwo, Ogun State",
+    "domain": "mmu.edu.ng",
+    "short_name": "MMU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Cosmopolitan University, Abuja",
+    "domain": "cosmopolitan.edu.ng",
+    "short_name": "COSMOPOLITAN",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Miva Open University, Abuja",
+    "domain": "miva.edu.ng",
+    "short_name": "MIVA",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Iconic Open University, Sokoto State",
+    "domain": "iconic.edu.ng",
+    "short_name": "ICONIC",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "West Midlands Open University, Ibadan, Oyo State",
+    "domain": "wmou.edu.ng",
+    "short_name": "WMOU",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Al-Muhibbah Open University, Abuja",
+    "domain": "al-muhibbah.edu.ng",
+    "short_name": "AL-MUHIBBAH",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "El-Amin University, Minna, Niger State",
+    "domain": "el-amin.edu.ng",
+    "short_name": "EL-AMIN",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "College of Petroleum and Energy Studies, Kaduna State",
+    "domain": "cpes.edu.ng",
+    "short_name": "CPES",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Jewel University, Gombe State",
+    "domain": "jewel.edu.ng",
+    "short_name": "JEWEL",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Prime University, Kuje, Abuja",
+    "domain": "prime.edu.ng",
+    "short_name": "PRIME",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Nigerian University of Technology and Management, Apapa, Lagos State",
+    "domain": "nutm.edu.ng",
+    "short_name": "NUTM",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Al-Bayan University, Ankpa, Kogi State",
+    "domain": "al-bayan.edu.ng",
+    "short_name": "AL-BAYAN",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Lighthouse University, Evbobanosa, Edo State",
+    "domain": "lighthouse.edu.ng",
+    "short_name": "LIGHTHOUSE",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "African University of Economics, Abuja",
+    "domain": "aue.edu.ng",
+    "short_name": "AUE",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "New City University, Ayetoro, Ogun State",
+    "domain": "newcity.edu.ng",
+    "short_name": "NEWCITY",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "University of Fortune, Igbotako, Ondo State",
+    "domain": "fortune.edu.ng",
+    "short_name": "FORTUNE",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Eranova University, Abuja",
+    "domain": "eranova.edu.ng",
+    "short_name": "ERANOVA",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Minaret University, Ikirun, Osun State",
+    "domain": "minaret.edu.ng",
+    "short_name": "MINARET",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "Abdulrasaq Abubakar Toyin University, Ganmo, Ilorin, Kwara State",
+    "domain": "aatu.edu.ng",
+    "short_name": "AATU",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Southern Atlantic University, Uyo, Akwa Ibom State",
+    "domain": "sau.edu.ng",
+    "short_name": "SAU",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Lens University, Ilemona, Kwara State",
+    "domain": "lens.edu.ng",
+    "short_name": "LENS",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "Monarch University, Iyesi-Ota, Ogun State",
+    "domain": "monarch.edu.ng",
+    "short_name": "MONARCH",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  },
+  {
+    "name": "Tonine Iredia University of Communication, Benin City, Edo State",
+    "domain": "tiuc.edu.ng",
+    "short_name": "TIUC",
+    "primary_color": "#701A75",
+    "secondary_color": "#F472B6"
+  },
+  {
+    "name": "Isaac Balami University of Aeronautics and Management, Lagos State",
+    "domain": "ibuam.edu.ng",
+    "short_name": "IBUAM",
+    "primary_color": "#1E1B4B",
+    "secondary_color": "#818CF8"
+  },
+  {
+    "name": "Kevin Eze University, Mgbowo, Enugu State",
+    "domain": "keu.edu.ng",
+    "short_name": "KEU",
+    "primary_color": "#311042",
+    "secondary_color": "#E0B0FF"
+  },
+  {
+    "name": "Tazkiyah University, Kaduna State",
+    "domain": "tazkiyah.edu.ng",
+    "short_name": "TAZKIYAH",
+    "primary_color": "#002244",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Leadership University, Abuja",
+    "domain": "leadership.edu.ng",
+    "short_name": "LEADERSHIP",
+    "primary_color": "#004B49",
+    "secondary_color": "#FFD700"
+  },
+  {
+    "name": "Jimoh Babalola University, Ilorin, Kwara State",
+    "domain": "jbu.edu.ng",
+    "short_name": "JBU",
+    "primary_color": "#7A1C1C",
+    "secondary_color": "#C0C0C0"
+  },
+  {
+    "name": "Bridget University Mbaise, Okirika-Nweke, Imo State",
+    "domain": "bridget.edu.ng",
+    "short_name": "BRIDGET",
+    "primary_color": "#1E3A8A",
+    "secondary_color": "#3B82F6"
+  },
+  {
+    "name": "Greenland University, Jalingo, Taraba State",
+    "domain": "greenland.edu.ng",
+    "short_name": "GREENLAND",
+    "primary_color": "#4C1D95",
+    "secondary_color": "#F59E0B"
+  },
+  {
+    "name": "JEFAP University, Suleja, Niger State",
+    "domain": "jefap.edu.ng",
+    "short_name": "JEFAP",
+    "primary_color": "#065F46",
+    "secondary_color": "#10B981"
+  },
+  {
+    "name": "Azione Verde University, Amaigbo, Imo State",
+    "domain": "avu-azione.edu.ng",
+    "short_name": "AVU-Azione",
+    "primary_color": "#1E293B",
+    "secondary_color": "#94A3B8"
+  },
+  {
+    "name": "Unique Open University, Ojo, Lagos State",
+    "domain": "uou.edu.ng",
+    "short_name": "UOU",
+    "primary_color": "#581C87",
+    "secondary_color": "#C084FC"
+  },
+  {
+    "name": "American Open University, Abeokuta, Ogun State",
+    "domain": "aou.edu.ng",
+    "short_name": "AOU",
+    "primary_color": "#881337",
+    "secondary_color": "#FB7185"
+  }
+]
