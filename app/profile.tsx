@@ -431,6 +431,7 @@ export default function ProfileScreen() {
                               onPress={async () => {
                                 setDropdownOpen(false);
                                 setUniSearchQuery('');
+                                useFeedStore.getState().reset();
                                 setActiveUniversity(uni);
                                 await supabase
                                   .from('profiles')

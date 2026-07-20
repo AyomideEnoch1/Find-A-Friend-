@@ -35,6 +35,7 @@ interface FeedState {
   activeTab: 'forYou' | 'following'
   error: string | null
   feedMode: 'local' | 'global'
+  lastLoadedUniId?: string | null
 
   loadFeed: () => Promise<void>
   refresh: () => Promise<void>
@@ -89,6 +90,12 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     }
     // ─────────────────────────────────────────────────────────────────────
 
+    // Reset posts state if switching university environments or modes
+    const targetUniId = feedMode === 'local' ? activeUniversity?.id : 'global'
+    if (get().lastLoadedUniId !== targetUniId) {
+      set({ posts: [], cursor: null, hasMore: true, lastLoadedUniId: targetUniId })
+    }
+
     set({ loading: true, error: null })
 
     try {
@@ -137,6 +144,11 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     if (feedMode === 'local' && !activeUniversity?.id) {
       set({ refreshing: false })
       return
+    }
+
+    const targetUniId = feedMode === 'local' ? activeUniversity?.id : 'global'
+    if (get().lastLoadedUniId !== targetUniId) {
+      set({ posts: [], cursor: null, hasMore: true, lastLoadedUniId: targetUniId })
     }
 
     set({ refreshing: true, error: null })
